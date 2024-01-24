@@ -38,16 +38,22 @@
  <br>
  <br>
      <br>
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
-<input id='browserinput' list="browsers">
-
-<datalist id="browsers">
-  <option id="1" value="Internet Explorer" />
-  <option id="2" value="Firefox" />
-  <option id="3" value="Chrome" />
-  <option id="4" value="Opera" />
-  <option id="5" value="Safari" />
+   $(document).ready(function() {
+  $("input[name='UserCity']").on('input', function(e){
+     var selectedVal = $(this).val();
+     document.getElementById("selected").innerHTML = selectedVal ;
+     document.getElementById("selecteddiv").innerHTML = selectedVal ;
+  });
+});
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+<input type="text" name="UserCity" id="UserCity" label="User City" max_length="25" list="UserCitySelect" required="">
+<datalist id="UserCitySelect">
+    <option value="Los Angeles">Los Angeles</option>
+    <option value="New York">New York</option>
+    <option value="Chicago">Chicago</option>
 </datalist>
+<p id="selected"></p>
+<div id="selecteddiv"><div>
  <br>
       <input type="text" id="favCktPlayer" list="CktPlayers" style="width: 300px;">  
  <datalist id="CktPlayers">  

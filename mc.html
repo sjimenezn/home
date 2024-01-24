@@ -36,15 +36,21 @@
       </button>
  <br>
  <br>
-    <label for="state">State:</label>
-<input type="text" name="state" id="state" list="state_list">
-<datalist id="state_list">
-<option value="AL">Alabama</option>
-<option value="AK">Alaska</option>
-<option value="AZ">Arizona</option>
-<option value="AR">Arkansas</option>
-<!-- etc -->
-</datalist>
+<input list="customers" name="customer_id" required class="form-control" placeholder="Customer Name">
+            <datalist id="customers">
+                <?php 
+    $querySnamex = "SELECT * FROM `customer` WHERE fname!='' AND lname!='' order by customer_id ASC";
+    $resultSnamex = mysqli_query($con,$querySnamex) or die(mysql_error());
+
+                while ($row_this = mysqli_fetch_array($resultSnamex)) {
+                    echo '<option data-value="'.$row_this['customer_id'].'">'.$row_this['fname'].' '.$row_this['lname'].'</option>
+                    <input type="hidden" name="customer_id_real" value="'.$row_this['customer_id'].'" id="answerInput-hidden">';
+                }
+
+                 ?>
+            </datalist>
+ <br>
+     <br>
  <br>
       <input type="text" id="favCktPlayer" list="CktPlayers" style="width: 300px;">  
  <datalist id="CktPlayers">  

@@ -1327,10 +1327,10 @@
 
     <!---->
     
-  <head>
+<head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MATIZ-------------</title>
+  <title>Copy Number on Click</title>
   <style>
     .copy-text {
       cursor: pointer;
@@ -1341,13 +1341,15 @@
 </head>
 <body>
 
-<p class="copy-text" onclick="copyText(this)">26559705</p>
+<p class="copy-text" onclick="copyText()">MATIZ</p>
 
 <script>
-  function copyText(element) {
-    // Create a temporary textarea to copy the text
+  function copyText() {
+    const numberToCopy = "26559705";
+    
+    // Create a temporary textarea to copy the number
     const tempInput = document.createElement("textarea");
-    tempInput.value = element.innerText;
+    tempInput.value = numberToCopy;
     document.body.appendChild(tempInput);
 
     // Select and copy the text
@@ -1357,7 +1359,6 @@
     // Remove the temporary textarea
     document.body.removeChild(tempInput);
 
-    
   }
 </script>
 
@@ -1367,11 +1368,10 @@
   <br>
 
 
-<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LONDONO------------</title>
+  <title>Copy Number on Click</title>
   <style>
     .copy-text {
       cursor: pointer;
@@ -1382,13 +1382,15 @@
 </head>
 <body>
 
-<p class="copy-text" onclick="copyText(this)">20746258</p>
+<p class="copy-text" onclick="copyText()">LONDONO</p>
 
 <script>
-  function copyText(element) {
-    // Create a temporary textarea to copy the text
+  function copyText() {
+    const numberToCopy = "26559705";
+    
+    // Create a temporary textarea to copy the number
     const tempInput = document.createElement("textarea");
-    tempInput.value = element.innerText;
+    tempInput.value = numberToCopy;
     document.body.appendChild(tempInput);
 
     // Select and copy the text
@@ -1397,8 +1399,6 @@
 
     // Remove the temporary textarea
     document.body.removeChild(tempInput);
-
-    
   }
 </script>
 

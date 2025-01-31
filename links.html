@@ -1330,7 +1330,7 @@
   <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Copy Text on Click</title>
+  <title>MATIZ-------------</title>
   <style>
     .copy-text {
       cursor: pointer;
@@ -1341,7 +1341,7 @@
 </head>
 <body>
 
-<p class="copy-text" onclick="copyText(this)">Click me to copy this text!</p>
+<p class="copy-text" onclick="copyText(this)">26559705</p>
 
 <script>
   function copyText(element) {
@@ -1357,7 +1357,7 @@
     // Remove the temporary textarea
     document.body.removeChild(tempInput);
 
-    alert("Copied: " + tempInput.value);
+    
   }
 </script>
 
@@ -1366,5 +1366,42 @@
 
   <br>
 
+
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LONDONO------------</title>
+  <style>
+    .copy-text {
+      cursor: pointer;
+      color: blue;
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+
+<p class="copy-text" onclick="copyText(this)">20746258</p>
+
+<script>
+  function copyText(element) {
+    // Create a temporary textarea to copy the text
+    const tempInput = document.createElement("textarea");
+    tempInput.value = element.innerText;
+    document.body.appendChild(tempInput);
+
+    // Select and copy the text
+    tempInput.select();
+    document.execCommand("copy");
+
+    // Remove the temporary textarea
+    document.body.removeChild(tempInput);
+
+    
+  }
+</script>
+
+</body>
   
 </body></html>

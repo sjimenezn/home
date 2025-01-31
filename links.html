@@ -9,9 +9,30 @@
    <!---->
       <p _ngcontent-c33="">SCHEDULED
       <span _ngcontent-c33="" class="text-muted"></span></p>
-      <input _ngcontent-c33="" name="Holding" type="text" value="AV">
-      <input _ngcontent-c33="" name="CrewMemberUniqueId" type="text" value="32385184" placeholder="ID">
-      <input _ngcontent-c33="" name="Year" type="text" value="2025">
+      <input _ngcontent-c33="" name="Holding" type="text" value="<input _ngcontent-c34="" name="CrewMemberUniqueId" type="text" value="" placeholder="ID" id="CrewMemberUniqueId">
+<a href="#" class="action-link" onclick="pasteText(event)">PASTE</a>
+
+<script>
+  async function pasteText(event) {
+    event.preventDefault(); // Prevents the page from navigating
+    try {
+      const clipboardText = await navigator.clipboard.readText();
+      document.getElementById("CrewMemberUniqueId").value = clipboardText;
+      alert("Pasted: " + clipboardText);
+    } catch (err) {
+      alert("Failed to read clipboard contents. Please allow clipboard access.");
+    }
+  }
+</script>
+
+<style>
+  .action-link {
+    cursor: pointer;
+    color: blue;
+    text-decoration: underline;
+    margin-left: 10px;
+  }
+</style><input _ngcontent-c33="" name="Year" type="text" value="2025">
       <input _ngcontent-c33="" name="Month" type="text" value="" placeholder="Month">
 
       <button _ngcontent-c33="" class="btn btn-outline-dark btn-block btn-sm" type="submit">        DOWNLOAD SCHEDULED

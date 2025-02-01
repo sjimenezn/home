@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fetch and Display API Data</title>
+  <title>Fetch User Info</title>
 </head>
 <body>
 
-<h3>Fetch User Info</h3>
-<button onclick="fetchUserInfo()">Get User Info</button>
-<pre id="apiResponse"></pre>
+<h3>Get User Info</h3>
+<button onclick="fetchUserInfo()">Fetch User Data</button>
+<pre id="responseOutput"></pre>
 
 <script>
   async function fetchUserInfo() {
-    const apiUrl = "https://azrav-webapp-ap105.azurewebsites.net/api/Users/GetUserByIdentityNumber?identityNumber=1032385184";
+    const apiUrl = "https://azrav-webapp-apl05.azurewebsites.net/api/Users/GetUserByIdentityNumber?identityNumber=1032385184";
 
     try {
       const response = await fetch(apiUrl);
@@ -23,12 +23,12 @@
       }
 
       const data = await response.json();
-
-      // Display the entire API response in a readable format
-      document.getElementById("apiResponse").innerText = JSON.stringify(data, null, 2);
+      
+      // Display the entire response in a readable format
+      document.getElementById("responseOutput").innerText = JSON.stringify(data, null, 2);
       
     } catch (error) {
-      document.getElementById("apiResponse").innerText = "Error: " + error.message;
+      document.getElementById("responseOutput").innerText = "Error: " + error.message;
     }
   }
 </script>

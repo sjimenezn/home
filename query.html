@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fetch Profile Data</title>
+</head>
+<body>
+
+<h3>Fetch User Profile</h3>
+
+<label for="userId">Enter User ID:</label>
+<input type="text" id="userId" placeholder="1032385184">
+<button onclick="fetchProfile()">Get Profile</button>
+
+<pre id="profileInfo"></pre>
+
+<script>
+  async function fetchProfile() {
+    const userId = document.getElementById("userId").value.trim();
+    if (!userId) {
+      alert("Please enter a User ID.");
+      return;
+    }
+
+    const apiUrl = `https://azrav-webapp-ap105.azurewebsites.net/api/Profile?userId=${userId}`;
+
+    try {
+      const response = await fetch(apiUrl);
+      if (!response.ok) throw new Error("Failed to fetch profile data");
+
+      const data = await response.json();
+      document.getElementById("profileInfo").innerText = JSON.stringify(data, null, 2);
+    } catch (error) {
+      document.getElementById("profileInfo").innerText = "Error: " + error.message;
+    }
+  }
+</script>
+
+</body>
+</html>

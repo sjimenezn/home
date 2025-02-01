@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fetch User Telephone Number</title>
+  <title>Fetch User TLC</title>
 </head>
 <body>
 
-<h3>Get User Telephone Number</h3>
-<button onclick="fetchTelephone()">Get Telephone Number</button>
-<p id="telephoneNumber"></p>
+<h3>Get User TLC</h3>
+<button onclick="fetchTLC()">Get TLC Value</button>
+<p id="tlcValue"></p>
 
 <script>
-  async function fetchTelephone() {
+  async function fetchTLC() {
     const apiUrl = "https://azrav-webapp-ap105.azurewebsites.net/api/Users/GetUserByIdentityNumber?identityNumber=1032385184";
 
     try {
@@ -24,13 +24,13 @@
 
       const data = await response.json();
       
-      // Extract the TelephoneNumber field
-      const telephoneNumber = data.TelephoneNumber || "Not available";
+      // Extract the TLC field
+      const tlcValue = data.TLC || "Not available";
       
-      document.getElementById("telephoneNumber").innerText = "Telephone Number: " + telephoneNumber;
+      document.getElementById("tlcValue").innerText = "TLC Value: " + tlcValue;
       
     } catch (error) {
-      document.getElementById("telephoneNumber").innerText = "Error: " + error.message;
+      document.getElementById("tlcValue").innerText = "Error: " + error.message;
     }
   }
 </script>

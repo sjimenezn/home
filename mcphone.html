@@ -1,37 +1,49 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fetch User Profile</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Information</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        #user-info {
+            margin-top: 20px;
+        }
+    </style>
 </head>
 <body>
+    <h1>User Information</h1>
+    <button onclick="fetchUserInfo()">Get User Info</button>
+    <div id="user-info"></div>
 
-<h3>Fetch User Profile Information</h3>
-<button onclick="fetchUserProfile()">Fetch Profile</button>
-<pre id="profileInfo"></pre>
+    <script>
+        function fetchUserInfo() {
+            const identityNumber = '1020746258';
+            const url = `https://azrav-webapp-apl05.azurewebsites.net/api/Users/GetUserByIdentityNumber?identityNumber=${identityNumber}`;
 
-<script>
-  async function fetchUserProfile() {
-    const apiUrl = "https://azrav-webapp-apl05.azurewebsites.net/api/Users/GetUserByIdentityNumber?identityNumber=1032385184";
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    displayUserInfo(data);
+                })
+                .catch(error => {
+                    console.error('Error fetching user info:', error);
+                });
+        }
 
-    try {
-      const response = await fetch(apiUrl);
-
-      if (!response.ok) {
-        throw new Error(`Error ${response.status}: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-
-      // Display all user profile information in readable format
-      document.getElementById("profileInfo").innerText = JSON.stringify(data, null, 2);
-
-    } catch (error) {
-      document.getElementById("profileInfo").innerText = "Error: " + error.message;
-    }
-  }
-</script>
-
+        function displayUserInfo(user) {
+            const userInfoDiv = document.getElementById('user-info');
+            userInfoDiv.innerHTML = `
+                <p><strong>Identity Number:</strong> ${user.identityNumber}</p>
+                <p><strong>Name:</strong> ${user.name}</p>
+                <p><strong>Email:</strong> ${user.email}</p>
+                <p><strong>Phone:</strong> ${user.phone}</p>
+                <!-- Add more fields as needed -->
+            `;
+        }
+    </script>
 </body>
 </html>

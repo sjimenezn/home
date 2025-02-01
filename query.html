@@ -23,10 +23,17 @@
       return;
     }
 
-    const apiUrl = `https://azrav-webapp-ap105.azurewebsites.net/api/Profile?userId=${userId}`;
+    const apiUrl = "https://azrav-webapp-ap105.azurewebsites.net/api/Profile";
 
     try {
-      const response = await fetch(apiUrl);
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ userId: userId })
+      });
+
       if (!response.ok) throw new Error("Failed to fetch profile data");
 
       const data = await response.json();

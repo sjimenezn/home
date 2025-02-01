@@ -3,34 +3,32 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fetch User TLC</title>
+  <title>Fetch and Display API Data</title>
 </head>
 <body>
 
-<h3>Get User TLC</h3>
-<button onclick="fetchTLC()">Get TLC Value</button>
-<p id="tlcValue"></p>
+<h3>Fetch User Info</h3>
+<button onclick="fetchUserInfo()">Get User Info</button>
+<pre id="apiResponse"></pre>
 
 <script>
-  async function fetchTLC() {
+  async function fetchUserInfo() {
     const apiUrl = "https://azrav-webapp-ap105.azurewebsites.net/api/Users/GetUserByIdentityNumber?identityNumber=1032385184";
 
     try {
       const response = await fetch(apiUrl);
-
+      
       if (!response.ok) {
-        throw new Error("Failed to fetch user data");
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
       }
 
       const data = await response.json();
-      
-      // Extract the TLC field
-      const tlcValue = data.TLC || "Not available";
-      
-      document.getElementById("tlcValue").innerText = "TLC Value: " + tlcValue;
+
+      // Display the entire API response in a readable format
+      document.getElementById("apiResponse").innerText = JSON.stringify(data, null, 2);
       
     } catch (error) {
-      document.getElementById("tlcValue").innerText = "Error: " + error.message;
+      document.getElementById("apiResponse").innerText = "Error: " + error.message;
     }
   }
 </script>

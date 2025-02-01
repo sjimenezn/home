@@ -3,32 +3,32 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fetch User Info</title>
+  <title>Fetch User Profile</title>
 </head>
 <body>
 
-<h3>Get User Info</h3>
-<button onclick="fetchUserInfo()">Fetch User Data</button>
-<pre id="responseOutput"></pre>
+<h3>Fetch User Profile Information</h3>
+<button onclick="fetchUserProfile()">Fetch Profile</button>
+<pre id="profileInfo"></pre>
 
 <script>
-  async function fetchUserInfo() {
+  async function fetchUserProfile() {
     const apiUrl = "https://azrav-webapp-apl05.azurewebsites.net/api/Users/GetUserByIdentityNumber?identityNumber=1032385184";
 
     try {
       const response = await fetch(apiUrl);
-      
+
       if (!response.ok) {
         throw new Error(`Error ${response.status}: ${response.statusText}`);
       }
 
       const data = await response.json();
-      
-      // Display the entire response in a readable format
-      document.getElementById("responseOutput").innerText = JSON.stringify(data, null, 2);
-      
+
+      // Display all user profile information in readable format
+      document.getElementById("profileInfo").innerText = JSON.stringify(data, null, 2);
+
     } catch (error) {
-      document.getElementById("responseOutput").innerText = "Error: " + error.message;
+      document.getElementById("profileInfo").innerText = "Error: " + error.message;
     }
   }
 </script>

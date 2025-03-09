@@ -47,6 +47,13 @@
  <br>
      <br>
  <br>
+con clear
+  <script>
+function clearDropdown() {
+    // Clear the dropdown input
+    document.getElementById("favCktPlayer").value = "";
+}
+</script>
       <input type="text" id="favCktPlayer" list="CktPlayers" style="width: 300px;" onchange="fillCrewMemberIds()">
     <button type="button" onclick="clearDropdown()">Clear</button>  
  <datalist id="CktPlayers">  

@@ -1325,6 +1325,21 @@
  </datalist> 
     <br>
 <script>
+function fillCrewMemberIds() {
+    let input = document.getElementById("favCktPlayer");
+    let selectedValue = input.value.trim();
+    
+    if (selectedValue.length >= 8) {
+        let last8Chars = selectedValue.slice(-8).trim(); // Extract last 8 characters
+
+        // Insert into both CrewMemberUniqueId fields
+        document.getElementById("scheduledCrewId").value = last8Chars;
+        document.getElementById("actualCrewId").value = last8Chars;
+    }
+}
+</script>
+    
+    script>
 function copyLast8Chars() {
     let input = document.getElementById("favCktPlayer");
     let selectedValue = input.value.trim();
@@ -1336,7 +1351,7 @@ function copyLast8Chars() {
             .catch(err => console.error("Failed to copy:", err));
     }
 }
-</script>
+</script
     <!---->
     
   

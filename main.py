@@ -126,38 +126,7 @@ Consumo actual     : {load_w} W"""
     except Exception as e_outer:
         log_message(f"❌ Fatal error: {e_outer}")
 
-# Telegram Handlers
-def start(update: Update, context: CallbackContext):
-    chat_log.add(update.effective_chat.id)
-    update.message.reply_text("¡Bienvenido al monitor Growatt! Usa /status para ver el estado del inversor.")
 
-def send_status(update: Update, context: CallbackContext):
-    chat_log.add(update.effective_chat.id)
-    msg = f"""⚡ Estado del Inversor ⚡
-
-Voltaje Red       : {current_data.get('ac_input_voltage', 'N/A')} V / {current_data.get('ac_input_frequency', 'N/A')} Hz
-Voltaje Inversor: {current_data.get('ac_output_voltage', 'N/A')} V / {current_data.get('ac_output_frequency', 'N/A')} Hz
-Consumo          : {current_data.get('load_power', 'N/A')} W
-Batería              : {current_data.get('battery_capacity', 'N/A')}%"""
-    update.message.reply_text(msg)
-
-def send_chatlog(update: Update, context: CallbackContext):
-    chat_log.add(update.effective_chat.id)
-    ids = "\n".join(str(cid) for cid in chat_log)
-    update.message.reply_text(f"IDs registrados:\n{ids}")
-
-def stop_bot(update: Update, context: CallbackContext):
-    update.message.reply_text("Bot detenido.")
-    log_message("Bot detenido por comando /stop")
-    threading.Thread(target=updater.stop).start()
-
-updater = Updater(token=TELEGRAM_TOKEN, use_context=True)
-dp = updater.dispatcher
-dp.add_handler(CommandHandler("start", start))
-dp.add_handler(CommandHandler("status", send_status))
-dp.add_handler(CommandHandler("chatlog", send_chatlog))
-dp.add_handler(CommandHandler("stop", stop_bot))
-updater.start_polling()
 
 # Flask Routes
 @app.route("/")

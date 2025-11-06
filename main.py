@@ -457,6 +457,20 @@ PDF_VIEW_TEMPLATE = """
 
 @app.route('/')
 def index():
+    global schedule_data, last_fetch_time
+    
+    # 🔄 ADD THIS: Automatically fetch fresh data on every page load
+    logger.info("🔄 Auto-fetching fresh data on page load...")
+    new_data = client.get_schedule_data()
+    if new_data is not None:
+        schedule_data = new_data
+        last_fetch_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        logger.info("✅ Auto-fetch completed successfully!")
+    # If fetch fails, keep existing data but log warning
+    elif schedule_data is None:
+        logger.warning("⚠️ Auto-fetch failed and no existing data available")
+    
+    # Rest of the existing display logic remains the same
     total_days = 0
     total_assignments = 0
     

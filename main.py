@@ -500,7 +500,7 @@ CALENDAR_VIEW_TEMPLATE = """
                     <!-- Calendar days -->
                     {% set days_data = get_calendar_days(month) %}
                     {% for day in days_data %}
-                    <div class="calendar-day {% if day.weekday >= 5 %}weekend{% endif %} {% if not day.has_data %}empty{% endif %}">
+                    <div class="calendar-day {% if day['weekday'] >= 5 %}weekend{% endif %} {% if not day.has_data %}empty{% endif %}">
                         {% if day.has_data %}
                         <div class="day-number">{{ day.day }}</div>
                         <div class="day-dem">DEM: {{ day.dem }}</div>

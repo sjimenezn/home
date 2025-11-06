@@ -238,6 +238,9 @@ SCHEDULE_VIEW_TEMPLATE = """
         .error { color: #dc3545; text-align: center; padding: 20px; }
         .success { color: #155724; background: #d4edda; padding: 10px; border-radius: 5px; margin: 10px 0; text-align: center; }
         .assignment-id { color: #999; font-size: 0.7em; float: right; }
+        .current-day { border: 3px solid #ffc107; background: #fff3cd; }
+        .actual-time { color: #dc3545; font-weight: bold; }
+        .scheduled-time { color: #6c757d; }
     </style>
 </head>
 <body>
@@ -269,11 +272,11 @@ SCHEDULE_VIEW_TEMPLATE = """
             {% for month in schedule_data %}
             <div class="month-section">
                 <div class="month-header">
-                    <h3>📅 Month {{ loop.index }}</h3>
+                    <h3>📅 {{ month_names[loop.index0] }}</h3>
                 </div>
                 {% for day in month %}
                     {% if day and day is mapping %}
-                    <div class="day-card">
+                    <div class="day-card {% if day.StartDate[:10] == current_date %}current-day{% endif %}" id="day-{{ day.StartDate[:10] }}">
                         <div class="day-header">
                             <strong>{{ day.StartDate[:10] if day.StartDate else 'Unknown' }}</strong>
                             <span style="float: right;">DEM: {{ day.Dem }}</span>
@@ -297,8 +300,10 @@ SCHEDULE_VIEW_TEMPLATE = """
                                 </div>
                                 
                                 <div class="time-info">
-                                    <strong>🕐 Time:</strong> {{ assignment.StartDateLocal[:16] if assignment.StartDateLocal else 'N/A' }} 
-                                    to {{ assignment.EndDateLocal[:16] if assignment.EndDateLocal else 'N/A' }}
+                                    <strong>🕐 Time:</strong> 
+                                    <span class="actual-time">{{ assignment.StartDateLocal[11:16] if assignment.StartDateLocal else 'N/A' }}</span> 
+                                    to <span class="actual-time">{{ assignment.EndDateLocal[11:16] if assignment.EndDateLocal else 'N/A' }}</span>
+                                    ({{ assignment.StartDateLocal[:10] if assignment.StartDateLocal else '' }})
                                 </div>
 
                                 {% if assignment.AircraftRegistrationNumber %}
@@ -326,13 +331,21 @@ SCHEDULE_VIEW_TEMPLATE = """
                                             <strong>Duration:</strong> {{ assignment.FlighAssignement.Duration }} min (Scheduled: {{ assignment.FlighAssignement.ScheduledDuration }} min)
                                         </div>
                                         <div class="flight-detail">
-                                            <strong>Departure:</strong> {{ assignment.FlighAssignement.ScheduledDepartureDate[:16] }}
+                                            <strong>Departure:</strong> 
+                                            <span class="scheduled-time">{{ assignment.FlighAssignement.ScheduledDepartureDate[11:16] if assignment.FlighAssignement.ScheduledDepartureDate else 'N/A' }}</span>
+                                            {% if assignment.FlighAssignement.DepartureDate %}
+                                            → <span class="actual-time">{{ assignment.FlighAssignement.DepartureDate[11:16] if assignment.FlighAssignement.DepartureDate else 'N/A' }}</span>
+                                            {% endif %}
                                             {% if assignment.FlighAssignement.DepartureStand %}
                                             | Stand: {{ assignment.FlighAssignement.DepartureStand }}
                                             {% endif %}
                                         </div>
                                         <div class="flight-detail">
-                                            <strong>Arrival:</strong> {{ assignment.FlighAssignement.ScheduledArrivalDate[:16] }}
+                                            <strong>Arrival:</strong> 
+                                            <span class="scheduled-time">{{ assignment.FlighAssignement.ScheduledArrivalDate[11:16] if assignment.FlighAssignement.ScheduledArrivalDate else 'N/A' }}</span>
+                                            {% if assignment.FlighAssignement.ArrivalDate %}
+                                            → <span class="actual-time">{{ assignment.FlighAssignement.ArrivalDate[11:16] if assignment.FlighAssignement.ArrivalDate else 'N/A' }}</span>
+                                            {% endif %}
                                             {% if assignment.FlighAssignement.ArrivalStand %}
                                             | Stand: {{ assignment.FlighAssignement.ArrivalStand }}
                                             {% endif %}
@@ -405,6 +418,14 @@ SCHEDULE_VIEW_TEMPLATE = """
                 button.textContent = '🔄 Refresh Schedule';
             });
     }
+
+    // Scroll to current date on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        const currentDayElement = document.querySelector('.current-day');
+        if (currentDayElement) {
+            currentDayElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    });
     </script>
 </body>
 </html>
@@ -536,6 +557,22 @@ PDF_VIEW_TEMPLATE = """
 </html>
 """
 
+def get_month_name_from_data(month_data):
+    """Extract month name from the first valid day in month data"""
+    if not month_data or not isinstance(month_data, list):
+        return "Unknown Month"
+    
+    for day in month_data:
+        if day and isinstance(day, dict) and day.get('StartDate'):
+            try:
+                date_str = day['StartDate'][:10]  # Get YYYY-MM-DD
+                date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+                return date_obj.strftime('%B %Y')  # e.g., "October 2025"
+            except (ValueError, KeyError):
+                continue
+    
+    return "Unknown Month"
+
 @app.route('/')
 def index():
     global schedule_data, last_fetch_time
@@ -553,8 +590,13 @@ def index():
     
     total_days = 0
     total_assignments = 0
+    month_names = []
+    current_date = datetime.now().strftime('%Y-%m-%d')
     
     if schedule_data and isinstance(schedule_data, list):
+        # Generate month names for display
+        month_names = [get_month_name_from_data(month) for month in schedule_data]
+        
         for month in schedule_data:
             if isinstance(month, list):
                 total_days += len(month)
@@ -571,7 +613,9 @@ def index():
         total_days=total_days,
         total_assignments=total_assignments,
         refresh_message=refresh_message,
-        current_crew_id=current_crew_id
+        current_crew_id=current_crew_id,
+        month_names=month_names,
+        current_date=current_date
     )
 
 @app.route('/pdf')

@@ -32,18 +32,18 @@ class CrewAPIClient:
         self.subscription_key = "9d32877073ce403795da2254ae9c2de7"
         
     def login(self, email, password):
-        """Login using the API"""
+        """Login using the API - FIXED SCOPE"""
         try:
             logger.info("🔐 Attempting API login...")
             
-            # Use URL-encoded form data as seen in the traffic
+            # FIXED: Use the exact scope from the successful traffic capture
             form_data = {
                 'username': email,
                 'password': password,
                 'grant_type': 'password',
-                'client_id': 'angularclient',
+                'client_id': 'angularclient', 
                 'client_secret': 'angularclient',
-                'scope': 'openid profile roles mycrew-flight-api offline_access'
+                'scope': 'email openid profile CrewApp offline_access'
             }
             
             headers = {
@@ -51,8 +51,10 @@ class CrewAPIClient:
                 "Content-Type": "application/x-www-form-urlencoded",
                 "Origin": "https://mycrew.avianca.com",
                 "Referer": "https://mycrew.avianca.com/",
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36"
             }
+            
+            logger.info(f"📡 Sending login request to: {self.auth_url}")
             
             response = self.session.post(
                 self.auth_url,
@@ -68,14 +70,19 @@ class CrewAPIClient:
                 self.auth_token = f"Bearer {token_data['access_token']}"
                 self.is_logged_in = True
                 logger.info("✅ API login successful!")
+                logger.info(f"🔑 Token type: {token_data.get('token_type', 'Unknown')}")
+                logger.info(f"⏰ Expires in: {token_data.get('expires_in', 'Unknown')} seconds")
                 return True
             else:
                 logger.error(f"❌ API login failed: {response.status_code}")
-                logger.error(f"Response: {response.text}")
+                logger.error(f"Response headers: {dict(response.headers)}")
+                logger.error(f"Response body: {response.text}")
                 return False
                 
         except Exception as e:
             logger.error(f"❌ Login error: {e}")
+            import traceback
+            logger.error(f"❌ Traceback: {traceback.format_exc()}")
             return False
     
     def get_schedule_data(self, timezone_offset=-300):
@@ -98,7 +105,7 @@ class CrewAPIClient:
                 "Accept": "application/json, text/plain, */*",
                 "Origin": "https://mycrew.avianca.com",
                 "Referer": "https://mycrew.avianca.com/",
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36"
             }
             
             logger.info(f"🌐 Making request to: {url}")
@@ -112,15 +119,14 @@ class CrewAPIClient:
                 schedule_data = response.json()
                 logger.info(f"✅ Successfully fetched schedule data")
                 
-                # FIXED: Properly handle the data structure based on the traffic analysis
+                # Properly handle the data structure based on the traffic analysis
                 if isinstance(schedule_data, list):
                     logger.info(f"📅 Data covers {len(schedule_data)} days")
                     
-                    # Log basic info about the data - FIXED: Proper dictionary access
+                    # Log basic info about the data
                     for i, day in enumerate(schedule_data[:3]):
                         if isinstance(day, dict):
                             date = day.get('StartDate', 'Unknown')
-                            # CORRECT: It's 'AssignementList' as seen in the traffic
                             assignments_list = day.get('AssignementList', [])
                             assignments_count = len(assignments_list)
                             logger.info(f"   📋 {date}: {assignments_count} assignments")
@@ -172,6 +178,7 @@ HTML_TEMPLATE = """
             border: none; border-radius: 5px; cursor: pointer; margin: 10px;
         }
         .button:hover { background: #0056b3; }
+        .button:disabled { background: #6c757d; cursor: not-allowed; }
         .data-section { margin: 20px 0; }
         .day-card { 
             border: 1px solid #ddd; padding: 15px; margin: 10px 0; 
@@ -189,6 +196,9 @@ HTML_TEMPLATE = """
             margin: 10px 0; border-left: 4px solid #6c757d;
         }
         .loading { color: #6c757d; }
+        .status { padding: 10px; border-radius: 5px; margin: 10px 0; }
+        .status-success { background: #d4edda; border: 1px solid #c3e6cb; }
+        .status-error { background: #f8d7da; border: 1px solid #f5c6cb; }
     </style>
 </head>
 <body>
@@ -196,7 +206,7 @@ HTML_TEMPLATE = """
         <h1>🚀 My Crew Schedule Data</h1>
         
         <div>
-            <button class="button" onclick="fetchData()">🔄 Fetch Schedule Data</button>
+            <button class="button" onclick="fetchData()" id="fetchBtn">🔄 Fetch Schedule Data</button>
             <button class="button" onclick="location.reload()">🔄 Refresh Page</button>
         </div>
 
@@ -241,9 +251,10 @@ HTML_TEMPLATE = """
             </details>
         </div>
         {% elif error %}
-        <div class="data-section error">
+        <div class="data-section status status-error">
             <h3>❌ Error</h3>
             <p>{{ error }}</p>
+            <p><small>Check the server logs for more details.</small></p>
         </div>
         {% else %}
         <div class="data-section loading">
@@ -255,7 +266,8 @@ HTML_TEMPLATE = """
 
     <script>
     function fetchData() {
-        const button = event.target;
+        const button = document.getElementById('fetchBtn');
+        const originalText = button.textContent;
         button.disabled = true;
         button.textContent = '⏳ Fetching...';
         
@@ -268,13 +280,13 @@ HTML_TEMPLATE = """
                 } else {
                     alert('❌ Failed to fetch data: ' + (data.error || 'Unknown error'));
                     button.disabled = false;
-                    button.textContent = '🔄 Fetch Schedule Data';
+                    button.textContent = originalText;
                 }
             })
             .catch(error => {
-                alert('❌ Error: ' + error);
+                alert('❌ Network error: ' + error);
                 button.disabled = false;
-                button.textContent = '🔄 Fetch Schedule Data';
+                button.textContent = originalText;
             });
     }
     </script>
@@ -292,7 +304,6 @@ def index():
         total_days = len(schedule_data)
         for day in schedule_data:
             if isinstance(day, dict):
-                # CORRECT: Using 'AssignementList' as seen in traffic
                 assignments = day.get('AssignementList', [])
                 total_assignments += len(assignments)
     
@@ -361,7 +372,8 @@ def health():
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
         "data_available": schedule_data is not None,
-        "last_fetch": last_fetch_time
+        "last_fetch": last_fetch_time,
+        "logged_in": client.is_logged_in
     })
 
 @app.route('/debug')
@@ -380,6 +392,7 @@ def debug():
         "last_fetch": last_fetch_time,
         "error": fetch_error,
         "is_logged_in": client.is_logged_in,
+        "has_auth_token": client.auth_token is not None,
         "sample_data": data_preview
     })
 

@@ -36,7 +36,7 @@ class CrewAPIClient:
         try:
             logger.info("🔐 Attempting API login...")
             
-            # Use form data instead of multipart
+            # Use URL-encoded form data as seen in the traffic
             form_data = {
                 'username': email,
                 'password': password,
@@ -112,20 +112,28 @@ class CrewAPIClient:
                 schedule_data = response.json()
                 logger.info(f"✅ Successfully fetched schedule data")
                 
-                # FIXED: Properly handle the data structure
+                # FIXED: Properly handle the data structure based on the traffic analysis
                 if isinstance(schedule_data, list):
                     logger.info(f"📅 Data covers {len(schedule_data)} days")
                     
-                    # Log basic info about the data
+                    # Log basic info about the data - FIXED: Proper dictionary access
                     for i, day in enumerate(schedule_data[:3]):
                         if isinstance(day, dict):
                             date = day.get('StartDate', 'Unknown')
-                            # FIXED: Use correct key name 'AssignmentList' instead of 'AssignementList'
-                            assignments_list = day.get('AssignmentList', []) or day.get('AssignementList', [])
+                            # CORRECT: It's 'AssignementList' as seen in the traffic
+                            assignments_list = day.get('AssignementList', [])
                             assignments_count = len(assignments_list)
                             logger.info(f"   📋 {date}: {assignments_count} assignments")
+                            
+                            # Log first assignment details for debugging
+                            if assignments_list and len(assignments_list) > 0:
+                                first_assignment = assignments_list[0]
+                                if isinstance(first_assignment, dict):
+                                    activity_code = first_assignment.get('ActivityCode', 'Unknown')
+                                    activity_desc = first_assignment.get('ActivityDesc', 'Unknown')
+                                    logger.info(f"     ✈️ First assignment: {activity_code} - {activity_desc}")
                         else:
-                            logger.info(f"   📋 Day {i+1}: {type(day)}")
+                            logger.info(f"   📋 Day {i+1}: Unexpected type {type(day)}")
                 else:
                     logger.info(f"📅 Data type: {type(schedule_data)}")
                     
@@ -138,6 +146,8 @@ class CrewAPIClient:
                 
         except Exception as e:
             logger.error(f"❌ Error fetching schedule data: {e}")
+            import traceback
+            logger.error(f"❌ Traceback: {traceback.format_exc()}")
             return None
 
 # Global client instance
@@ -204,11 +214,10 @@ HTML_TEMPLATE = """
             {% for day in schedule_data %}
             <div class="day-card">
                 <h3>{{ day.StartDate }} - {{ day.Dem }} DEM</h3>
-                <p><strong>Assignments:</strong> {{ day.AssignmentList|length if day.AssignmentList else day.AssignementList|length }}</p>
+                <p><strong>Assignments:</strong> {{ day.AssignementList|length }}</p>
                 
-                {% set assignments = day.AssignmentList if day.AssignmentList else day.AssignementList %}
-                {% if assignments %}
-                    {% for assignment in assignments %}
+                {% if day.AssignementList %}
+                    {% for assignment in day.AssignementList %}
                     <div class="assignment">
                         <strong>{{ assignment.ActivityCode }} - {{ assignment.ActivityDesc }}</strong>
                         <div class="flight-info">
@@ -283,8 +292,8 @@ def index():
         total_days = len(schedule_data)
         for day in schedule_data:
             if isinstance(day, dict):
-                # FIXED: Handle both possible key names
-                assignments = day.get('AssignmentList', []) or day.get('AssignementList', [])
+                # CORRECT: Using 'AssignementList' as seen in traffic
+                assignments = day.get('AssignementList', [])
                 total_assignments += len(assignments)
     
     raw_json_preview = ""
@@ -336,6 +345,8 @@ def fetch_data():
     except Exception as e:
         fetch_error = f"Error: {str(e)}"
         logger.error(f"❌ Error in fetch-data: {e}")
+        import traceback
+        logger.error(f"❌ Traceback: {traceback.format_exc()}")
         return jsonify({
             "success": False,
             "data_count": 0,

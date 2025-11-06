@@ -13,7 +13,7 @@
   <form id="loginForm">
     <div style="margin-bottom: 15px;">
       <label for="Email">CORREO</label>
-      <input id="Email" name="Email" type="email" placeholder="Correo" required style="width: 100%; padding: 8px;" value="sergio.jimenez@avianca.com">
+      <input id="Email" name="Email" type="email" placeholder="Correo" required style="width: 100%; padding: 8px;">
     </div>
     <div style="margin-bottom: 15px;">
       <label for="Password">CONTRASEÑA</label>
@@ -34,7 +34,7 @@
     <br>
     <p>SCHEDULED</p>
     <input name="Holding" type="text" value="AV">
-    <input name="CrewMemberUniqueId" id="scheduledCrewId" type="text" value="32385184" placeholder="ID">
+    <input name="CrewMemberUniqueId" id="scheduledCrewId" type="text" value="" placeholder="ID">
     <input name="Year" type="text" value="2025">
     <input name="Month" type="text" value="" placeholder="Month">
     <button type="button" onclick="submitForm('scheduled')">DOWNLOAD SCHEDULED</button>
@@ -85,22 +85,18 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
     try {
         alert('Logging in and capturing tokens...');
         
-        // Simulate login and token capture
-        // In a real scenario, you would make the actual login request here
-        // and capture the Authorization header and subscription key from the response
-        
-        // For now, we'll simulate capturing the tokens from your successful traffic
-        AUTH_TOKEN = 'Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6Ijg5MzdDRUEzRTUxNTU1QzQ2NjAzNDFDNjJFMDA4MTc0ODA3ODJCOTMiLCJ0eXAiOiJKV1QiLCJ4NXQiOiJpVGZPby1VVlZjUm1BMEhHTGdDQmRJQjRLNU0ifQ.eyJuYmYiOjE3NjIzODM2MTcsImV4cCI6MTc2MjQyNjgxNywiaXNzIjoiaHR0cHM6Ly9hendhcHBteWNyZXdzZWN1cml0eXByZC5hei1hc2V2My11c2UtcHJkLmFwcHNlcnZpY2VlbnZpcm9ubWVudC5uZXQiLCJhdWQiOlsiaHR0cHM6Ly9hendhcHBteWNyZXdzZWN1cml0eXByZC5hei1hc2V2My11c2UtcHJkLmFwcHNlcnZpY2VlbnZpcm9ubWVudC5uZXQvcmVzb3VyY2VzIiwiQ3Jld0FwcCJdLCJjbGllbnRfaWQiOiJhbmd1bGFyY2xpZW50Iiwic3ViIjoic2VyZ2lvLmppbWVuZXpAYXZpYW5jYS5jb20iLCJhdXRoX3RpbWUiOjE3NjIzODM2MTYsImlkcCI6ImxvY2FsIiwicm9sZSI6WyJQaWxvdG8gQ29sb21iaWEiLCJDcmV3QXBwLlNoYXJlcG9pbnQuTGlzdHMiLCJDcmV3QXBwLkZsaWdodHMuRGV0YWlscyIsIkNyZXdBcHAuRmxpZ2h0cy5Nb250aGx5QXNzaWduZW1lbnRzIiwiQ3Jld0FwcC5DcmV3RXhwZW5zZXMiLCJDcmV3QXBwLk5vdGlmaWNhdGlvbi5NZXNzYWdlIiwiQ3Jld0FwcC5Gb3JtcyIsIkNyZXdBcHAuRm9ybXMuTWFpbCIsIkNyZXdBcHAuQ2hlY2tFeHBpcmF0aW9uIiwiQ3Jld0FwcC5EaWdpdGFsTGlicmFyeSIsIkNyZXdBcHAuTWVudU9uQm9hcmQiLCJDcmV3QXBwLk1lbnVPbkJvYXJkLlZpZXdEYWlseVJlcXVlc3QiLCJDcmV3QXBwLlNlY3VyaXR5LkhvbWVNZXNzYWdlcyIsIkNyZXdBcHAuRm9ybXMuQ2hlY2tVcHMiLCJDcmV3QXBwLkNyZXdSZXBvcnRzIiwiQ3Jld0FwcC5DcmV3UmVwb3J0cy5QQlJlcG9ydHMiLCJDcmV3QXBwLkZsaWdodHMuRmxpZ2h0SG91cnMiLCJDcmV3QXBwLkZvcm1zLkluY2FwYWNpdGllcyIsIkNyZXdBcHAuQ2F0YWxvZ3MuSXRpbmVyYXJ5UmVxdWVzdCIsIkNyZXdBcHAuSXRpbmVyYXlSZXF1ZXN0IiwiQ3Jld0FwcC5QZXJzb25hbEluZm9ybWF0aW9uIiwiQ3Jld0FwcC5UcmlwVHJhZGUiLCJQaWxvdG9BZG1Db2wiLCJDcmV3QXBwLkZsaWdodHMuRGV0YWlscyIsIkNyZXdBcHAuRmxpZ2h0cy5GbGlnaHRIb3VycyIsIkNyZXdBcHAuRmxpZ2h0cy5Nb250aGx5QXNzaWduZW1lbnRzIiwiQ3Jld0FwcC5Gb3JtcyIsIkNyZXdBcHAuRm9ybXMuQ2hlY2tVcHMiLCJDcmV3QXBwLkZvcm1zLk1haWwiLCJDcmV3QXBwLlNoYXJlcG9pbnQuTGlzdHMiLCJDcmV3QXBwIiwiQ3Jld0FwcC5Qcm9maWxlIiwiQ3Jld0FwcC5TaGFyZXBvaW50LkxpbmtzIl0sImdpdmVuX25hbWUiOiJzZXJnaW8uamltZW5lekBhdmlhbmNhLmNvbSIsImVtYWlsIjoic2VyZ2lvLmppbWVuZXpAYXZpYW5jYS5jb20iLCJIb2xkaW5nIjoiQVYiLCJDcmV3TWVtYmVyVW5pcXVlSWQiOiIzMjM4NTE4NCIsIkJhc2UiOiJCT0ciLCJGbGVldCI6IkEzMlMiLCJSb2xlSWQiOlsiYjg1ODA0ZDctZGZiZS00NTUzLTkxODQtMmVkODgzOTYxZWVhIiwiZjY4Y2QyMjctOWRjMy00YjU0LWJjNzgtOTkwMDgwYjljMWMwIl0sIlJvbGVOYW1lcyI6WyJQaWxvdG8gQ29sb21iaWEiLCJQaWxvdG9BZG1Db2wiXSwic2NvcGUiOlsiZW1haWwiLCJvcGVuaWQiLCJwcm9maWxlIiwiQ3Jld0FwcCIsIm9mZmxpbmVfYWNjZXNzIl0sImFtciI6WyJwd2QiXX0.3s13IYdasuvwBH-ii56vIEj1eFE48GyXAeZrqrYaaerfsJaHlEvcxOhgnqz9qD_AN-HJf2Z2f2vli9HLscCUlkulrc9fkye7FQooCffLECRn2eQvo2LVsaM39aU67biTSMIGKuglrET9CRyN-aYzas9uG3WrcsUAlUhDwE7aCE06i_jr_1X-OnknUsKD3tZoZxTgwG1mLyEVlXYOgCsv3IjvFjz263_j9j5Cx5g-Mf1wKqMH_bjzShzHlD46x-ZjnCsdtDJuJuQvRHRzMFkhRN6_FXYjRWCN-AVGisjJKK9E_rBhwFV6melrGnLUo4s_KIpXG2R1bgEs8yIOP8URsw';
-        SUBSCRIPTION_KEY = '9d32877073ce403795da2254ae9c2de7';
+        // Set blank tokens - user will need to fill these
+        AUTH_TOKEN = '';
+        SUBSCRIPTION_KEY = '';
         
         // Display captured tokens
         document.getElementById('capturedTokens').innerHTML = `
-            <strong>Auth Token:</strong> ${AUTH_TOKEN.substring(0, 50)}...<br>
-            <strong>Subscription Key:</strong> ${SUBSCRIPTION_KEY}
+            <strong>Auth Token:</strong> ${AUTH_TOKEN || 'NOT CAPTURED'}<br>
+            <strong>Subscription Key:</strong> ${SUBSCRIPTION_KEY || 'NOT CAPTURED'}
         `;
         document.getElementById('tokenInfo').style.display = 'block';
         
-        alert('Tokens captured successfully! You can now use the download buttons.');
+        alert('Please manually set AUTH_TOKEN and SUBSCRIPTION_KEY variables in the code!');
         
     } catch (error) {
         alert('Login error: ' + error.message);
@@ -131,11 +127,24 @@ async function submitForm(type) {
     // Create multipart form data
     const boundary = '----WebKitFormBoundary' + Math.random().toString(36).substring(2);
     const formData = [
-        `--${boundary}`, 'Content-Disposition: form-data; name="Holding"', '', holding,
-        `--${boundary}`, 'Content-Disposition: form-data; name="CrewMemberUniqueId"', '', crewId,
-        `--${boundary}`, 'Content-Disposition: form-data; name="Year"', '', year,
-        `--${boundary}`, 'Content-Disposition: form-data; name="Month"', '', month,
-        `--${boundary}--`, ''
+        `--${boundary}`,
+        'Content-Disposition: form-data; name="Holding"',
+        '',
+        holding,
+        `--${boundary}`,
+        'Content-Disposition: form-data; name="CrewMemberUniqueId"',
+        '',
+        crewId,
+        `--${boundary}`,
+        'Content-Disposition: form-data; name="Year"',
+        '',
+        year,
+        `--${boundary}`,
+        'Content-Disposition: form-data; name="Month"',
+        '',
+        month,
+        `--${boundary}--`,
+        ''
     ].join('\r\n');
     
     try {
@@ -144,7 +153,9 @@ async function submitForm(type) {
             headers: {
                 'Authorization': AUTH_TOKEN,
                 'Ocp-Apim-Subscription-Key': SUBSCRIPTION_KEY,
-                'Content-Type': `multipart/form-data; boundary=${boundary}`
+                'Content-Type': `multipart/form-data; boundary=${boundary}`,
+                'Origin': 'https://mycrew.avianca.com',
+                'Referer': 'https://mycrew.avianca.com/'
             },
             body: formData
         });
@@ -167,4 +178,4 @@ async function submitForm(type) {
 </script>
 
 </body>
-</html>5
+</html>

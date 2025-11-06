@@ -36,42 +36,19 @@ class CrewAPIClient:
         try:
             logger.info("🔐 Attempting API login...")
             
-            boundary = "----WebKitFormBoundary" + str(int(time.time() * 1000))
-            
-            body_parts = [
-                f"--{boundary}",
-                'Content-Disposition: form-data; name="username"',
-                '',
-                email,
-                f"--{boundary}",
-                'Content-Disposition: form-data; name="password"', 
-                '',
-                password,
-                f"--{boundary}",
-                'Content-Disposition: form-data; name="grant_type"',
-                '',
-                'password',
-                f"--{boundary}",
-                'Content-Disposition: form-data; name="client_id"',
-                '',
-                'angularclient',
-                f"--{boundary}",
-                'Content-Disposition: form-data; name="client_secret"',
-                '',
-                'angularclient',
-                f"--{boundary}",
-                'Content-Disposition: form-data; name="scope"',
-                '',
-                'openid profile roles mycrew-flight-api offline_access',
-                f"--{boundary}--",
-                ''
-            ]
-            
-            form_data = "\r\n".join(body_parts)
+            # Use form data instead of multipart
+            form_data = {
+                'username': email,
+                'password': password,
+                'grant_type': 'password',
+                'client_id': 'angularclient',
+                'client_secret': 'angularclient',
+                'scope': 'openid profile roles mycrew-flight-api offline_access'
+            }
             
             headers = {
                 "Ocp-Apim-Subscription-Key": self.subscription_key,
-                "Content-Type": f"multipart/form-data; boundary={boundary}",
+                "Content-Type": "application/x-www-form-urlencoded",
                 "Origin": "https://mycrew.avianca.com",
                 "Referer": "https://mycrew.avianca.com/",
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
@@ -83,6 +60,8 @@ class CrewAPIClient:
                 headers=headers,
                 timeout=30
             )
+            
+            logger.info(f"📡 Login response status: {response.status_code}")
             
             if response.status_code == 200:
                 token_data = response.json()
@@ -100,7 +79,7 @@ class CrewAPIClient:
             return False
     
     def get_schedule_data(self, timezone_offset=-300):
-        """Get schedule JSON data (like the 'reload schedule data' button)"""
+        """Get schedule JSON data"""
         try:
             if not self.is_logged_in:
                 email = os.getenv('CREW_EMAIL', 'sergio.jimenez@avianca.com')
@@ -123,35 +102,32 @@ class CrewAPIClient:
             }
             
             logger.info(f"🌐 Making request to: {url}")
-            logger.info(f"📋 With timezone offset: {timezone_offset}")
             
             response = self.session.get(url, params=params, headers=headers, timeout=30)
             
             logger.info(f"📡 Response status: {response.status_code}")
             logger.info(f"📡 Content-Type: {response.headers.get('content-type', 'Unknown')}")
-            logger.info(f"📡 Content-Length: {response.headers.get('content-length', 'Unknown')}")
             
             if response.status_code == 200:
                 schedule_data = response.json()
                 logger.info(f"✅ Successfully fetched schedule data")
-                logger.info(f"📅 Data type: {type(schedule_data)}")
                 
-                # FIXED: Check if schedule_data is a list before iterating
+                # FIXED: Properly handle the data structure
                 if isinstance(schedule_data, list):
                     logger.info(f"📅 Data covers {len(schedule_data)} days")
                     
-                    # Log some basic info about the data
-                    for i, day in enumerate(schedule_data[:3]):  # First 3 days
-                        # FIXED: Check if day is a dictionary before using .get()
+                    # Log basic info about the data
+                    for i, day in enumerate(schedule_data[:3]):
                         if isinstance(day, dict):
                             date = day.get('StartDate', 'Unknown')
-                            assignments = len(day.get('AssignementList', []))
-                            logger.info(f"   📋 {date}: {assignments} assignments")
+                            # FIXED: Use correct key name 'AssignmentList' instead of 'AssignementList'
+                            assignments_list = day.get('AssignmentList', []) or day.get('AssignementList', [])
+                            assignments_count = len(assignments_list)
+                            logger.info(f"   📋 {date}: {assignments_count} assignments")
                         else:
-                            logger.info(f"   📋 Day {i+1}: Unexpected data format: {type(day)}")
+                            logger.info(f"   📋 Day {i+1}: {type(day)}")
                 else:
-                    logger.info(f"📅 Data is not a list: {type(schedule_data)}")
-                    logger.info(f"📅 Data preview: {str(schedule_data)[:200]}...")
+                    logger.info(f"📅 Data type: {type(schedule_data)}")
                     
                 return schedule_data
             else:
@@ -202,6 +178,7 @@ HTML_TEMPLATE = """
             background: #e9ecef; padding: 15px; border-radius: 5px; 
             margin: 10px 0; border-left: 4px solid #6c757d;
         }
+        .loading { color: #6c757d; }
     </style>
 </head>
 <body>
@@ -223,24 +200,29 @@ HTML_TEMPLATE = """
 
         {% if schedule_data %}
         <div class="data-section">
-            <h2>📅 Schedule Data (First 5 days)</h2>
-            {% for day in schedule_data[:5] %}
+            <h2>📅 Schedule Data</h2>
+            {% for day in schedule_data %}
             <div class="day-card">
                 <h3>{{ day.StartDate }} - {{ day.Dem }} DEM</h3>
-                <p><strong>Assignments:</strong> {{ day.AssignementList|length }}</p>
+                <p><strong>Assignments:</strong> {{ day.AssignmentList|length if day.AssignmentList else day.AssignementList|length }}</p>
                 
-                {% for assignment in day.AssignementList %}
-                <div class="assignment">
-                    <strong>{{ assignment.ActivityCode }} - {{ assignment.ActivityDesc }}</strong>
-                    <div class="flight-info">
-                        {{ assignment.StartDateLocal }} to {{ assignment.EndDateLocal }}
-                        {% if assignment.FlighAssignement and assignment.FlighAssignement.CommercialFlightNumber != "XXX" %}
-                        | Flight: {{ assignment.FlighAssignement.Airline }} {{ assignment.FlighAssignement.CommercialFlightNumber }}
-                        | {{ assignment.FlighAssignement.OriginAirportIATACode }} → {{ assignment.FlighAssignement.FinalAirportIATACode }}
-                        {% endif %}
+                {% set assignments = day.AssignmentList if day.AssignmentList else day.AssignementList %}
+                {% if assignments %}
+                    {% for assignment in assignments %}
+                    <div class="assignment">
+                        <strong>{{ assignment.ActivityCode }} - {{ assignment.ActivityDesc }}</strong>
+                        <div class="flight-info">
+                            {{ assignment.StartDateLocal }} to {{ assignment.EndDateLocal }}
+                            {% if assignment.FlighAssignement and assignment.FlighAssignement.CommercialFlightNumber != "XXX" %}
+                            | Flight: {{ assignment.FlighAssignement.Airline }} {{ assignment.FlighAssignement.CommercialFlightNumber }}
+                            | {{ assignment.FlighAssignement.OriginAirportIATACode }} → {{ assignment.FlighAssignement.FinalAirportIATACode }}
+                            {% endif %}
+                        </div>
                     </div>
-                </div>
-                {% endfor %}
+                    {% endfor %}
+                {% else %}
+                    <p class="loading">No assignments for this day</p>
+                {% endif %}
             </div>
             {% endfor %}
             
@@ -249,18 +231,25 @@ HTML_TEMPLATE = """
                 <pre>{{ raw_json_preview }}</pre>
             </details>
         </div>
-        {% endif %}
-
-        {% if error %}
+        {% elif error %}
         <div class="data-section error">
             <h3>❌ Error</h3>
             <p>{{ error }}</p>
+        </div>
+        {% else %}
+        <div class="data-section loading">
+            <h3>No data available</h3>
+            <p>Click "Fetch Schedule Data" to load your schedule.</p>
         </div>
         {% endif %}
     </div>
 
     <script>
     function fetchData() {
+        const button = event.target;
+        button.disabled = true;
+        button.textContent = '⏳ Fetching...';
+        
         fetch('/fetch-data')
             .then(response => response.json())
             .then(data => {
@@ -269,10 +258,14 @@ HTML_TEMPLATE = """
                     location.reload();
                 } else {
                     alert('❌ Failed to fetch data: ' + (data.error || 'Unknown error'));
+                    button.disabled = false;
+                    button.textContent = '🔄 Fetch Schedule Data';
                 }
             })
             .catch(error => {
                 alert('❌ Error: ' + error);
+                button.disabled = false;
+                button.textContent = '🔄 Fetch Schedule Data';
             });
     }
     </script>
@@ -290,7 +283,9 @@ def index():
         total_days = len(schedule_data)
         for day in schedule_data:
             if isinstance(day, dict):
-                total_assignments += len(day.get('AssignementList', []))
+                # FIXED: Handle both possible key names
+                assignments = day.get('AssignmentList', []) or day.get('AssignementList', [])
+                total_assignments += len(assignments)
     
     raw_json_preview = ""
     if schedule_data:
@@ -329,7 +324,7 @@ def fetch_data():
                 "error": None
             })
         else:
-            fetch_error = "Failed to fetch schedule data"
+            fetch_error = "Failed to fetch schedule data - check logs for details"
             logger.error("❌ Data fetch failed")
             return jsonify({
                 "success": False,
@@ -361,12 +356,20 @@ def health():
 @app.route('/debug')
 def debug():
     """Debug endpoint to see raw data"""
+    data_preview = None
+    if schedule_data:
+        if isinstance(schedule_data, list) and schedule_data:
+            data_preview = schedule_data[0] if len(schedule_data) > 0 else schedule_data
+        else:
+            data_preview = schedule_data
+    
     return jsonify({
-        "schedule_data_type": type(schedule_data).__name__,
+        "schedule_data_type": type(schedule_data).__name__ if schedule_data else None,
         "schedule_data_length": len(schedule_data) if isinstance(schedule_data, list) else None,
         "last_fetch": last_fetch_time,
         "error": fetch_error,
-        "sample_data": schedule_data[:2] if isinstance(schedule_data, list) and schedule_data else schedule_data
+        "is_logged_in": client.is_logged_in,
+        "sample_data": data_preview
     })
 
 def start_flask():

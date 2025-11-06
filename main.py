@@ -450,22 +450,22 @@ CALENDAR_VIEW_TEMPLATE = """
         .info-box { background: #e9ecef; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center; }
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin: 20px 0; }
         .calendar-day { border: 1px solid #ddd; padding: 10px; border-radius: 5px; min-height: 120px; background: white; }
-        .calendar-day-header { background: #dc3545; color: white; padding: 5px; border-radius: 3px; margin-bottom: 5px; text-align: center; font-weight: bold; font-size: 1.5em; }
-        .calendar-day.current-day { border: 3px solid #ffc107; background: #fff3cd; }
+        .calendar-day-header { background: #6c757d; color: white; padding: 5px; border-radius: 3px; margin-bottom: 5px; text-align: center; font-weight: bold; font-size: 1.5em; }
+        .calendar-day.current-day { border: 3px solid #dc3545; background: #f8d7da; }
         .calendar-day.weekend { background: #f8f9fa; }
         .calendar-day.empty { background: #f5f5f5; border: 1px dashed #ddd; }
         .assignment-item { background: #e7f3ff; padding: 5px; margin: 3px 0; border-radius: 3px; border-left: 3px solid #007bff; font-size: 0.8em; }
-        .assignment-flight { background: #d4edda; border-left-color: #28a745; }
+        .assignment-flight { background: #f8f9fa; border-left-color: #28a745; }
         .assignment-ground { background: #fff3cd; border-left-color: #ffc107; }
-        .flight-number { font-weight: bold; color: #dc3545; font-size: 1.3em; display: inline; }
-        .departure-stand { font-weight: bold; color: #0056b3; font-size: 1.3em; display: inline; margin-left: 8px; }
-        .route { font-size: 1.2em; color: #000; font-weight: bold; margin: 3px 0; }
-        .flight-times { font-size: 1.0em; color: #000; font-weight: bold; margin-top: 3px; }
+        .flight-number { font-weight: bold; color: #dc3545; font-size: 1.6em; display: inline; }
+        .departure-stand { font-weight: bold; color: #0056b3; font-size: 1.6em; display: inline; margin-left: 8px; }
+        .route { font-size: 1.4em; color: #000; font-weight: bold; margin: 3px 0; }
+        .flight-times { font-size: 1.2em; color: #000; font-weight: bold; margin-top: 3px; }
         .status-on-time { color: #28a745; font-weight: bold; margin-left: 5px; }
         .status-delayed { color: #dc3545; font-weight: bold; margin-left: 5px; }
         .no-assignments { color: #6c757d; text-align: center; font-size: 0.8em; padding: 10px; }
         .month-section { margin: 30px 0; }
-        .month-header { background: #28a745; color: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; text-align: center; }
+        .month-header { background: #000; color: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; text-align: center; }
         .week-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin-bottom: 10px; }
         .week-day { text-align: center; font-weight: bold; padding: 8px; background: #6c757d; color: white; border-radius: 4px; }
     </style>
@@ -473,13 +473,13 @@ CALENDAR_VIEW_TEMPLATE = """
 <body>
     <div class="container">
         <div class="header">
-            <h1>✈️ My Crew Schedule - Calendar View</h1>
+            <h1>My Crew Schedule - Calendar View</h1>
             <div class="nav-buttons">
-                <a href="/" class="nav-button">📋 Schedule View</a>
-                <a href="/calendar" class="nav-button active">📅 Calendar View</a>
-                <a href="/pdf" class="nav-button">📄 PDF Download</a>
+                <a href="/" class="nav-button">Schedule View</a>
+                <a href="/calendar" class="nav-button active">Calendar View</a>
+                <a href="/pdf" class="nav-button">PDF Download</a>
             </div>
-            <button class="button" onclick="fetchData()" id="refreshBtn">🔄 Refresh Schedule</button>
+            <button class="button" onclick="fetchData()" id="refreshBtn">Refresh Schedule</button>
         </div>
 
         {% if refresh_message %}
@@ -500,17 +500,17 @@ CALENDAR_VIEW_TEMPLATE = """
             {% for month in schedule_data %}
             <div class="month-section">
                 <div class="month-header">
-                    <h2>📅 {{ month_names[loop.index0] }}</h2>
+                    <h2>{{ month_names[loop.index0] }}</h2>
                 </div>
                 
                 <div class="week-days">
-                    <div class="week-day">Sunday</div>
-                    <div class="week-day">Monday</div>
-                    <div class="week-day">Tuesday</div>
-                    <div class="week-day">Wednesday</div>
-                    <div class="week-day">Thursday</div>
-                    <div class="week-day">Friday</div>
-                    <div class="week-day">Saturday</div>
+                    <div class="week-day">MON</div>
+                    <div class="week-day">TUE</div>
+                    <div class="week-day">WED</div>
+                    <div class="week-day">THU</div>
+                    <div class="week-day">FRI</div>
+                    <div class="week-day">SAT</div>
+                    <div class="week-day">SUN</div>
                 </div>
                 
                 <div class="calendar-grid">
@@ -544,7 +544,7 @@ CALENDAR_VIEW_TEMPLATE = """
                                             <div style="font-weight: bold; color: #000; font-size: 1.4em;">
                                                 {{ assignment.activity_code }}
                                             </div>
-                                            <div style="font-size: 1.0em; color: #000; font-weight: bold;">
+                                            <div style="font-size: 1.2em; color: #000; font-weight: bold;">
                                                 {{ assignment.start_time }} - {{ assignment.end_time }}
                                             </div>
                                         {% endif %}
@@ -573,7 +573,7 @@ CALENDAR_VIEW_TEMPLATE = """
     function fetchData() {
         const button = document.getElementById('refreshBtn');
         button.disabled = true;
-        button.textContent = '⏳ Loading...';
+        button.textContent = 'Loading...';
         
         fetch('/fetch?refresh=true')
             .then(r => r.json())
@@ -585,13 +585,13 @@ CALENDAR_VIEW_TEMPLATE = """
                 } else {
                     alert('Failed: ' + (data.error || 'Unknown error'));
                     button.disabled = false;
-                    button.textContent = '🔄 Refresh Schedule';
+                    button.textContent = 'Refresh Schedule';
                 }
             })
             .catch(err => {
                 alert('Error: ' + err);
                 button.disabled = false;
-                button.textContent = '🔄 Refresh Schedule';
+                button.textContent = 'Refresh Schedule';
             });
     }
 
@@ -606,6 +606,11 @@ CALENDAR_VIEW_TEMPLATE = """
 </body>
 </html>
 """
+
+
+
+
+
 
 PDF_VIEW_TEMPLATE = """
 <!DOCTYPE html>

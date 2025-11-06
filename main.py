@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-My Crew Schedule - Working Version
+My Crew Schedule - With Crew ID Input
 """
 
 import os
 import logging
 import requests
 from datetime import datetime
-from flask import Flask, render_template_string
+from flask import Flask, render_template_string, request, jsonify
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -46,7 +46,7 @@ class CrewAPIClient:
             logger.error(f"Login error: {e}")
             return False
     
-    def get_schedule_data(self):
+    def get_schedule_data(self, crew_id=None):
         try:
             if not self.is_logged_in:
                 email = os.getenv('CREW_EMAIL', 'sergio.jimenez@avianca.com')
@@ -72,6 +72,7 @@ class CrewAPIClient:
 client = CrewAPIClient()
 schedule_data = None
 last_fetch_time = None
+current_crew_id = "32385184"  # Default to your ID
 
 HTML_TEMPLATE = '''
 <!DOCTYPE html>
@@ -82,8 +83,12 @@ HTML_TEMPLATE = '''
         body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
         .container { max-width: 1000px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; }
         .header { text-align: center; margin-bottom: 20px; }
-        .button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
+        .search-box { background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center; }
+        .input-group { display: inline-flex; gap: 10px; align-items: center; }
+        .crew-input { padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; width: 150px; }
+        .button { background: #007bff; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; }
         .button:hover { background: #0056b3; }
+        .button:disabled { background: #6c757d; cursor: not-allowed; }
         .info-box { background: #e9ecef; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center; }
         .month-section { border: 2px solid #007bff; padding: 15px; margin: 20px 0; border-radius: 8px; }
         .month-header { background: #007bff; color: white; padding: 10px; border-radius: 5px; margin-bottom: 15px; }
@@ -92,14 +97,27 @@ HTML_TEMPLATE = '''
         .assignment { background: #f8f9fa; padding: 10px; margin: 5px 0; border-left: 4px solid #28a745; }
         .flight-info { color: #666; font-size: 0.9em; margin-top: 5px; }
         .no-data { color: #6c757d; text-align: center; padding: 10px; }
-        .error { color: #dc3545; text-align: center; padding: 20px; }
+        .error { color: #dc3545; text-align: center; padding: 20px; background: #f8d7da; border-radius: 5px; }
+        .current-crew { background: #d4edda; padding: 5px 10px; border-radius: 3px; margin-left: 10px; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>✈️ My Crew Schedule</h1>
-            <button class="button" onclick="fetchData()">🔄 Refresh Schedule</button>
+            <h1>✈️ Crew Schedule Lookup</h1>
+        </div>
+
+        <div class="search-box">
+            <div class="input-group">
+                <label for="crewId"><strong>Crew Member ID:</strong></label>
+                <input type="text" id="crewId" class="crew-input" placeholder="Enter Crew ID" value="{{ current_crew_id }}">
+                <button class="button" onclick="loadSchedule()">🔍 Load Schedule</button>
+            </div>
+            {% if current_crew_id %}
+            <div style="margin-top: 10px;">
+                <small>Currently viewing: <span class="current-crew">{{ current_crew_id }}</span></small>
+            </div>
+            {% endif %}
         </div>
 
         {% if last_fetch %}
@@ -148,32 +166,48 @@ HTML_TEMPLATE = '''
                 {% endfor %}
             </div>
             {% endfor %}
+        {% elif last_fetch %}
+            <div class="error">
+                <h3>No schedule data available for Crew ID: {{ current_crew_id }}</h3>
+                <p>Try a different Crew ID or check if the ID is correct.</p>
+            </div>
         {% else %}
             <div class="error">
-                <h3>No schedule data available</h3>
-                <p>Click "Refresh Schedule" to load your schedule.</p>
+                <h3>Enter a Crew Member ID to load schedule</h3>
+                <p>Use the input box above to search for a crew member's schedule.</p>
             </div>
         {% endif %}
     </div>
 
     <script>
-    function fetchData() {
+    function loadSchedule() {
+        const crewId = document.getElementById('crewId').value.trim();
+        if (!crewId) {
+            alert('Please enter a Crew Member ID');
+            return;
+        }
+        
         const button = event.target;
         button.disabled = true;
-        button.textContent = "⏳ Loading...";
-        fetch("/fetch").then(r => r.json()).then(data => {
-            if (data.success) location.reload();
-            else {
-                alert("Failed: " + (data.error || "Unknown error"));
-                button.disabled = false;
-                button.textContent = "🔄 Refresh Schedule";
-            }
-        }).catch(err => {
-            alert("Error: " + err);
-            button.disabled = false;
-            button.textContent = "🔄 Refresh Schedule";
-        });
+        button.textContent = '⏳ Loading...';
+        
+        // Update URL with crew ID
+        const url = new URL(window.location);
+        url.searchParams.set('crew_id', crewId);
+        window.location.href = url.toString();
     }
+
+    // Allow Enter key to trigger search
+    document.getElementById('crewId').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            loadSchedule();
+        }
+    });
+
+    // Focus on input when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('crewId').focus();
+    });
     </script>
 </body>
 </html>
@@ -181,6 +215,12 @@ HTML_TEMPLATE = '''
 
 @app.route('/')
 def index():
+    global current_crew_id
+    
+    # Get crew ID from URL parameter or use default
+    crew_id = request.args.get('crew_id', '32385184')
+    current_crew_id = crew_id
+    
     total_days = 0
     total_assignments = 0
     
@@ -197,24 +237,30 @@ def index():
         schedule_data=schedule_data,
         last_fetch=last_fetch_time,
         total_days=total_days,
-        total_assignments=total_assignments
+        total_assignments=total_assignments,
+        current_crew_id=current_crew_id
     )
 
 @app.route('/fetch')
 def fetch_data():
-    global schedule_data, last_fetch_time
+    global schedule_data, last_fetch_time, current_crew_id
+    
+    # Get crew ID from URL parameter
+    crew_id = request.args.get('crew_id', '32385184')
+    current_crew_id = crew_id
+    
     try:
-        new_data = client.get_schedule_data()
+        new_data = client.get_schedule_data(crew_id)
         if new_data is not None:
             schedule_data = new_data
             last_fetch_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            return {"success": True}
+            return {"success": True, "crew_id": crew_id}
         return {"success": False, "error": "Failed to fetch data"}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
 if __name__ == "__main__":
-    # Initial data fetch
+    # Initial data fetch with default crew ID
     initial_data = client.get_schedule_data()
     if initial_data is not None:
         schedule_data = initial_data

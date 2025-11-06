@@ -199,7 +199,7 @@ schedule_data = None
 last_fetch_time = None
 current_crew_id = DEFAULT_CREW_ID
 
-HTML_TEMPLATE = """
+SCHEDULE_VIEW_TEMPLATE = """
 <!DOCTYPE html>
 <html>
 <head>
@@ -215,11 +215,6 @@ HTML_TEMPLATE = """
         .button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
         .button:hover { background: #0056b3; }
         .button:disabled { background: #6c757d; cursor: not-allowed; }
-        .pdf-button { background: #28a745; }
-        .pdf-button:hover { background: #218838; }
-        .input-group { margin: 15px 0; text-align: center; }
-        .input-label { display: block; margin-bottom: 5px; font-weight: bold; }
-        .crew-input { padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; width: 200px; margin: 0 10px; }
         .info-box { background: #e9ecef; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center; }
         .month-section { border: 2px solid #007bff; padding: 15px; margin: 20px 0; border-radius: 8px; }
         .month-header { background: #007bff; color: white; padding: 10px; border-radius: 5px; margin-bottom: 15px; }
@@ -236,24 +231,10 @@ HTML_TEMPLATE = """
     <div class="container">
         <div class="header">
             <h1>✈️ My Crew Schedule</h1>
-        </div>
-
-        <div class="nav-buttons">
-            <a href="/" class="nav-button {% if request.path == '/' %}active{% endif %}">📋 Schedule View</a>
-            <a href="/pdf" class="nav-button {% if request.path == '/pdf' %}active{% endif %}">📄 PDF Download</a>
-        </div>
-
-        {% block content %}{% endblock %}
-    </div>
-</body>
-</html>
-"""
-
-SCHEDULE_VIEW_TEMPLATE = """
-{% extends "base.html" %}
-
-{% block content %}
-        <div class="header">
+            <div class="nav-buttons">
+                <a href="/" class="nav-button active">📋 Schedule View</a>
+                <a href="/pdf" class="nav-button">📄 PDF Download</a>
+            </div>
             <button class="button" onclick="fetchData()" id="refreshBtn">🔄 Refresh Schedule</button>
         </div>
 
@@ -316,6 +297,7 @@ SCHEDULE_VIEW_TEMPLATE = """
                 <p>Click "Refresh Schedule" to load your schedule.</p>
             </div>
         {% endif %}
+    </div>
 
     <script>
     function fetchData() {
@@ -343,14 +325,45 @@ SCHEDULE_VIEW_TEMPLATE = """
             });
     }
     </script>
-{% endblock %}
+</body>
+</html>
 """
 
 PDF_VIEW_TEMPLATE = """
-{% extends "base.html" %}
-
-{% block content %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PDF Download - My Crew Schedule</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; }
+        .header { text-align: center; margin-bottom: 20px; }
+        .nav-buttons { text-align: center; margin: 15px 0; }
+        .nav-button { background: #6c757d; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; margin: 0 5px; text-decoration: none; display: inline-block; }
+        .nav-button:hover { background: #5a6268; }
+        .nav-button.active { background: #007bff; }
+        .button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
+        .button:hover { background: #0056b3; }
+        .button:disabled { background: #6c757d; cursor: not-allowed; }
+        .pdf-button { background: #28a745; }
+        .pdf-button:hover { background: #218838; }
+        .input-group { margin: 15px 0; text-align: center; }
+        .input-label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .crew-input { padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; width: 200px; margin: 0 10px; }
+        .info-box { background: #e9ecef; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center; }
+        .no-data { color: #6c757d; text-align: center; padding: 10px; }
+        .error { color: #dc3545; text-align: center; padding: 20px; }
+        .success { color: #155724; background: #d4edda; padding: 10px; border-radius: 5px; margin: 10px 0; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="container">
         <div class="header">
+            <h1>✈️ My Crew Schedule</h1>
+            <div class="nav-buttons">
+                <a href="/" class="nav-button">📋 Schedule View</a>
+                <a href="/pdf" class="nav-button active">📄 PDF Download</a>
+            </div>
             <h2>📄 Download Schedule PDF</h2>
         </div>
 
@@ -438,7 +451,8 @@ PDF_VIEW_TEMPLATE = """
         document.getElementById('crewId').focus();
     });
     </script>
-{% endblock %}
+</body>
+</html>
 """
 
 @app.route('/')

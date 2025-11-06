@@ -2,7 +2,6 @@
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
   <title>My Crew</title>
-  <!--<base href="/">-->
   <base href=".">
   <meta name="viewport" content="width=device-width,height=device-height,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no">
   <!-- iOS -->
@@ -15,70 +14,91 @@
   <meta name="apple-mobile-web-app-title" content="My Crew">
   <link rel="icon" type="image/x-icon" href="https://mycrew.avianca.com/favicon.ico?v=2">
   <link rel="manifest" href="https://mycrew.avianca.com/manifest.json">
-  <script src="./My Crew programado_files/config.js.download"></script>
-  <link href="./My Crew programado_files/styles.335aa9b03efd1d07d712.bundle.css" rel="stylesheet">
 </head>
 <body>
 
-
-  <!-- First Form (Scheduled) -->
-  <form _ngcontent-c33="" class="text-center" method="post" ngnoform="" target="_blank" action="https://api-avianca.avianca.com/MycreWFlights/api/MonthlyAssignements/Scheduled/Export?format=json">
+<!-- First Form (Scheduled) -->
+<form id="scheduledForm" class="text-center" method="post" target="_blank">
     <br>
-    <p _ngcontent-c33="">SCHEDULED <span _ngcontent-c33="" class="text-muted"></span></p>
-    <input _ngcontent-c33="" name="Holding" type="text" value="AV">
-    <input _ngcontent-c33="" name="CrewMemberUniqueId" id="scheduledCrewId" type="text" value="32385184" placeholder="ID">
-    <input _ngcontent-c33="" name="Year" type="text" value="2025">
-    <input _ngcontent-c33="" name="Month" type="text" value="" placeholder="Month">
-    <button _ngcontent-c33="" class="btn btn-outline-dark btn-block btn-sm" type="submit">DOWNLOAD SCHEDULED</button>
+    <p>SCHEDULED <span class="text-muted"></span></p>
+    <input name="Holding" type="text" value="AV">
+    <input name="CrewMemberUniqueId" id="scheduledCrewId" type="text" value="32385184" placeholder="ID">
+    <input name="Year" type="text" value="2025">
+    <input name="Month" type="text" value="" placeholder="Month">
+    <button class="btn btn-outline-dark btn-block btn-sm" type="button" onclick="submitForm('scheduled')">DOWNLOAD SCHEDULED</button>
     <br>
-  </form>
+</form>
 
-  <!-- Second Form (Actual) -->
-  <form _ngcontent-c34="" class="text-center" method="post" ngnoform="" target="_blank" action="https://api-avianca.avianca.com/MycreWFlights/api/MonthlyAssignements/Export">
-    <p _ngcontent-c34="">ACTUAL <span _ngcontent-c34="" class="text-muted"></span></p>
-    <input _ngcontent-c34="" name="Holding" type="text" value="AV">
-    <input _ngcontent-c34="" name="CrewMemberUniqueId" id="actualCrewId" type="text" value="" placeholder="ID">
-    <input _ngcontent-c34="" name="Year" type="text" value="2025">
-    <input _ngcontent-c34="" name="Month" type="text" value="" placeholder="Month">
-    <button _ngcontent-c34="" class="btn btn-outline-dark btn-block btn-sm" type="submit">DOWNLOAD ACTUAL</button>
-  </form>
- <br>
- <br>
- <br>
-     <br>
- <br>
+<!-- Second Form (Actual) -->
+<form id="actualForm" class="text-center" method="post" target="_blank">
+    <p>ACTUAL <span class="text-muted"></span></p>
+    <input name="Holding" type="text" value="AV">
+    <input name="CrewMemberUniqueId" id="actualCrewId" type="text" value="" placeholder="ID">
+    <input name="Year" type="text" value="2025">
+    <input name="Month" type="text" value="" placeholder="Month">
+    <button class="btn btn-outline-dark btn-block btn-sm" type="button" onclick="submitForm('actual')">DOWNLOAD ACTUAL</button>
+</form>
 
-  <script>
+<br><br><br><br><br>
+
+<input type="text" id="favCktPlayer" list="CktPlayers" style="width: 300px;" onchange="fillCrewMemberIds()">
+<button type="button" onclick="clearDropdown()">Clear</button>  
+<datalist id="CktPlayers">  
+    <option value="ABONDANO COZZARELLI CARLOS ERNESTO 80412229">
+</datalist> 
+
+<script>
 function clearDropdown() {
-    // Clear the dropdown input
     document.getElementById("favCktPlayer").value = "";
 }
-</script>
-      <input type="text" id="favCktPlayer" list="CktPlayers" style="width: 300px;" onchange="fillCrewMemberIds()">
-    <button type="button" onclick="clearDropdown()">Clear</button>  
- <datalist id="CktPlayers">  
- <option value="ABONDANO COZZARELLI CARLOS ERNESTO 80412229">
-    
- </datalist> 
-    <br>
-<script>
+
 function fillCrewMemberIds() {
     let input = document.getElementById("favCktPlayer");
     let selectedValue = input.value.trim();
     
     if (selectedValue.length >= 8) {
-        let last8Chars = selectedValue.slice(-8).trim(); // Extract last 8 characters
-
-        // Insert into both CrewMemberUniqueId fields
+        let last8Chars = selectedValue.slice(-8).trim();
         document.getElementById("scheduledCrewId").value = last8Chars;
         document.getElementById("actualCrewId").value = last8Chars;
     }
 }
-</script>
-    <!---->
-    
-  
-  <br>
 
-  
-</body></html>
+async function submitForm(type) {
+    const form = type === 'scheduled' ? document.getElementById('scheduledForm') : document.getElementById('actualForm');
+    const url = type === 'scheduled' 
+        ? 'https://api-avianca.avianca.com/MycreWFlights/api/MonthlyAssignements/Scheduled/Export?format=json'
+        : 'https://api-avianca.avianca.com/MycreWFlights/api/MonthlyAssignements/Export';
+    
+    const formData = new FormData(form);
+    
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6Ijg5MzdDRUEzRTUxNTU1QzQ2NjAzNDFDNjJFMDA4MTc0ODA3ODJCOTMiLCJ0eXAiOiJKV1QiLCJ4NXQiOiJpVGZPby1VVlZjUm1BMEhHTGdDQmRJQjRLNU0ifQ.eyJuYmYiOjE3NjIzODM2MTcsImV4cCI6MTc2MjQyNjgxNywiaXNzIjoiaHR0cHM6Ly9hendhcHBteWNyZXdzZWN1cml0eXByZC5hei1hc2V2My11c2UtcHJkLmFwcHNlcnZpY2VlbnZpcm9ubWVudC5uZXQiLCJhdWQiOlsiaHR0cHM6Ly9hendhcHBteWNyZXdzZWN1cml0eXByZC5hei1hc2V2My11c2UtcHJkLmFwcHNlcnZpY2VlbnZpcm9ubWVudC5uZXQvcmVzb3VyY2VzIiwiQ3Jld0FwcCJdLCJjbGllbnRfaWQiOiJhbmd1bGFyY2xpZW50Iiwic3ViIjoic2VyZ2lvLmppbWVuZXpAYXZpYW5jYS5jb20iLCJhdXRoX3RpbWUiOjE3NjIzODM2MTYsImlkcCI6ImxvY2FsIiwicm9sZSI6WyJQaWxvdG8gQ29sb21iaWEiLCJDcmV3QXBwLlNoYXJlcG9pbnQuTGlzdHMiLCJDcmV3QXBwLkZsaWdodHMuRGV0YWlscyIsIkNyZXdBcHAuRmxpZ2h0cy5Nb250aGx5QXNzaWduZW1lbnRzIiwiQ3Jld0FwcC5DcmV3RXhwZW5zZXMiLCJDcmV3QXBwLk5vdGlmaWNhdGlvbi5NZXNzYWdlIiwiQ3Jld0FwcC5Gb3JtcyIsIkNyZXdBcHAuRm9ybXMuTWFpbCIsIkNyZXdBcHAuQ2hlY2tFeHBpcmF0aW9uIiwiQ3Jld0FwcC5EaWdpdGFsTGlicmFyeSIsIkNyZXdBcHAuTWVudU9uQm9hcmQiLCJDcmV3QXBwLk1lbnVPbkJvYXJkLlZpZXdEYWlseVJlcXVlc3QiLCJDcmV3QXBwLlNlY3VyaXR5LkhvbWVNZXNzYWdlcyIsIkNyZXdBcHAuRm9ybXMuQ2hlY2tVcHMiLCJDcmV3QXBwLkNyZXdSZXBvcnRzIiwiQ3Jld0FwcC5DcmV3UmVwb3J0cy5QQlJlcG9ydHMiLCJDcmV3QXBwLkZsaWdodHMuRmxpZ2h0SG91cnMiLCJDcmV3QXBwLkZvcm1zLkluY2FwYWNpdGllcyIsIkNyZXdBcHAuQ2F0YWxvZ3MuSXRpbmVyYXJ5UmVxdWVzdCIsIkNyZXdBcHAuSXRpbmVyYXlSZXF1ZXN0IiwiQ3Jld0FwcC5QZXJzb25hbEluZm9ybWF0aW9uIiwiQ3Jld0FwcC5UcmlwVHJhZGUiLCJQaWxvdG9BZG1Db2wiLCJDcmV3QXBwLkZsaWdodHMuRGV0YWlscyIsIkNyZXdBcHAuRmxpZ2h0cy5GbGlnaHRIb3VycyIsIkNyZXdBcHAuRmxpZ2h0cy5Nb250aGx5QXNzaWduZW1lbnRzIiwiQ3Jld0FwcC5Gb3JtcyIsIkNyZXdBcHAuRm9ybXMuQ2hlY2tVcHMiLCJDcmV3QXBwLkZvcm1zLk1haWwiLCJDcmV3QXBwLlNoYXJlcG9pbnQuTGlzdHMiLCJDcmV3QXBwIiwiQ3Jld0FwcC5Qcm9maWxlIiwiQ3Jld0FwcC5TaGFyZXBvaW50LkxpbmtzIl0sImdpdmVuX25hbWUiOiJzZXJnaW8uamltZW5lekBhdmlhbmNhLmNvbSIsImVtYWlsIjoic2VyZ2lvLmppbWVuZXpAYXZpYW5jYS5jb20iLCJIb2xkaW5nIjoiQVYiLCJDcmV3TWVtYmVyVW5pcXVlSWQiOiIzMjM4NTE4NCIsIkJhc2UiOiJCT0ciLCJGbGVldCI6IkEzMlMiLCJSb2xlSWQiOlsiYjg1ODA0ZDctZGZiZS00NTUzLTkxODQtMmVkODgzOTYxZWVhIiwiZjY4Y2QyMjctOWRjMy00YjU0LWJjNzgtOTkwMDgwYjljMWMwIl0sIlJvbGVOYW1lcyI6WyJQaWxvdG8gQ29sb21iaWEiLCJQaWxvdG9BZG1Db2wiXSwic2NvcGUiOlsiZW1haWwiLCJvcGVuaWQiLCJwcm9maWxlIiwiQ3Jld0FwcCIsIm9mZmxpbmVfYWNjZXNzIl0sImFtciI6WyJwd2QiXX0.3s13IYdasuvwBH-ii56vIEj1eFE48GyXAeZrqrYaaerfsJaHlEvcxOhgnqz9qD_AN-HJf2Z2f2vli9HLscCUlkulrc9fkye7FQooCffLECRn2eQvo2LVsaM39aU67biTSMIGKuglrET9CRyN-aYzas9uG3WrcsUAlUhDwE7aCE06i_jr_1X-OnknUsKD3tZoZxTgwG1mLyEVlXYOgCsv3IjvFjz263_j9j5Cx5g-Mf1wKqMH_bjzShzHlD46x-ZjnCsdtDJuJuQvRHRzMFkhRN6_FXYjRWCN-AVGisjJKK9E_rBhwFV6melrGnLUo4s_KIpXG2R1bgEs8yIOP8URsw',
+                'Ocp-Apim-Subscription-Key': '9d32877073ce403795da2254ae9c2de7'
+            },
+            body: formData
+        });
+
+        if (response.ok) {
+            const blob = await response.blob();
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            a.download = `${type}_schedule.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(downloadUrl);
+        } else {
+            alert('Error downloading schedule: ' + response.statusText);
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+</script>
+
+</body>
+</html>

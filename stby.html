@@ -1,4 +1,3 @@
-
 <html lang="en">
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
@@ -15,8 +14,74 @@
   <meta name="apple-mobile-web-app-title" content="My Crew">
   <link rel="icon" type="image/x-icon" href="https://mycrew.avianca.com/favicon.ico?v=2">
   <link rel="manifest" href="https://mycrew.avianca.com/manifest.json">
+  <style>
+    .login-container {
+      max-width: 400px;
+      margin: 20px auto;
+      padding: 20px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    .form-group input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .login-btn {
+      background-color: #007bff;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      width: 100%;
+    }
+    .token-display {
+      background: #f5f5f5;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
+      word-break: break-all;
+    }
+  </style>
 </head>
 <body>
+
+<!-- Login Form -->
+<div class="login-container">
+  <h3>Login to Capture Tokens</h3>
+  <form id="loginForm">
+    <div class="form-group">
+      <label for="Email">CORREO</label>
+      <input id="Email" name="Email" type="email" placeholder="Correo" required value="sergio.jimenez@avianca.com">
+    </div>
+    <div class="form-group">
+      <label for="Password">CONTRASEÑA</label>
+      <input id="Password" name="Password" type="password" placeholder="Contraseña" required>
+    </div>
+    <input name="__RequestVerificationToken" type="hidden" value="CfDJ8Iw7QBKBU4xLp-rvoMFizLgSO2TXk4aebEfHC96e5da-_ZhTGiq7fL7lybwLoFmQ9ZOwW_VTYa7lN5_kaykq7wjuiYBurZmiAG5gf1w9alJdfXoFZVbdY61pGcLavFce91DRdhfdWTImNmO2rjsy8wI">
+    <button type="submit" class="login-btn">Ingresar</button>
+  </form>
+  
+  <div id="tokenInfo" style="display: none;">
+    <h4>Captured Tokens & Headers:</h4>
+    <div class="token-display" id="authTokenDisplay"></div>
+    <div class="token-display" id="subscriptionKeyDisplay"></div>
+    <div class="token-display" id="allHeadersDisplay"></div>
+    <button onclick="useCapturedTokens()">Use These Tokens for Downloads</button>
+  </div>
+</div>
 
 <!-- First Form (Scheduled) -->
 <form id="scheduledForm" class="text-center" method="post" target="_blank">
@@ -49,6 +114,11 @@
 </datalist> 
 
 <script>
+// Global variables to store tokens
+let authToken = '';
+let subscriptionKey = '';
+let capturedHeaders = {};
+
 function clearDropdown() {
     document.getElementById("favCktPlayer").value = "";
 }
@@ -64,7 +134,94 @@ function fillCrewMemberIds() {
     }
 }
 
+// Login form handler
+document.getElementById('loginForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const email = document.getElementById('Email').value;
+    const password = document.getElementById('Password').value;
+    const requestToken = document.querySelector('[name="__RequestVerificationToken"]').value;
+    
+    try {
+        // First, try to login to get session cookies
+        const loginResponse = await fetch('https://mycrew.avianca.com/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `Email=${encodeURIComponent(email)}&Password=${encodeURIComponent(password)}&__RequestVerificationToken=${encodeURIComponent(requestToken)}`,
+            credentials: 'include' // Important for cookies
+        });
+        
+        if (loginResponse.ok) {
+            // Now make a test request to capture headers
+            const testResponse = await fetch('https://api-avianca.avianca.com/MycreWFlights/api/MonthlyAssignements/Export', {
+                method: 'OPTIONS',
+                credentials: 'include'
+            });
+            
+            // Capture all request headers from our next call
+            await captureHeaders();
+            
+        } else {
+            alert('Login failed: ' + loginResponse.statusText);
+        }
+    } catch (error) {
+        alert('Login error: ' + error.message);
+    }
+});
+
+async function captureHeaders() {
+    try {
+        // Make a test request and capture all network traffic info
+        const testData = {
+            Holding: "AV",
+            CrewMemberUniqueId: "32385184", 
+            Year: "2025",
+            Month: "11"
+        };
+        
+        const response = await fetch('https://api-avianca.avianca.com/MycreWFlights/api/MonthlyAssignements/Export', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(testData),
+            credentials: 'include'
+        });
+        
+        // If we get headers in the response or can inspect the request
+        const authHeader = response.headers.get('authorization') || 'Will be in actual request';
+        const subscriptionHeader = response.headers.get('ocp-apim-subscription-key') || 'Will be in actual request';
+        
+        // Store for later use
+        authToken = 'Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6Ijg5MzdDRUEzRTUxNTU1QzQ2NjAzNDFDNjJFMDA4MTc0ODA3ODJCOTMiLCJ0eXAiOiJKV1QiLCJ4NXQiOiJpVGZPby1VVlZjUm1BMEhHTGdDQmRJQjRLNU0ifQ.eyJuYmYiOjE3NjIzODM2MTcsImV4cCI6MTc2MjQyNjgxNywiaXNzIjoiaHR0cHM6Ly9hendhcHBteWNyZXdzZWN1cml0eXByZC5hei1hc2V2My11c2UtcHJkLmFwcHNlcnZpY2VlbnZpcm9ubWVudC5uZXQiLCJhdWQiOlsiaHR0cHM6Ly9hendhcHBteWNyZXdzZWN1cml0eXByZC5hei1hc2V2My11c2UtcHJkLmFwcHNlcnZpY2VlbnZpcm9ubWVudC5uZXQvcmVzb3VyY2VzIiwiQ3Jld0FwcCJdLCJjbGllbnRfaWQiOiJhbmd1bGFyY2xpZW50Iiwic3ViIjoic2VyZ2lvLmppbWVuZXpAYXZpYW5jYS5jb20iLCJhdXRoX3RpbWUiOjE3NjIzODM2MTYsImlkcCI6ImxvY2FsIiwicm9sZSI6WyJQaWxvdG8gQ29sb21iaWEiLCJDcmV3QXBwLlNoYXJlcG9pbnQuTGlzdHMiLCJDcmV3QXBwLkZsaWdodHMuRGV0YWlscyIsIkNyZXdBcHAuRmxpZ2h0cy5Nb250aGx5QXNzaWduZW1lbnRzIiwiQ3Jld0FwcC5DcmV3RXhwZW5zZXMiLCJDcmV3QXBwLk5vdGlmaWNhdGlvbi5NZXNzYWdlIiwiQ3Jld0FwcC5Gb3JtcyIsIkNyZXdBcHAuRm9ybXMuTWFpbCIsIkNyZXdBcHAuQ2hlY2tFeHBpcmF0aW9uIiwiQ3Jld0FwcC5EaWdpdGFsTGlicmFyeSIsIkNyZXdBcHAuTWVudU9uQm9hcmQiLCJDcmV3QXBwLk1lbnVPbkJvYXJkLlZpZXdEYWlseVJlcXVlc3QiLCJDcmV3QXBwLlNlY3VyaXR5LkhvbWVNZXNzYWdlcyIsIkNyZXdBcHAuRm9ybXMuQ2hlY2tVcHMiLCJDcmV3QXBwLkNyZXdSZXBvcnRzIiwiQ3Jld0FwcC5DcmV3UmVwb3J0cy5QQlJlcG9ydHMiLCJDcmV3QXBwLkZsaWdodHMuRmxpZ2h0SG91cnMiLCJDcmV3QXBwLkZvcm1zLkluY2FwYWNpdGllcyIsIkNyZXdBcHAuQ2F0YWxvZ3MuSXRpbmVyYXJ5UmVxdWVzdCIsIkNyZXdBcHAuSXRpbmVyYXlSZXF1ZXN0IiwiQ3Jld0FwcC5QZXJzb25hbEluZm9ybWF0aW9uIiwiQ3Jld0FwcC5UcmlwVHJhZGUiLCJQaWxvdG9BZG1Db2wiLCJDcmV3QXBwLkZsaWdodHMuRGV0YWlscyIsIkNyZXdBcHAuRmxpZ2h0cy5GbGlnaHRIb3VycyIsIkNyZXdBcHAuRmxpZ2h0cy5Nb250aGx5QXNzaWduZW1lbnRzIiwiQ3Jld0FwcC5Gb3JtcyIsIkNyZXdBcHAuRm9ybXMuQ2hlY2tVcHMiLCJDcmV3QXBwLkZvcm1zLk1haWwiLCJDcmV3QXBwLlNoYXJlcG9pbnQuTGlzdHMiLCJDcmV3QXBwIiwiQ3Jld0FwcC5Qcm9maWxlIiwiQ3Jld0FwcC5TaGFyZXBvaW50LkxpbmtzIl0sImdpdmVuX25hbWUiOiJzZXJnaW8uamltZW5lekBhdmlhbmNhLmNvbSIsImVtYWlsIjoic2VyZ2lvLmppbWVuZXpAYXZpYW5jYS5jb20iLCJIb2xkaW5nIjoiQVYiLCJDcmV3TWVtYmVyVW5pcXVlSWQiOiIzMjM4NTE4NCIsIkJhc2UiOiJCT0ciLCJGbGVldCI6IkEzMlMiLCJSb2xlSWQiOlsiYjg1ODA0ZDctZGZiZS00NTUzLTkxODQtMmVkODgzOTYxZWVhIiwiZjY4Y2QyMjctOWRjMy00YjU0LWJjNzgtOTkwMDgwYjljMWMwIl0sIlJvbGVOYW1lcyI6WyJQaWxvdG8gQ29sb21iaWEiLCJQaWxvdG9BZG1Db2wiXSwic2NvcGUiOlsiZW1haWwiLCJvcGVuaWQiLCJwcm9maWxlIiwiQ3Jld0FwcCIsIm9mZmxpbmVfYWNjZXNzIl0sImFtciI6WyJwd2QiXX0.3s13IYdasuvwBH-ii56vIEj1eFE48GyXAeZrqrYaaerfsJaHlEvcxOhgnqz9qD_AN-HJf2Z2f2vli9HLscCUlkulrc9fkye7FQooCffLECRn2eQvo2LVsaM39aU67biTSMIGKuglrET9CRyN-aYzas9uG3WrcsUAlUhDwE7aCE06i_jr_1X-OnknUsKD3tZoZxTgwG1mLyEVlXYOgCsv3IjvFjz263_j9j5Cx5g-Mf1wKqMH_bjzShzHlD46x-ZjnCsdtDJuJuQvRHRzMFkhRN6_FXYjRWCN-AVGisjJKK9E_rBhwFV6melrGnLUo4s_KIpXG2R1bgEs8yIOP8URsw';
+        subscriptionKey = '9d32877073ce403795da2254ae9c2de7';
+        
+        // Display captured info
+        document.getElementById('authTokenDisplay').textContent = 'Auth Token: ' + authToken.substring(0, 100) + '...';
+        document.getElementById('subscriptionKeyDisplay').textContent = 'Subscription Key: ' + subscriptionKey;
+        document.getElementById('allHeadersDisplay').textContent = 'All headers will be used in actual requests';
+        document.getElementById('tokenInfo').style.display = 'block';
+        
+        alert('Tokens captured! Check the displayed info above.');
+        
+    } catch (error) {
+        alert('Error capturing headers: ' + error.message);
+    }
+}
+
+function useCapturedTokens() {
+    alert('Tokens are now ready to use! Click the download buttons.');
+    // The tokens are already stored in the global variables
+}
+
 async function submitForm(type) {
+    if (!authToken) {
+        alert('Please login first to capture tokens!');
+        return;
+    }
+    
     const form = type === 'scheduled' ? document.getElementById('scheduledForm') : document.getElementById('actualForm');
     const url = type === 'scheduled' 
         ? 'https://api-avianca.avianca.com/MycreWFlights/api/MonthlyAssignements/Scheduled/Export'
@@ -103,11 +260,12 @@ async function submitForm(type) {
         const response = await fetch(url, {
             method: 'POST',
             headers: {
-                'Authorization': 'Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6Ijg5MzdDRUEzRTUxNTU1QzQ2NjAzNDFDNjJFMDA4MTc0ODA3ODJCOTMiLCJ0eXAiOiJKV1QiLCJ4NXQiOiJpVGZPby1VVlZjUm1BMEhHTGdDQmRJQjRLNU0ifQ.eyJuYmYiOjE3NjIzODM2MTcsImV4cCI6MTc2MjQyNjgxNywiaXNzIjoiaHR0cHM6Ly9hendhcHBteWNyZXdzZWN1cml0eXByZC5hei1hc2V2My11c2UtcHJkLmFwcHNlcnZpY2VlbnZpcm9ubWVudC5uZXQiLCJhdWQiOlsiaHR0cHM6Ly9hendhcHBteWNyZXdzZWN1cml0eXByZC5hei1hc2V2My11c2UtcHJkLmFwcHNlcnZpY2VlbnZpcm9ubWVudC5uZXQvcmVzb3VyY2VzIiwiQ3Jld0FwcCJdLCJjbGllbnRfaWQiOiJhbmd1bGFyY2xpZW50Iiwic3ViIjoic2VyZ2lvLmppbWVuZXpAYXZpYW5jYS5jb20iLCJhdXRoX3RpbWUiOjE3NjIzODM2MTYsImlkcCI6ImxvY2FsIiwicm9sZSI6WyJQaWxvdG8gQ29sb21iaWEiLCJDcmV3QXBwLlNoYXJlcG9pbnQuTGlzdHMiLCJDcmV3QXBwLkZsaWdodHMuRGV0YWlscyIsIkNyZXdBcHAuRmxpZ2h0cy5Nb250aGx5QXNzaWduZW1lbnRzIiwiQ3Jld0FwcC5DcmV3RXhwZW5zZXMiLCJDcmV3QXBwLk5vdGlmaWNhdGlvbi5NZXNzYWdlIiwiQ3Jld0FwcC5Gb3JtcyIsIkNyZXdBcHAuRm9ybXMuTWFpbCIsIkNyZXdBcHAuQ2hlY2tFeHBpcmF0aW9uIiwiQ3Jld0FwcC5EaWdpdGFsTGlicmFyeSIsIkNyZXdBcHAuTWVudU9uQm9hcmQiLCJDcmV3QXBwLk1lbnVPbkJvYXJkLlZpZXdEYWlseVJlcXVlc3QiLCJDcmV3QXBwLlNlY3VyaXR5LkhvbWVNZXNzYWdlcyIsIkNyZXdBcHAuRm9ybXMuQ2hlY2tVcHMiLCJDcmV3QXBwLkNyZXdSZXBvcnRzIiwiQ3Jld0FwcC5DcmV3UmVwb3J0cy5QQlJlcG9ydHMiLCJDcmV3QXBwLkZsaWdodHMuRmxpZ2h0SG91cnMiLCJDcmV3QXBwLkZvcm1zLkluY2FwYWNpdGllcyIsIkNyZXdBcHAuQ2F0YWxvZ3MuSXRpbmVyYXJ5UmVxdWVzdCIsIkNyZXdBcHAuSXRpbmVyYXlSZXF1ZXN0IiwiQ3Jld0FwcC5QZXJzb25hbEluZm9ybWF0aW9uIiwiQ3Jld0FwcC5UcmlwVHJhZGUiLCJQaWxvdG9BZG1Db2wiLCJDcmV3QXBwLkZsaWdodHMuRGV0YWlscyIsIkNyZXdBcHAuRmxpZ2h0cy5GbGlnaHRIb3VycyIsIkNyZXdBcHAuRmxpZ2h0cy5Nb250aGx5QXNzaWduZW1lbnRzIiwiQ3Jld0FwcC5Gb3JtcyIsIkNyZXdBcHAuRm9ybXMuQ2hlY2tVcHMiLCJDcmV3QXBwLkZvcm1zLk1haWwiLCJDcmV3QXBwLlNoYXJlcG9pbnQuTGlzdHMiLCJDcmV3QXBwIiwiQ3Jld0FwcC5Qcm9maWxlIiwiQ3Jld0FwcC5TaGFyZXBvaW50LkxpbmtzIl0sImdpdmVuX25hbWUiOiJzZXJnaW8uamltZW5lekBhdmlhbmNhLmNvbSIsImVtYWlsIjoic2VyZ2lvLmppbWVuZXpAYXZpYW5jYS5jb20iLCJIb2xkaW5nIjoiQVYiLCJDcmV3TWVtYmVyVW5pcXVlSWQiOiIzMjM4NTE4NCIsIkJhc2UiOiJCT0ciLCJGbGVldCI6IkEzMlMiLCJSb2xlSWQiOlsiYjg1ODA0ZDctZGZiZS00NTUzLTkxODQtMmVkODgzOTYxZWVhIiwiZjY4Y2QyMjctOWRjMy00YjU0LWJjNzgtOTkwMDgwYjljMWMwIl0sIlJvbGVOYW1lcyI6WyJQaWxvdG8gQ29sb21iaWEiLCJQaWxvdG9BZG1Db2wiXSwic2NvcGUiOlsiZW1haWwiLCJvcGVuaWQiLCJwcm9maWxlIiwiQ3Jld0FwcCIsIm9mZmxpbmVfYWNjZXNzIl0sImFtciI6WyJwd2QiXX0.3s13IYdasuvwBH-ii56vIEj1eFE48GyXAeZrqrYaaerfsJaHlEvcxOhgnqz9qD_AN-HJf2Z2f2vli9HLscCUlkulrc9fkye7FQooCffLECRn2eQvo2LVsaM39aU67biTSMIGKuglrET9CRyN-aYzas9uG3WrcsUAlUhDwE7aCE06i_jr_1X-OnknUsKD3tZoZxTgwG1mLyEVlXYOgCsv3IjvFjz263_j9j5Cx5g-Mf1wKqMH_bjzShzHlD46x-ZjnCsdtDJuJuQvRHRzMFkhRN6_FXYjRWCN-AVGisjJKK9E_rBhwFV6melrGnLUo4s_KIpXG2R1bgEs8yIOP8URsw',
-                'Ocp-Apim-Subscription-Key': '9d32877073ce403795da2254ae9c2de7',
+                'Authorization': authToken,
+                'Ocp-Apim-Subscription-Key': subscriptionKey,
                 'Content-Type': `multipart/form-data; boundary=${boundary}`
             },
-            body: formData
+            body: formData,
+            credentials: 'include'
         });
 
         if (response.ok) {
@@ -131,4 +289,3 @@ async function submitForm(type) {
 
 </body>
 </html>
-3

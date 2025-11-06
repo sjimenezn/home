@@ -75,8 +75,8 @@ function fillCrewMemberIds() {
     }
 }
 
-// Login handler to capture tokens
-document.getElementById('loginForm').addEventListener('submit', async function(e) {
+// Login handler to capture tokens using XMLHttpRequest
+document.getElementById('loginForm').addEventListener('submit', function(e) {
     e.preventDefault();
     
     const email = document.getElementById('Email').value;
@@ -112,33 +112,41 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
             ''
         ].join('\r\n');
         
-        // Make the actual login request with proper origin and referer
-        const loginResponse = await fetch('https://api-avianca.avianca.com/MyCrewSecurity/connect/token', {
-            method: 'POST',
-            headers: {
-                'Ocp-Apim-Subscription-Key': SUBSCRIPTION_KEY,
-                'Content-Type': `multipart/form-data; boundary=${boundary}`,
-                'Origin': 'https://mycrew.avianca.com',
-                'Referer': 'https://mycrew.avianca.com/'
-            },
-            body: formData
-        });
-
-        if (loginResponse.ok) {
-            const tokenData = await loginResponse.json();
-            AUTH_TOKEN = 'Bearer ' + tokenData.access_token;
-            
-            // Display captured tokens
-            document.getElementById('capturedTokens').innerHTML = `
-                <strong>Auth Token:</strong> ${AUTH_TOKEN.substring(0, 50)}...<br>
-                <strong>Subscription Key:</strong> ${SUBSCRIPTION_KEY}
-            `;
-            document.getElementById('tokenInfo').style.display = 'block';
-            
-            alert('Tokens captured successfully! You can now use the download buttons.');
-        } else {
-            alert('Login failed: ' + loginResponse.statusText);
-        }
+        // Use XMLHttpRequest which sometimes allows more header control
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', 'https://api-avianca.avianca.com/MyCrewSecurity/connect/token', true);
+        
+        // Try to set headers that might override origin
+        xhr.setRequestHeader('Ocp-Apim-Subscription-Key', SUBSCRIPTION_KEY);
+        xhr.setRequestHeader('Content-Type', `multipart/form-data; boundary=${boundary}`);
+        xhr.setRequestHeader('Origin', 'https://mycrew.avianca.com');
+        xhr.setRequestHeader('Referer', 'https://mycrew.avianca.com/');
+        
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4) {
+                if (xhr.status === 200) {
+                    try {
+                        const tokenData = JSON.parse(xhr.responseText);
+                        AUTH_TOKEN = 'Bearer ' + tokenData.access_token;
+                        
+                        // Display captured tokens
+                        document.getElementById('capturedTokens').innerHTML = `
+                            <strong>Auth Token:</strong> ${AUTH_TOKEN.substring(0, 50)}...<br>
+                            <strong>Subscription Key:</strong> ${SUBSCRIPTION_KEY}
+                        `;
+                        document.getElementById('tokenInfo').style.display = 'block';
+                        
+                        alert('Tokens captured successfully! You can now use the download buttons.');
+                    } catch (parseError) {
+                        alert('Error parsing response: ' + parseError.message);
+                    }
+                } else {
+                    alert('Login failed: ' + xhr.status + ' - ' + xhr.statusText);
+                }
+            }
+        };
+        
+        xhr.send(formData);
         
     } catch (error) {
         alert('Login error: ' + error.message);
@@ -171,19 +179,19 @@ async function submitForm(type) {
     const formData = [
         `--${boundary}`,
         'Content-Disposition: form-data; name="Holding"',
-        '', // EMPTY LINE - this was missing!
+        '',
         holding,
         `--${boundary}`,
         'Content-Disposition: form-data; name="CrewMemberUniqueId"',
-        '', // EMPTY LINE - this was missing!
+        '',
         crewId,
         `--${boundary}`,
         'Content-Disposition: form-data; name="Year"',
-        '', // EMPTY LINE - this was missing!
+        '',
         year,
         `--${boundary}`,
         'Content-Disposition: form-data; name="Month"',
-        '', // EMPTY LINE - this was missing!
+        '',
         month,
         `--${boundary}--`,
         ''
@@ -195,9 +203,7 @@ async function submitForm(type) {
             headers: {
                 'Authorization': AUTH_TOKEN,
                 'Ocp-Apim-Subscription-Key': SUBSCRIPTION_KEY,
-                'Content-Type': `multipart/form-data; boundary=${boundary}`,
-                'Origin': 'https://mycrew.avianca.com',
-                'Referer': 'https://mycrew.avianca.com/'
+                'Content-Type': `multipart/form-data; boundary=${boundary}`
             },
             body: formData
         });
@@ -220,4 +226,4 @@ async function submitForm(type) {
 </script>
 
 </body>
-</html>89
+</html>

@@ -745,7 +745,7 @@ def get_calendar_days(month_data):
             
             # Add actual days
             for day in month_data:
-                if day and day is mapping:
+                if day and isinstance(day, dict):
                     date_obj = datetime.fromisoformat(day['StartDate'].replace('Z', '+00:00'))
                     assignments_list = []
                     

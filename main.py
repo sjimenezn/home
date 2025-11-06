@@ -11,7 +11,7 @@ from datetime import datetime
 from flask import Flask, render_template_string
 
 # Configuration
-DEFAULT_CREW_ID = "32385184"
+DEFAULT_CREW_ID = "19043635"
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)

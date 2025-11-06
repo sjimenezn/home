@@ -10,6 +10,9 @@ import json
 from datetime import datetime
 from flask import Flask, render_template_string
 
+# Configuration
+DEFAULT_CREW_ID = "32385184"
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -26,6 +29,7 @@ class CrewAPIClient:
         
     def login(self, email, password):
         try:
+            logger.info("🔐 Attempting API login...")
             form_data = {
                 'username': email, 'password': password, 'grant_type': 'password',
                 'client_id': 'angularclient', 'client_secret': 'angularclient',
@@ -41,14 +45,17 @@ class CrewAPIClient:
                 token_data = response.json()
                 self.auth_token = f"Bearer {token_data['access_token']}"
                 self.is_logged_in = True
+                logger.info("✅ API login successful!")
                 return True
+            logger.error(f"❌ API login failed: {response.status_code}")
             return False
         except Exception as e:
-            logger.error(f"Login error: {e}")
+            logger.error(f"❌ Login error: {e}")
             return False
     
     def get_schedule_data(self):
         try:
+            logger.info("📊 Fetching schedule data...")
             if not self.is_logged_in:
                 email = os.getenv('CREW_EMAIL', 'sergio.jimenez@avianca.com')
                 password = os.getenv('CREW_PASSWORD', 'aLogout.8701')
@@ -64,10 +71,12 @@ class CrewAPIClient:
             }
             response = self.session.get(url, params=params, headers=headers, timeout=30)
             if response.status_code == 200:
+                logger.info("✅ Schedule data fetched successfully!")
                 return response.json()
+            logger.error(f"❌ Failed to fetch schedule data: {response.status_code}")
             return None
         except Exception as e:
-            logger.error(f"Error fetching data: {e}")
+            logger.error(f"❌ Error fetching data: {e}")
             return None
 
 client = CrewAPIClient()
@@ -205,21 +214,27 @@ def index():
 def fetch_data():
     global schedule_data, last_fetch_time
     try:
+        logger.info("🔄 Manual data refresh requested")
         new_data = client.get_schedule_data()
         if new_data is not None:
             schedule_data = new_data
             last_fetch_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            logger.info("✅ Data updated successfully via /fetch endpoint")
             return {"success": True}
+        logger.error("❌ Data refresh failed - no data received")
         return {"success": False, "error": "Failed to fetch data"}
     except Exception as e:
+        logger.error(f"❌ Error in /fetch endpoint: {e}")
         return {"success": False, "error": str(e)}
 
 def main():
     global schedule_data, last_fetch_time
+    logger.info("🚀 Starting Crew Schedule Application...")
     initial_data = client.get_schedule_data()
     if initial_data is not None:
         schedule_data = initial_data
         last_fetch_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        logger.info("✅ Initial data fetch successful!")
     app.run(host='0.0.0.0', port=8000, debug=False)
 
 if __name__ == "__main__":

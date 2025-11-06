@@ -36,7 +36,6 @@ USER crewbot
 # Set environment variables for Chrome
 ENV CHROME_BIN=/usr/bin/google-chrome
 ENV CHROME_DRIVER=/usr/local/bin/chromedriver
-ENV DISPLAY=:99
 
 # Run the application
-CMD ["python", "crew_bot.py"]
+CMD ["python", "main.py"]

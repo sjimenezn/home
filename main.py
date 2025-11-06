@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
 """
-My Crew Schedule Monitor - Fixed Version
+My Crew Schedule - Working Version
 """
 
 import os
 import logging
 import requests
-import json
 from datetime import datetime
 from flask import Flask, render_template_string
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
@@ -74,7 +73,7 @@ client = CrewAPIClient()
 schedule_data = None
 last_fetch_time = None
 
-HTML_TEMPLATE = """
+HTML_TEMPLATE = '''
 <!DOCTYPE html>
 <html>
 <head>
@@ -120,18 +119,18 @@ HTML_TEMPLATE = """
                     {% if day and day is mapping %}
                     <div class="day-card">
                         <div class="day-header">
-                            <strong>{{ day.StartDate[:10] if day.StartDate else 'Unknown' }}</strong>
+                            <strong>{{ day.StartDate[:10] if day.StartDate else "Unknown" }}</strong>
                             <span style="float: right;">DEM: {{ day.Dem }}</span>
                         </div>
                         
                         {% if day.AssignementList and day.AssignementList|length > 0 %}
                             {% for assignment in day.AssignementList %}
                             <div class="assignment">
-                                <strong>{{ assignment.ActivityCode.strip() if assignment.ActivityCode else 'N/A' }}</strong>
-                                - {{ assignment.ActivityDesc.strip() if assignment.ActivityDesc else 'No Description' }}
+                                <strong>{{ assignment.ActivityCode.strip() if assignment.ActivityCode else "N/A" }}</strong>
+                                - {{ assignment.ActivityDesc.strip() if assignment.ActivityDesc else "No Description" }}
                                 <div class="flight-info">
-                                    <strong>Time:</strong> {{ assignment.StartDateLocal[:16] if assignment.StartDateLocal else 'N/A' }} 
-                                    to {{ assignment.EndDateLocal[:16] if assignment.EndDateLocal else 'N/A' }}
+                                    <strong>Time:</strong> {{ assignment.StartDateLocal[:16] if assignment.StartDateLocal else "N/A" }} 
+                                    to {{ assignment.EndDateLocal[:16] if assignment.EndDateLocal else "N/A" }}
                                     {% if assignment.FlighAssignement and assignment.FlighAssignement.CommercialFlightNumber != "XXX" %}
                                     <br><strong>Flight:</strong> {{ assignment.FlighAssignement.Airline }} {{ assignment.FlighAssignement.CommercialFlightNumber }}
                                     | {{ assignment.FlighAssignement.OriginAirportIATACode }} → {{ assignment.FlighAssignement.FinalAirportIATACode }}
@@ -161,24 +160,24 @@ HTML_TEMPLATE = """
     function fetchData() {
         const button = event.target;
         button.disabled = true;
-        button.textContent = '⏳ Loading...';
-        fetch('/fetch').then(r => r.json()).then(data => {
+        button.textContent = "⏳ Loading...";
+        fetch("/fetch").then(r => r.json()).then(data => {
             if (data.success) location.reload();
             else {
-                alert('Failed: ' + (data.error || 'Unknown error'));
+                alert("Failed: " + (data.error || "Unknown error"));
                 button.disabled = false;
-                button.textContent = '🔄 Refresh Schedule';
+                button.textContent = "🔄 Refresh Schedule";
             }
         }).catch(err => {
-            alert('Error: ' + err);
+            alert("Error: " + err);
             button.disabled = false;
-            button.textContent = '🔄 Refresh Schedule';
+            button.textContent = "🔄 Refresh Schedule";
         });
     }
     </script>
 </body>
 </html>
-"""
+'''
 
 @app.route('/')
 def index():
@@ -214,13 +213,12 @@ def fetch_data():
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-def main():
-    global schedule_data, last_fetch_time
+if __name__ == "__main__":
+    # Initial data fetch
     initial_data = client.get_schedule_data()
     if initial_data is not None:
         schedule_data = initial_data
         last_fetch_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        logger.info("✅ Initial data fetch successful!")
+    
     app.run(host='0.0.0.0', port=8000, debug=False)
-
-if __name__ == "__main__":
-    main()

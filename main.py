@@ -232,7 +232,6 @@ SCHEDULE_VIEW_TEMPLATE = """
         .time-label { font-weight: bold; color: #495057; font-size: 0.85em; }
         .time-value { font-size: 1em; color: #212529; }
         .flight-info { background: #e7f3ff; padding: 10px; margin: 8px 0; border-radius: 4px; border-left: 3px solid #007bff; }
-        .flight-header { font-weight: bold; color: #0056b3; margin-bottom: 5px; }
         .flight-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; font-size: 0.85em; }
         .flight-detail { padding: 3px 0; }
         .flight-detail strong { color: #495057; }
@@ -288,7 +287,12 @@ SCHEDULE_VIEW_TEMPLATE = """
                                 <div class="assignment-header">
                                     <div>
                                         <span class="activity-code">{{ assignment.ActivityCode.strip() if assignment.ActivityCode else 'FLIGHT' }}</span>
-                                        <span class="activity-desc">{{ assignment.ActivityDesc.strip() if assignment.ActivityDesc else 'Flight Duty' }}</span>
+                                        <span class="activity-desc">
+                                            {% if assignment.FlighAssignement and assignment.FlighAssignement.CommercialFlightNumber != "XXX" %}
+                                            {{ assignment.FlighAssignement.Airline }} {{ assignment.FlighAssignement.CommercialFlightNumber }} - 
+                                            {% endif %}
+                                            {{ assignment.ActivityDesc.strip() if assignment.ActivityDesc else 'Flight Duty' }}
+                                        </span>
                                         {% if assignment.AssignementCategory %}
                                         <span class="assignment-category">{{ assignment.AssignementCategory }}</span>
                                         {% endif %}
@@ -322,10 +326,6 @@ SCHEDULE_VIEW_TEMPLATE = """
 
                                 {% if assignment.FlighAssignement and assignment.FlighAssignement.CommercialFlightNumber != "XXX" %}
                                 <div class="flight-info">
-                                    <div class="flight-header">
-                                        🛫 Flight: {{ assignment.FlighAssignement.Airline }} {{ assignment.FlighAssignement.CommercialFlightNumber }}
-                                    </div>
-                                    
                                     <div class="flight-details">
                                         <div class="flight-detail">
                                             <strong>Route:</strong> {{ assignment.FlighAssignement.OriginAirportIATACode }} → {{ assignment.FlighAssignement.FinalAirportIATACode }}

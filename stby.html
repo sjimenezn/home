@@ -1,3 +1,4 @@
+
 <html lang="en">
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
@@ -44,7 +45,7 @@
 <input type="text" id="favCktPlayer" list="CktPlayers" style="width: 300px;" onchange="fillCrewMemberIds()">
 <button type="button" onclick="clearDropdown()">Clear</button>  
 <datalist id="CktPlayers">  
-    <option value="ABONDANO COZZARELLI CARLOS ERNESTO 80412229">
+    <option value="ABONDANO COZZARELLI CARLOS ERNESTO2 80412229">
 </datalist> 
 
 <script>
@@ -66,7 +67,7 @@ function fillCrewMemberIds() {
 async function submitForm(type) {
     const form = type === 'scheduled' ? document.getElementById('scheduledForm') : document.getElementById('actualForm');
     const url = type === 'scheduled' 
-        ? 'https://api-avianca.avianca.com/MycreWFlights/api/MonthlyAssignements/Scheduled/Export?format=json'
+        ? 'https://api-avianca.avianca.com/MycreWFlights/api/MonthlyAssignements/Scheduled/Export'
         : 'https://api-avianca.avianca.com/MycreWFlights/api/MonthlyAssignements/Export';
     
     const formData = new FormData(form);
@@ -99,5 +100,6 @@ async function submitForm(type) {
     }
 }
 </script>
+
 </body>
-</html>
+</html>  successful traffic where the OPTIONS preflight and POST request go to the same endpoint without any query parameters.

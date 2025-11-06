@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-My Crew Schedule Monitor - Optimized Display Version
+My Crew Schedule Monitor - Optimized Display with Date/Time Formatting
 """
 
 import os
@@ -227,6 +227,10 @@ SCHEDULE_VIEW_TEMPLATE = """
         .assignment-category { background: #6c757d; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; margin-left: 10px; }
         .assignment-type { background: #17a2b8; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; margin-left: 5px; }
         .time-info { color: #666; font-size: 0.9em; margin: 5px 0; }
+        .real-times { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 8px 0; }
+        .time-block { background: #f8f9fa; padding: 8px; border-radius: 4px; border-left: 3px solid #28a745; }
+        .time-label { font-weight: bold; color: #495057; font-size: 0.85em; }
+        .time-value { font-size: 1em; color: #212529; }
         .flight-info { background: #e7f3ff; padding: 10px; margin: 8px 0; border-radius: 4px; border-left: 3px solid #007bff; }
         .flight-header { font-weight: bold; color: #0056b3; margin-bottom: 5px; }
         .flight-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; font-size: 0.85em; }
@@ -237,7 +241,6 @@ SCHEDULE_VIEW_TEMPLATE = """
         .no-data { color: #6c757d; text-align: center; padding: 10px; }
         .error { color: #dc3545; text-align: center; padding: 20px; }
         .success { color: #155724; background: #d4edda; padding: 10px; border-radius: 5px; margin: 10px 0; text-align: center; }
-        .assignment-id { color: #999; font-size: 0.7em; float: right; }
     </style>
 </head>
 <body>
@@ -275,7 +278,7 @@ SCHEDULE_VIEW_TEMPLATE = """
                     {% if day and day is mapping %}
                     <div class="day-card">
                         <div class="day-header">
-                            <strong>{{ day.StartDate[:10] if day.StartDate else 'Unknown' }}</strong>
+                            <strong>{{ format_date(day.StartDate) if day.StartDate else 'Unknown' }}</strong>
                             <span style="float: right;">DEM: {{ day.Dem }}</span>
                         </div>
                         
@@ -293,12 +296,17 @@ SCHEDULE_VIEW_TEMPLATE = """
                                         <span class="assignment-type">{{ assignment.ActivityType }}</span>
                                         {% endif %}
                                     </div>
-                                    <span class="assignment-id">#{{ assignment.Id }}</span>
                                 </div>
                                 
-                                <div class="time-info">
-                                    <strong>🕐 Time:</strong> {{ assignment.StartDateLocal[:16] if assignment.StartDateLocal else 'N/A' }} 
-                                    to {{ assignment.EndDateLocal[:16] if assignment.EndDateLocal else 'N/A' }}
+                                <div class="real-times">
+                                    <div class="time-block">
+                                        <div class="time-label">Departure:</div>
+                                        <div class="time-value">{{ format_time(assignment.StartDateLocal) if assignment.StartDateLocal else 'N/A' }}</div>
+                                    </div>
+                                    <div class="time-block">
+                                        <div class="time-label">Arrival:</div>
+                                        <div class="time-value">{{ format_time(assignment.EndDateLocal) if assignment.EndDateLocal else 'N/A' }}</div>
+                                    </div>
                                 </div>
 
                                 {% if assignment.AircraftRegistrationNumber %}
@@ -316,9 +324,6 @@ SCHEDULE_VIEW_TEMPLATE = """
                                 <div class="flight-info">
                                     <div class="flight-header">
                                         🛫 Flight: {{ assignment.FlighAssignement.Airline }} {{ assignment.FlighAssignement.CommercialFlightNumber }}
-                                        {% if assignment.FlighAssignement.OperationalNumber and assignment.FlighAssignement.OperationalNumber != "0" %}
-                                        (Op: {{ assignment.FlighAssignement.OperationalNumber }})
-                                        {% endif %}
                                     </div>
                                     
                                     <div class="flight-details">
@@ -329,13 +334,13 @@ SCHEDULE_VIEW_TEMPLATE = """
                                             <strong>Duration:</strong> {{ assignment.FlighAssignement.Duration }} min (Scheduled: {{ assignment.FlighAssignement.ScheduledDuration }} min)
                                         </div>
                                         <div class="flight-detail">
-                                            <strong>Departure:</strong> {{ assignment.FlighAssignement.ScheduledDepartureDate[:16] }}
+                                            <strong>Departure:</strong> {{ format_time(assignment.FlighAssignement.ScheduledDepartureDate) }}
                                             {% if assignment.FlighAssignement.DepartureStand %}
                                             | Stand: {{ assignment.FlighAssignement.DepartureStand }}
                                             {% endif %}
                                         </div>
                                         <div class="flight-detail">
-                                            <strong>Arrival:</strong> {{ assignment.FlighAssignement.ScheduledArrivalDate[:16] }}
+                                            <strong>Arrival:</strong> {{ format_time(assignment.FlighAssignement.ScheduledArrivalDate) }}
                                             {% if assignment.FlighAssignement.ArrivalStand %}
                                             | Stand: {{ assignment.FlighAssignement.ArrivalStand }}
                                             {% endif %}
@@ -539,11 +544,35 @@ PDF_VIEW_TEMPLATE = """
 </html>
 """
 
+def format_date(date_string):
+    """Format date string to MMM-DD-YYYY format"""
+    try:
+        if date_string:
+            # Parse the date string
+            dt = datetime.fromisoformat(date_string.replace('Z', '+00:00'))
+            # Format as MMM-DD-YYYY (e.g., OCT-01-2025)
+            return dt.strftime('%b-%d-%Y').upper()
+    except (ValueError, AttributeError):
+        pass
+    return date_string[:10] if date_string else 'Unknown'
+
+def format_time(date_string):
+    """Format date string to HH:MM format"""
+    try:
+        if date_string:
+            # Parse the date string
+            dt = datetime.fromisoformat(date_string.replace('Z', '+00:00'))
+            # Format as HH:MM (e.g., 14:30)
+            return dt.strftime('%H:%M')
+    except (ValueError, AttributeError):
+        pass
+    return date_string[11:16] if date_string and len(date_string) >= 16 else 'N/A'
+
 @app.route('/')
 def index():
     global schedule_data, last_fetch_time
     
-    # 🔄 ADDED: Automatically fetch fresh data on every page load
+    # 🔄 Automatically fetch fresh data on every page load
     logger.info("🔄 Auto-fetching fresh data on page load...")
     new_data = client.get_schedule_data()
     if new_data is not None:
@@ -574,7 +603,9 @@ def index():
         total_days=total_days,
         total_assignments=total_assignments,
         refresh_message=refresh_message,
-        current_crew_id=current_crew_id
+        current_crew_id=current_crew_id,
+        format_date=format_date,
+        format_time=format_time
     )
 
 @app.route('/pdf')

@@ -20,12 +20,16 @@ app = Flask(__name__)
 
 class CrewAPIClient:
     def __init__(self):
-        self.session = requests.Session()
         self.base_url = "https://api-avianca.avianca.com/MycreWFlights/api"
         self.auth_url = "https://api-avianca.avianca.com/MyCrewSecurity/connect/token"
+        self.subscription_key = "9d32877073ce403795da2254ae9c2de7"
+        
+    def create_new_session(self):
+        """Create a fresh session to clear all cookies and cache"""
+        self.session = requests.Session()
         self.is_logged_in = False
         self.auth_token = None
-        self.subscription_key = "9d32877073ce403795da2254ae9c2de7"
+        logger.info("🆕 Created new session (cleared cookies/cache)")
         
     def login(self, email, password):
         try:
@@ -56,11 +60,15 @@ class CrewAPIClient:
     def get_schedule_data(self):
         try:
             logger.info("📊 Fetching schedule data...")
-            if not self.is_logged_in:
-                email = os.getenv('CREW_EMAIL', 'sergio.jimenez@avianca.com')
-                password = os.getenv('CREW_PASSWORD', 'aLogout.8701')
-                if not self.login(email, password):
-                    return None
+            
+            # Always create a new session to ensure fresh data
+            self.create_new_session()
+            
+            email = os.getenv('CREW_EMAIL', 'sergio.jimenez@avianca.com')
+            password = os.getenv('CREW_PASSWORD', 'aLogout.8701')
+            
+            if not self.login(email, password):
+                return None
             
             url = f"{self.base_url}/Assignements/AssignmentsComplete"
             params = {"timeZoneOffset": -300}
@@ -69,10 +77,20 @@ class CrewAPIClient:
                 "Accept": "application/json", "Origin": "https://mycrew.avianca.com", 
                 "Referer": "https://mycrew.avianca.com/",
             }
+            
+            logger.info(f"🌐 Making fresh API request...")
             response = self.session.get(url, params=params, headers=headers, timeout=30)
+            
             if response.status_code == 200:
+                data = response.json()
+                # Log data structure for debugging
+                if isinstance(data, list):
+                    logger.info(f"✅ Schedule data fetched! Structure: {len(data)} months")
+                    if data and isinstance(data[0], list):
+                        logger.info(f"📅 First month has {len(data[0])} days")
                 logger.info("✅ Schedule data fetched successfully!")
-                return response.json()
+                return data
+                
             logger.error(f"❌ Failed to fetch schedule data: {response.status_code}")
             return None
         except Exception as e:
@@ -94,6 +112,7 @@ HTML_TEMPLATE = """
         .header { text-align: center; margin-bottom: 20px; }
         .button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
         .button:hover { background: #0056b3; }
+        .button:disabled { background: #6c757d; cursor: not-allowed; }
         .info-box { background: #e9ecef; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center; }
         .month-section { border: 2px solid #007bff; padding: 15px; margin: 20px 0; border-radius: 8px; }
         .month-header { background: #007bff; color: white; padding: 10px; border-radius: 5px; margin-bottom: 15px; }
@@ -103,14 +122,21 @@ HTML_TEMPLATE = """
         .flight-info { color: #666; font-size: 0.9em; margin-top: 5px; }
         .no-data { color: #6c757d; text-align: center; padding: 10px; }
         .error { color: #dc3545; text-align: center; padding: 20px; }
+        .success { color: #155724; background: #d4edda; padding: 10px; border-radius: 5px; margin: 10px 0; text-align: center; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>✈️ My Crew Schedule</h1>
-            <button class="button" onclick="fetchData()">🔄 Refresh Schedule</button>
+            <button class="button" onclick="fetchData()" id="refreshBtn">🔄 Refresh Schedule</button>
         </div>
+
+        {% if refresh_message %}
+        <div class="success">
+            {{ refresh_message }}
+        </div>
+        {% endif %}
 
         {% if last_fetch %}
         <div class="info-box">
@@ -168,21 +194,29 @@ HTML_TEMPLATE = """
 
     <script>
     function fetchData() {
-        const button = event.target;
+        const button = document.getElementById('refreshBtn');
         button.disabled = true;
         button.textContent = '⏳ Loading...';
-        fetch('/fetch').then(r => r.json()).then(data => {
-            if (data.success) location.reload();
-            else {
-                alert('Failed: ' + (data.error || 'Unknown error'));
+        
+        fetch('/fetch?refresh=true')
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    // Add refresh parameter to show success message
+                    const url = new URL(window.location);
+                    url.searchParams.set('refresh', 'success');
+                    window.location.href = url.toString();
+                } else {
+                    alert('Failed: ' + (data.error || 'Unknown error'));
+                    button.disabled = false;
+                    button.textContent = '🔄 Refresh Schedule';
+                }
+            })
+            .catch(err => {
+                alert('Error: ' + err);
                 button.disabled = false;
                 button.textContent = '🔄 Refresh Schedule';
-            }
-        }).catch(err => {
-            alert('Error: ' + err);
-            button.disabled = false;
-            button.textContent = '🔄 Refresh Schedule';
-        });
+            });
     }
     </script>
 </body>
@@ -203,23 +237,26 @@ def index():
                         assignments = day.get('AssignementList', [])
                         total_assignments += len(assignments)
     
+    refresh_message = "Data refreshed successfully!" if request.args.get('refresh') == 'success' else None
+    
     return render_template_string(HTML_TEMPLATE,
         schedule_data=schedule_data,
         last_fetch=last_fetch_time,
         total_days=total_days,
-        total_assignments=total_assignments
+        total_assignments=total_assignments,
+        refresh_message=refresh_message
     )
 
 @app.route('/fetch')
 def fetch_data():
     global schedule_data, last_fetch_time
     try:
-        logger.info("🔄 Manual data refresh requested")
+        logger.info("🔄 Manual data refresh requested - creating fresh session...")
         new_data = client.get_schedule_data()
         if new_data is not None:
             schedule_data = new_data
             last_fetch_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            logger.info("✅ Data updated successfully via /fetch endpoint")
+            logger.info("✅ Data updated successfully with fresh session!")
             return {"success": True}
         logger.error("❌ Data refresh failed - no data received")
         return {"success": False, "error": "Failed to fetch data"}

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-My Crew Schedule Monitor - Optimized Display with Date/Time Formatting
+My Crew Schedule Monitor - With Calendar View
 """
 
 import os
@@ -8,7 +8,7 @@ import time
 import logging
 import requests
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import Flask, render_template_string, request, send_file
 
 # Configuration
@@ -248,6 +248,7 @@ SCHEDULE_VIEW_TEMPLATE = """
             <h1>✈️ My Crew Schedule</h1>
             <div class="nav-buttons">
                 <a href="/" class="nav-button active">📋 Schedule View</a>
+                <a href="/calendar" class="nav-button">📅 Calendar View</a>
                 <a href="/pdf" class="nav-button">📄 PDF Download</a>
             </div>
             <button class="button" onclick="fetchData()" id="refreshBtn">🔄 Refresh Schedule</button>
@@ -418,6 +419,147 @@ SCHEDULE_VIEW_TEMPLATE = """
 </html>
 """
 
+CALENDAR_VIEW_TEMPLATE = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My Crew Schedule - Calendar View</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 1400px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; }
+        .header { text-align: center; margin-bottom: 20px; }
+        .nav-buttons { text-align: center; margin: 15px 0; }
+        .nav-button { background: #6c757d; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; margin: 0 5px; text-decoration: none; display: inline-block; }
+        .nav-button:hover { background: #5a6268; }
+        .nav-button.active { background: #007bff; }
+        .button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
+        .button:hover { background: #0056b3; }
+        .info-box { background: #e9ecef; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center; }
+        .calendar-container { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+        .month-calendar { border: 2px solid #007bff; border-radius: 8px; padding: 15px; background: white; }
+        .month-header { background: #007bff; color: white; padding: 10px; border-radius: 5px; margin-bottom: 10px; text-align: center; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+        .calendar-day { border: 1px solid #ddd; min-height: 120px; padding: 5px; background: #f8f9fa; position: relative; }
+        .calendar-day.weekend { background: #e9ecef; }
+        .calendar-day.empty { background: #f5f5f5; border: none; }
+        .day-number { font-weight: bold; font-size: 0.9em; color: #495057; margin-bottom: 3px; }
+        .day-dem { position: absolute; top: 5px; right: 5px; font-size: 0.7em; color: #6c757d; }
+        .assignment-item { font-size: 0.7em; margin: 1px 0; padding: 1px 3px; border-radius: 2px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+        .assignment-flight { background: #d4edda; border-left: 2px solid #28a745; }
+        .assignment-ground { background: #e2e3e5; border-left: 2px solid #6c757d; }
+        .assignment-dayoff { background: #fff3cd; border-left: 2px solid #ffc107; }
+        .assignment-standby { background: #cce7ff; border-left: 2px solid #007bff; }
+        .flight-number { font-weight: bold; color: #0056b3; }
+        .no-data { color: #6c757d; text-align: center; padding: 10px; font-size: 0.8em; }
+        .weekday-header { background: #17a2b8; color: white; padding: 5px; text-align: center; font-size: 0.8em; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>✈️ My Crew Schedule - Calendar View</h1>
+            <div class="nav-buttons">
+                <a href="/" class="nav-button">📋 Schedule View</a>
+                <a href="/calendar" class="nav-button active">📅 Calendar View</a>
+                <a href="/pdf" class="nav-button">📄 PDF Download</a>
+            </div>
+            <button class="button" onclick="fetchData()" id="refreshBtn">🔄 Refresh Schedule</button>
+        </div>
+
+        {% if refresh_message %}
+        <div class="info-box" style="background: #d4edda;">
+            {{ refresh_message }}
+        </div>
+        {% endif %}
+
+        {% if last_fetch %}
+        <div class="info-box">
+            <h3>Last updated: {{ last_fetch }}</h3>
+            <p>Current Crew ID: <strong>{{ current_crew_id }}</strong></p>
+        </div>
+        {% endif %}
+
+        {% if schedule_data %}
+        <div class="calendar-container">
+            {% for month in schedule_data %}
+            <div class="month-calendar">
+                <div class="month-header">
+                    <h3>📅 Month {{ loop.index }} - {{ get_month_year(month) }}</h3>
+                </div>
+                
+                <div class="calendar-grid">
+                    <!-- Weekday headers -->
+                    <div class="weekday-header">Mon</div>
+                    <div class="weekday-header">Tue</div>
+                    <div class="weekday-header">Wed</div>
+                    <div class="weekday-header">Thu</div>
+                    <div class="weekday-header">Fri</div>
+                    <div class="weekday-header">Sat</div>
+                    <div class="weekday-header">Sun</div>
+                    
+                    <!-- Calendar days -->
+                    {% set days_data = get_calendar_days(month) %}
+                    {% for day in days_data %}
+                    <div class="calendar-day {% if day.weekday >= 5 %}weekend{% endif %} {% if not day.has_data %}empty{% endif %}">
+                        {% if day.has_data %}
+                        <div class="day-number">{{ day.day }}</div>
+                        <div class="day-dem">DEM: {{ day.dem }}</div>
+                        
+                        {% if day.assignments %}
+                            {% for assignment in day.assignments %}
+                            <div class="assignment-item {{ assignment.css_class }}" title="{{ assignment.tooltip }}">
+                                <span class="flight-number">{{ assignment.flight_number }}</span>
+                                {{ assignment.time }}
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="no-data">No assignments</div>
+                        {% endif %}
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+            <div class="info-box" style="background: #f8d7da; color: #721c24;">
+                <h3>No schedule data available</h3>
+                <p>Click "Refresh Schedule" to load your schedule.</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <script>
+    function fetchData() {
+        const button = document.getElementById('refreshBtn');
+        button.disabled = true;
+        button.textContent = '⏳ Loading...';
+        
+        fetch('/fetch?refresh=true')
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    const url = new URL(window.location);
+                    url.searchParams.set('refresh', 'success');
+                    window.location.href = url.toString();
+                } else {
+                    alert('Failed: ' + (data.error || 'Unknown error'));
+                    button.disabled = false;
+                    button.textContent = '🔄 Refresh Schedule';
+                }
+            })
+            .catch(err => {
+                alert('Error: ' + err);
+                button.disabled = false;
+                button.textContent = '🔄 Refresh Schedule';
+            });
+    }
+    </script>
+</body>
+</html>
+"""
+
 PDF_VIEW_TEMPLATE = """
 <!DOCTYPE html>
 <html>
@@ -451,6 +593,7 @@ PDF_VIEW_TEMPLATE = """
             <h1>✈️ My Crew Schedule</h1>
             <div class="nav-buttons">
                 <a href="/" class="nav-button">📋 Schedule View</a>
+                <a href="/calendar" class="nav-button">📅 Calendar View</a>
                 <a href="/pdf" class="nav-button active">📄 PDF Download</a>
             </div>
             <h2>📄 Download Schedule PDF</h2>
@@ -568,6 +711,96 @@ def format_time(date_string):
         pass
     return date_string[11:16] if date_string and len(date_string) >= 16 else 'N/A'
 
+def get_month_year(month_data):
+    """Extract month and year from the first day of the month"""
+    try:
+        if month_data and len(month_data) > 0:
+            first_day = month_data[0]
+            if first_day and 'StartDate' in first_day:
+                dt = datetime.fromisoformat(first_day['StartDate'].replace('Z', '+00:00'))
+                return dt.strftime('%B %Y')
+    except (ValueError, AttributeError, KeyError):
+        pass
+    return "Unknown Month"
+
+def get_calendar_days(month_data):
+    """Convert month data to calendar grid format with 42 days (6 weeks)"""
+    calendar_days = []
+    
+    if not month_data:
+        # Return empty calendar if no data
+        return [{'has_data': False} for _ in range(42)]
+    
+    try:
+        # Get the first day of the month to determine weekday
+        first_day = month_data[0]
+        if first_day and 'StartDate' in first_day:
+            first_date = datetime.fromisoformat(first_day['StartDate'].replace('Z', '+00:00'))
+            # Get weekday (0=Monday, 6=Sunday)
+            first_weekday = (first_date.weekday()) % 7
+            
+            # Add empty days for the beginning of the month
+            for _ in range(first_weekday):
+                calendar_days.append({'has_data': False})
+            
+            # Add actual days
+            for day in month_data:
+                if day and day is mapping:
+                    date_obj = datetime.fromisoformat(day['StartDate'].replace('Z', '+00:00'))
+                    assignments_list = []
+                    
+                    if day.get('AssignementList'):
+                        for assignment in day['AssignementList']:
+                            # Determine assignment type and styling
+                            css_class = "assignment-ground"
+                            flight_number = ""
+                            time_display = ""
+                            tooltip = ""
+                            
+                            if assignment.get('FlighAssignement') and assignment['FlighAssignement'].get('CommercialFlightNumber') != "XXX":
+                                css_class = "assignment-flight"
+                                flight_number = f"{assignment['FlighAssignement'].get('Airline', '')} {assignment['FlighAssignement'].get('CommercialFlightNumber', '')}"
+                                if assignment.get('StartDateLocal'):
+                                    time_display = format_time(assignment['StartDateLocal'])
+                            elif "DAY_OFF" in assignment.get('AssignementCategory', ''):
+                                css_class = "assignment-dayoff"
+                                flight_number = "DAY OFF"
+                            elif "STAND_BY" in assignment.get('AssignementCategory', ''):
+                                css_class = "assignment-standby"
+                                flight_number = "STANDBY"
+                            else:
+                                flight_number = assignment.get('ActivityCode', 'GROUND').strip()
+                            
+                            tooltip = assignment.get('ActivityDesc', '').strip()
+                            if not tooltip and flight_number:
+                                tooltip = flight_number
+                            
+                            assignments_list.append({
+                                'css_class': css_class,
+                                'flight_number': flight_number,
+                                'time': time_display,
+                                'tooltip': tooltip
+                            })
+                    
+                    calendar_days.append({
+                        'has_data': True,
+                        'day': date_obj.day,
+                        'weekday': date_obj.weekday(),
+                        'dem': day.get('Dem', 0),
+                        'assignments': assignments_list
+                    })
+            
+            # Fill remaining days to complete 6 weeks (42 days total)
+            while len(calendar_days) < 42:
+                calendar_days.append({'has_data': False})
+                
+    except (ValueError, AttributeError, KeyError) as e:
+        logger.error(f"Error processing calendar data: {e}")
+        # Return empty calendar on error
+        return [{'has_data': False} for _ in range(42)]
+    
+    return calendar_days
+
 @app.route('/')
 def index():
     global schedule_data, last_fetch_time
@@ -605,6 +838,30 @@ def index():
         refresh_message=refresh_message,
         current_crew_id=current_crew_id,
         format_date=format_date,
+        format_time=format_time
+    )
+
+@app.route('/calendar')
+def calendar_view():
+    global schedule_data, last_fetch_time
+    
+    # Auto-fetch data if needed
+    if schedule_data is None:
+        logger.info("🔄 Auto-fetching fresh data for calendar view...")
+        new_data = client.get_schedule_data()
+        if new_data is not None:
+            schedule_data = new_data
+            last_fetch_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    refresh_message = "Data refreshed successfully!" if request.args.get('refresh') == 'success' else None
+    
+    return render_template_string(CALENDAR_VIEW_TEMPLATE,
+        schedule_data=schedule_data,
+        last_fetch=last_fetch_time,
+        current_crew_id=current_crew_id,
+        refresh_message=refresh_message,
+        get_month_year=get_month_year,
+        get_calendar_days=get_calendar_days,
         format_time=format_time
     )
 

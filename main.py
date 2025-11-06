@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-My Crew Schedule Monitor - Simplified for Koyeb
+My Crew Schedule Monitor - Koyeb Deployment
 """
 
 import os
@@ -15,48 +15,53 @@ from selenium.common.exceptions import TimeoutException
 import schedule
 from datetime import datetime
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler()]
+)
+logger = logging.getLogger(__name__)
+
 class CrewScheduleBot:
     def __init__(self, headless=True):
-        self.setup_logging()
         self.driver = None
         self.is_logged_in = False
         self.headless = headless
         self.setup_driver()
         
-    def setup_logging(self):
-        logging.basicConfig(
-            level=logging.INFO,
-            format='%(asctime)s - %(levelname)s - %(message)s',
-            handlers=[logging.StreamHandler()]
-        )
-        self.logger = logging.getLogger(__name__)
-    
     def setup_driver(self):
         """Setup Chrome driver for server environment"""
-        chrome_options = Options()
-        
-        # Required for server environment
-        chrome_options.add_argument('--no-sandbox')
-        chrome_options.add_argument('--disable-dev-shm-usage')
-        chrome_options.add_argument('--disable-gpu')
-        chrome_options.add_argument('--remote-debugging-port=9222')
-        chrome_options.add_argument('--window-size=1920,1080')
-        
-        if self.headless:
-            chrome_options.add_argument('--headless')
-        
-        # Anti-detection
-        chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-        chrome_options.add_experimental_option('useAutomationExtension', False)
-        chrome_options.add_argument('--disable-blink-features=AutomationControlled')
-        
-        self.driver = webdriver.Chrome(options=chrome_options)
-        self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-        
+        try:
+            chrome_options = Options()
+            
+            # Required for server environment
+            chrome_options.add_argument('--no-sandbox')
+            chrome_options.add_argument('--disable-dev-shm-usage')
+            chrome_options.add_argument('--disable-gpu')
+            chrome_options.add_argument('--remote-debugging-port=9222')
+            chrome_options.add_argument('--window-size=1920,1080')
+            
+            if self.headless:
+                chrome_options.add_argument('--headless')
+            
+            # Anti-detection
+            chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+            chrome_options.add_experimental_option('useAutomationExtension', False)
+            chrome_options.add_argument('--disable-blink-features=AutomationControlled')
+            
+            self.driver = webdriver.Chrome(options=chrome_options)
+            self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+            logger.info("✅ Chrome driver initialized successfully")
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize Chrome driver: {e}")
+            raise
+    
     def login(self, email, password):
         """Login to mycrew.avianca.com"""
         try:
-            self.logger.info("Navigating to login page...")
+            logger.info("🌐 Navigating to login page...")
             self.driver.get('https://mycrew.avianca.com')
             
             # Wait for login form
@@ -80,24 +85,30 @@ class CrewScheduleBot:
             
             # Wait for login to complete
             WebDriverWait(self.driver, 20).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, ".dashboard, .schedule, [class*='menu'], button"))
+                EC.presence_of_element_located((By.CSS_SELECTOR, ".dashboard, .schedule, [class*='menu'], button, form"))
             )
             
             self.is_logged_in = True
-            self.logger.info("✅ Login successful!")
+            logger.info("✅ Login successful!")
             return True
             
         except TimeoutException:
-            self.logger.error("❌ Login failed - timeout waiting for elements")
+            logger.error("❌ Login failed - timeout waiting for elements")
+            # Take screenshot for debugging
+            try:
+                self.driver.save_screenshot('/tmp/login_timeout.png')
+                logger.info("📸 Screenshot saved to /tmp/login_timeout.png")
+            except:
+                pass
             return False
         except Exception as e:
-            self.logger.error(f"❌ Login failed: {str(e)}")
+            logger.error(f"❌ Login failed: {str(e)}")
             return False
     
-    def check_availability(self):
-        """Check if schedule page is accessible"""
+    def health_check(self):
+        """Check if the service is working"""
         try:
-            self.logger.info("🔍 Checking schedule availability...")
+            logger.info("🏥 Running health check...")
             
             if not self.is_logged_in:
                 email = os.getenv('CREW_EMAIL', 'sergio.jimenez@avianca.com')
@@ -113,11 +124,15 @@ class CrewScheduleBot:
                 EC.presence_of_element_located((By.TAG_NAME, "body"))
             )
             
-            self.logger.info("✅ Schedule page is accessible")
+            # Check for forms
+            forms = self.driver.find_elements(By.TAG_NAME, "form")
+            logger.info(f"📋 Found {len(forms)} forms on schedule page")
+            
+            logger.info("✅ Health check passed!")
             return True
             
         except Exception as e:
-            self.logger.error(f"❌ Schedule check failed: {str(e)}")
+            logger.error(f"❌ Health check failed: {str(e)}")
             return False
     
     def download_schedule(self, schedule_type="actual"):
@@ -129,7 +144,7 @@ class CrewScheduleBot:
                 if not self.login(email, password):
                     return False
             
-            self.logger.info(f"📥 Downloading {schedule_type} schedule...")
+            logger.info(f"📥 Attempting to download {schedule_type} schedule...")
             
             # Navigate to schedule page
             self.driver.get('https://mycrew.avianca.com/MonthlyAssignments')
@@ -153,72 +168,70 @@ class CrewScheduleBot:
                     break
             
             if not target_form:
-                self.logger.error(f"❌ Could not find {schedule_type} form")
+                logger.error(f"❌ Could not find {schedule_type} form")
                 return False
+            
+            logger.info(f"✅ Found {schedule_type} form")
             
             # Fill form fields
             current_month = str(datetime.now().month)
             current_year = str(datetime.now().year)
             
-            try:
-                holding_field = target_form.find_element(By.CSS_SELECTOR, "input[name='Holding']")
-                holding_field.clear()
-                holding_field.send_keys("AV")
-            except:
-                pass
+            # Try to fill each field, but continue if some fail
+            fields_to_fill = [
+                ("input[name='Holding']", "AV"),
+                ("input[name='CrewMemberUniqueId']", "32385184"),
+                ("input[name='Year']", current_year),
+                ("input[name='Month']", current_month)
+            ]
             
-            try:
-                crew_field = target_form.find_element(By.CSS_SELECTOR, "input[name='CrewMemberUniqueId']")
-                crew_field.clear()
-                crew_field.send_keys("32385184")
-            except:
-                pass
-            
-            try:
-                year_field = target_form.find_element(By.CSS_SELECTOR, "input[name='Year']")
-                year_field.clear()
-                year_field.send_keys(current_year)
-            except:
-                pass
-            
-            try:
-                month_field = target_form.find_element(By.CSS_SELECTOR, "input[name='Month']")
-                month_field.clear()
-                month_field.send_keys(current_month)
-            except:
-                pass
+            for selector, value in fields_to_fill:
+                try:
+                    field = target_form.find_element(By.CSS_SELECTOR, selector)
+                    field.clear()
+                    field.send_keys(value)
+                    logger.info(f"✅ Filled {selector} with {value}")
+                except Exception as e:
+                    logger.warning(f"⚠️ Could not fill {selector}: {e}")
             
             # Find and click download button
             download_btn = target_form.find_element(By.TAG_NAME, "button")
             download_btn.click()
             
+            logger.info(f"✅ Clicked download button for {schedule_type} schedule")
+            
             # Wait for download to initiate
             time.sleep(10)
             
-            self.logger.info(f"✅ {schedule_type.capitalize()} schedule download initiated!")
+            logger.info(f"✅ {schedule_type.capitalize()} schedule download process completed!")
             return True
             
         except Exception as e:
-            self.logger.error(f"❌ Download failed: {str(e)}")
+            logger.error(f"❌ Download failed: {str(e)}")
             return False
     
     def close(self):
         """Close the browser"""
         if self.driver:
-            self.driver.quit()
-            self.logger.info("Browser closed")
+            try:
+                self.driver.quit()
+                logger.info("✅ Browser closed")
+            except Exception as e:
+                logger.error(f"❌ Error closing browser: {e}")
 
 def run_health_check():
     """Function to run health checks"""
     bot = CrewScheduleBot(headless=True)
     try:
-        success = bot.check_availability()
+        success = bot.health_check()
         if success:
-            logging.info("🏥 Health check: PASSED")
+            logger.info("🏥 Health check: PASSED")
         else:
-            logging.error("🏥 Health check: FAILED")
+            logger.error("🏥 Health check: FAILED")
+        return success
     except Exception as e:
-        logging.error(f"🏥 Health check error: {e}")
+        logger.error(f"🏥 Health check error: {e}")
+        return False
     finally:
         bot.close()
 
@@ -226,29 +239,42 @@ def run_daily_download():
     """Function to run daily downloads"""
     bot = CrewScheduleBot(headless=True)
     try:
+        logger.info("🔄 Starting daily download cycle...")
+        
         # Download both schedule types
-        bot.download_schedule("actual")
+        actual_success = bot.download_schedule("actual")
         time.sleep(5)
-        bot.download_schedule("scheduled")
+        scheduled_success = bot.download_schedule("scheduled")
+        
+        if actual_success and scheduled_success:
+            logger.info("✅ Daily downloads completed successfully!")
+        else:
+            logger.warning("⚠️ Some downloads may have failed")
+            
     except Exception as e:
-        logging.error(f"Daily download error: {e}")
+        logger.error(f"❌ Daily download error: {e}")
     finally:
         bot.close()
 
 def main():
     """Main function for Koyeb deployment"""
-    logging.info("🚀 Crew Schedule Bot starting on Koyeb...")
+    logger.info("🚀 Crew Schedule Bot starting on Koyeb...")
+    logger.info(f"📧 Using email: {os.getenv('CREW_EMAIL', 'sergio.jimenez@avianca.com')}")
     
     # Initial health check
-    run_health_check()
+    if run_health_check():
+        logger.info("🎉 Application started successfully!")
+    else:
+        logger.error("💥 Application failed initial health check!")
     
     # Set up scheduled tasks
     schedule.every(30).minutes.do(run_health_check)
     schedule.every().day.at("06:00").do(run_daily_download)
     
-    logging.info("📅 Scheduled tasks configured:")
-    logging.info("  - Health check: every 30 minutes")
-    logging.info("  - Daily downloads: 06:00 UTC")
+    logger.info("📅 Scheduled tasks configured:")
+    logger.info("  - Health check: every 30 minutes")
+    logger.info("  - Daily downloads: 06:00 UTC")
+    logger.info("⏰ Current UTC time: " + datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"))
     
     # Keep the application running
     while True:
@@ -256,10 +282,10 @@ def main():
             schedule.run_pending()
             time.sleep(60)
         except KeyboardInterrupt:
-            logging.info("Shutting down...")
+            logger.info("🛑 Shutting down...")
             break
         except Exception as e:
-            logging.error(f"Scheduler error: {e}")
+            logger.error(f"⚠️ Scheduler error: {e}")
             time.sleep(60)
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-My Crew Schedule - With Calendar View
+My Crew Schedule - With Calendar View and Proper Logging
 """
 
 import os
@@ -9,7 +9,7 @@ import requests
 from datetime import datetime, timedelta
 from flask import Flask, render_template_string, request, jsonify
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
@@ -25,6 +25,7 @@ class CrewAPIClient:
         
     def login(self, email, password):
         try:
+            logger.info(f"🔐 Attempting login for: {email}")
             form_data = {
                 'username': email, 'password': password, 'grant_type': 'password',
                 'client_id': 'angularclient', 'client_secret': 'angularclient',
@@ -36,22 +37,30 @@ class CrewAPIClient:
                 "Origin": "https://mycrew.avianca.com", "Referer": "https://mycrew.avianca.com/",
             }
             response = self.session.post(self.auth_url, data=form_data, headers=headers, timeout=30)
+            
             if response.status_code == 200:
                 token_data = response.json()
                 self.auth_token = f"Bearer {token_data['access_token']}"
                 self.is_logged_in = True
+                logger.info("✅ Login successful!")
                 return True
-            return False
+            else:
+                logger.error(f"❌ Login failed: {response.status_code} - {response.text}")
+                return False
         except Exception as e:
-            logger.error(f"Login error: {e}")
+            logger.error(f"❌ Login error: {e}")
             return False
     
     def get_schedule_data(self, crew_id=None):
         try:
+            logger.info(f"📊 Fetching schedule data for crew ID: {crew_id}")
+            
             if not self.is_logged_in:
                 email = os.getenv('CREW_EMAIL', 'sergio.jimenez@avianca.com')
                 password = os.getenv('CREW_PASSWORD', 'aLogout.8701')
+                logger.info(f"🔄 Session not logged in, attempting login...")
                 if not self.login(email, password):
+                    logger.error("❌ Cannot fetch data - login failed")
                     return None
             
             url = f"{self.base_url}/Assignements/AssignmentsComplete"
@@ -61,12 +70,39 @@ class CrewAPIClient:
                 "Accept": "application/json", "Origin": "https://mycrew.avianca.com", 
                 "Referer": "https://mycrew.avianca.com/",
             }
+            
+            logger.info(f"🌐 Making API request to: {url}")
             response = self.session.get(url, params=params, headers=headers, timeout=30)
+            
+            logger.info(f"📡 API Response status: {response.status_code}")
+            logger.info(f"📡 Content-Length: {len(response.text) if response.text else 0} bytes")
+            
             if response.status_code == 200:
-                return response.json()
-            return None
+                data = response.json()
+                data_type = type(data).__name__
+                data_length = len(data) if isinstance(data, list) else "N/A"
+                logger.info(f"✅ Data fetch successful! Type: {data_type}, Length: {data_length}")
+                
+                # Log detailed structure info
+                if isinstance(data, list) and data:
+                    if isinstance(data[0], list):
+                        logger.info(f"📅 Nested structure: {len(data)} months")
+                        for i, month in enumerate(data[:2]):  # Log first 2 months
+                            logger.info(f"   Month {i+1}: {len(month)} days")
+                    else:
+                        logger.info(f"📅 Flat structure: {len(data)} days")
+                
+                return data
+            else:
+                logger.error(f"❌ API request failed: {response.status_code}")
+                if response.text:
+                    logger.error(f"❌ Error response: {response.text[:500]}")
+                return None
+                
         except Exception as e:
-            logger.error(f"Error fetching data: {e}")
+            logger.error(f"❌ Error fetching schedule data: {e}")
+            import traceback
+            logger.error(f"❌ Traceback: {traceback.format_exc()}")
             return None
 
 client = CrewAPIClient()
@@ -136,6 +172,9 @@ HTML_TEMPLATE = '''
         .crew-input { padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; width: 150px; }
         .button { background: #007bff; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; }
         .button:hover { background: #0056b3; }
+        .button:disabled { background: #6c757d; cursor: not-allowed; }
+        .refresh-button { background: #28a745; }
+        .refresh-button:hover { background: #218838; }
         .info-box { background: #e9ecef; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center; }
         .month-section { border: 2px solid #007bff; padding: 15px; margin: 20px 0; border-radius: 8px; }
         .month-header { background: #007bff; color: white; padding: 10px; border-radius: 5px; margin-bottom: 15px; }
@@ -145,6 +184,7 @@ HTML_TEMPLATE = '''
         .flight-info { color: #666; font-size: 0.9em; margin-top: 5px; }
         .no-data { color: #6c757d; text-align: center; padding: 10px; }
         .error { color: #dc3545; text-align: center; padding: 20px; background: #f8d7da; border-radius: 5px; }
+        .success { color: #155724; text-align: center; padding: 10px; background: #d4edda; border-radius: 5px; margin: 10px 0; }
         .current-crew { background: #d4edda; padding: 5px 10px; border-radius: 3px; margin-left: 10px; }
         
         /* Calendar Styles */
@@ -171,6 +211,7 @@ HTML_TEMPLATE = '''
         <div class="nav-buttons">
             <a href="/?crew_id={{ current_crew_id }}" class="nav-button {% if request.path == '/' %}active{% endif %}">📋 List View</a>
             <a href="/calendar?crew_id={{ current_crew_id }}" class="nav-button {% if request.path == '/calendar' %}active{% endif %}">📅 Calendar View</a>
+            <button class="button refresh-button" onclick="refreshData()">🔄 Refresh Data</button>
         </div>
 
         <div class="search-box">
@@ -186,10 +227,19 @@ HTML_TEMPLATE = '''
             {% endif %}
         </div>
 
+        {% if refresh_message %}
+        <div class="success">
+            {{ refresh_message }}
+        </div>
+        {% endif %}
+
         {% if last_fetch %}
         <div class="info-box">
             <h3>Last updated: {{ last_fetch }}</h3>
             <p>Total days: {{ total_days }} | Total assignments: {{ total_assignments }}</p>
+            {% if data_fetch_count %}
+            <p>Data fetch attempts: {{ data_fetch_count }}</p>
+            {% endif %}
         </div>
         {% endif %}
 
@@ -215,6 +265,33 @@ HTML_TEMPLATE = '''
         window.location.href = url.toString();
     }
 
+    function refreshData() {
+        const button = event.target;
+        const originalText = button.textContent;
+        button.disabled = true;
+        button.textContent = '⏳ Refreshing...';
+        
+        fetch('/fetch?refresh=true')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Add refresh parameter to show success message
+                    const url = new URL(window.location);
+                    url.searchParams.set('refresh', 'success');
+                    window.location.href = url.toString();
+                } else {
+                    alert('Refresh failed: ' + (data.error || 'Unknown error'));
+                    button.disabled = false;
+                    button.textContent = originalText;
+                }
+            })
+            .catch(error => {
+                alert('Refresh error: ' + error);
+                button.disabled = false;
+                button.textContent = originalText;
+            });
+    }
+
     // Allow Enter key to trigger search
     document.getElementById('crewId').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
@@ -231,6 +308,7 @@ HTML_TEMPLATE = '''
 </html>
 '''
 
+# ... (Keep the LIST_VIEW_TEMPLATE and CALENDAR_VIEW_TEMPLATE the same as before)
 LIST_VIEW_TEMPLATE = '''
 {% extends "base.html" %}
 
@@ -357,12 +435,20 @@ CALENDAR_VIEW_TEMPLATE = '''
 {% endblock %}
 '''
 
+# Global variables
+client = CrewAPIClient()
+schedule_data = None
+last_fetch_time = None
+current_crew_id = "32385184"
+data_fetch_count = 0
+
 @app.route('/')
 def index():
-    global current_crew_id
+    global current_crew_id, data_fetch_count
     
     crew_id = request.args.get('crew_id', '32385184')
     current_crew_id = crew_id
+    refresh_message = request.args.get('refresh')
     
     total_days = 0
     total_assignments = 0
@@ -376,20 +462,25 @@ def index():
                         assignments = day.get('AssignementList', [])
                         total_assignments += len(assignments)
     
+    message = "Data refreshed successfully!" if refresh_message == 'success' else None
+    
     return render_template_string(LIST_VIEW_TEMPLATE,
         schedule_data=schedule_data,
         last_fetch=last_fetch_time,
         total_days=total_days,
         total_assignments=total_assignments,
-        current_crew_id=current_crew_id
+        current_crew_id=current_crew_id,
+        refresh_message=message,
+        data_fetch_count=data_fetch_count
     )
 
 @app.route('/calendar')
 def calendar_view():
-    global current_crew_id
+    global current_crew_id, data_fetch_count
     
     crew_id = request.args.get('crew_id', '32385184')
     current_crew_id = crew_id
+    refresh_message = request.args.get('refresh')
     
     # Create calendar data centered on current UTC date
     center_date = datetime.utcnow()
@@ -407,6 +498,8 @@ def calendar_view():
                         assignments = day.get('AssignementList', [])
                         total_assignments += len(assignments)
     
+    message = "Data refreshed successfully!" if refresh_message == 'success' else None
+    
     return render_template_string(CALENDAR_VIEW_TEMPLATE,
         calendar_data=calendar_data,
         center_date=center_date,
@@ -414,27 +507,44 @@ def calendar_view():
         last_fetch=last_fetch_time,
         total_days=total_days,
         total_assignments=total_assignments,
-        current_crew_id=current_crew_id
+        current_crew_id=current_crew_id,
+        refresh_message=message,
+        data_fetch_count=data_fetch_count
     )
 
 @app.route('/fetch')
 def fetch_data():
-    global schedule_data, last_fetch_time, current_crew_id
+    global schedule_data, last_fetch_time, current_crew_id, data_fetch_count
     
     crew_id = request.args.get('crew_id', '32385184')
+    refresh = request.args.get('refresh')
     current_crew_id = crew_id
     
+    logger.info(f"🔄 FETCH ENDPOINT CALLED - Crew ID: {crew_id}, Refresh: {refresh}")
+    data_fetch_count += 1
+    
     try:
+        # Force re-login and fresh data fetch
+        client.is_logged_in = False
+        client.auth_token = None
+        
+        logger.info("🔄 Forcing fresh login and data fetch...")
         new_data = client.get_schedule_data(crew_id)
+        
         if new_data is not None:
             schedule_data = new_data
             last_fetch_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            return {"success": True, "crew_id": crew_id}
-        return {"success": False, "error": "Failed to fetch data"}
+            logger.info(f"✅ Data refresh successful! New data received at {last_fetch_time}")
+            return {"success": True, "crew_id": crew_id, "message": "Data refreshed successfully"}
+        else:
+            logger.error("❌ Data refresh failed - no data received")
+            return {"success": False, "error": "Failed to fetch data - no data received from API"}
     except Exception as e:
+        logger.error(f"❌ Data refresh error: {e}")
         return {"success": False, "error": str(e)}
 
 if __name__ == "__main__":
+    logger.info("🚀 Starting Crew Schedule Application...")
     initial_data = client.get_schedule_data()
     if initial_data is not None:
         schedule_data = initial_data

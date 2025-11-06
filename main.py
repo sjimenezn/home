@@ -245,7 +245,7 @@ SCHEDULE_VIEW_TEMPLATE = """
 <body>
     <div class="container">
         <div class="header">
-            <h1>✈️ My Crew Schedule</h1>
+            <h1>✈️ My Crew Schedule Test</h1>
             <div class="nav-buttons">
                 <a href="/" class="nav-button active">📋 Schedule View</a>
                 <a href="/calendar" class="nav-button">📅 Calendar View</a>

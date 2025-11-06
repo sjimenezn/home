@@ -108,7 +108,7 @@ class CrewAPIClient:
 client = CrewAPIClient()
 schedule_data = None
 last_fetch_time = None
-current_crew_id = "19043635"
+current_crew_id = "32385184"
 
 def create_calendar_data(schedule_data, center_date=None):
     """Convert schedule data to calendar format"""
@@ -439,14 +439,14 @@ CALENDAR_VIEW_TEMPLATE = '''
 client = CrewAPIClient()
 schedule_data = None
 last_fetch_time = None
-current_crew_id = "19043635"
+current_crew_id = "32385184"
 data_fetch_count = 0
 
 @app.route('/')
 def index():
     global current_crew_id, data_fetch_count
     
-    crew_id = request.args.get('crew_id', '19043635')
+    crew_id = request.args.get('crew_id', '32385184')
     current_crew_id = crew_id
     refresh_message = request.args.get('refresh')
     
@@ -478,7 +478,7 @@ def index():
 def calendar_view():
     global current_crew_id, data_fetch_count
     
-    crew_id = request.args.get('crew_id', '19043635')
+    crew_id = request.args.get('crew_id', '32385184')
     current_crew_id = crew_id
     refresh_message = request.args.get('refresh')
     
@@ -516,7 +516,7 @@ def calendar_view():
 def fetch_data():
     global schedule_data, last_fetch_time, current_crew_id, data_fetch_count
     
-    crew_id = request.args.get('crew_id', '19043635')
+    crew_id = request.args.get('crew_id', '32385184')
     refresh = request.args.get('refresh')
     current_crew_id = crew_id
     

@@ -59,6 +59,10 @@ class CrewAPIClient:
                 'Content-Disposition: form-data; name="client_secret"',
                 '',
                 'angularclient',
+                f"--{boundary}",
+                'Content-Disposition: form-data; name="scope"',
+                '',
+                'openid profile roles mycrew-flight-api offline_access',
                 f"--{boundary}--",
                 ''
             ]
@@ -88,6 +92,7 @@ class CrewAPIClient:
                 return True
             else:
                 logger.error(f"❌ API login failed: {response.status_code}")
+                logger.error(f"Response: {response.text}")
                 return False
                 
         except Exception as e:
@@ -129,14 +134,25 @@ class CrewAPIClient:
             if response.status_code == 200:
                 schedule_data = response.json()
                 logger.info(f"✅ Successfully fetched schedule data")
-                logger.info(f"📅 Data covers {len(schedule_data)} days")
+                logger.info(f"📅 Data type: {type(schedule_data)}")
                 
-                # Log some basic info about the data
-                for day in schedule_data[:3]:  # First 3 days
-                    date = day.get('StartDate', 'Unknown')
-                    assignments = len(day.get('AssignementList', []))
-                    logger.info(f"   📋 {date}: {assignments} assignments")
-                
+                # FIXED: Check if schedule_data is a list before iterating
+                if isinstance(schedule_data, list):
+                    logger.info(f"📅 Data covers {len(schedule_data)} days")
+                    
+                    # Log some basic info about the data
+                    for i, day in enumerate(schedule_data[:3]):  # First 3 days
+                        # FIXED: Check if day is a dictionary before using .get()
+                        if isinstance(day, dict):
+                            date = day.get('StartDate', 'Unknown')
+                            assignments = len(day.get('AssignementList', []))
+                            logger.info(f"   📋 {date}: {assignments} assignments")
+                        else:
+                            logger.info(f"   📋 Day {i+1}: Unexpected data format: {type(day)}")
+                else:
+                    logger.info(f"📅 Data is not a list: {type(schedule_data)}")
+                    logger.info(f"📅 Data preview: {str(schedule_data)[:200]}...")
+                    
                 return schedule_data
             else:
                 logger.error(f"❌ Failed to fetch schedule data: {response.status_code}")
@@ -151,6 +167,11 @@ class CrewAPIClient:
 # Global client instance
 client = CrewAPIClient()
 
+# Global variables to store fetched data
+schedule_data = None
+last_fetch_time = None
+fetch_error = None
+
 # HTML template for the web interface
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -164,6 +185,7 @@ HTML_TEMPLATE = """
             background: #007bff; color: white; padding: 10px 20px; 
             border: none; border-radius: 5px; cursor: pointer; margin: 10px;
         }
+        .button:hover { background: #0056b3; }
         .data-section { margin: 20px 0; }
         .day-card { 
             border: 1px solid #ddd; padding: 15px; margin: 10px 0; 
@@ -174,6 +196,12 @@ HTML_TEMPLATE = """
             border-left: 4px solid #007bff;
         }
         .flight-info { color: #666; font-size: 0.9em; }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .info-box { 
+            background: #e9ecef; padding: 15px; border-radius: 5px; 
+            margin: 10px 0; border-left: 4px solid #6c757d;
+        }
     </style>
 </head>
 <body>
@@ -186,7 +214,7 @@ HTML_TEMPLATE = """
         </div>
 
         {% if last_fetch %}
-        <div class="data-section">
+        <div class="info-box">
             <h3>Last fetched: {{ last_fetch }}</h3>
             <p>Total days: {{ total_days }}</p>
             <p>Total assignments: {{ total_assignments }}</p>
@@ -224,7 +252,7 @@ HTML_TEMPLATE = """
         {% endif %}
 
         {% if error %}
-        <div class="data-section" style="color: red;">
+        <div class="data-section error">
             <h3>❌ Error</h3>
             <p>{{ error }}</p>
         </div>
@@ -233,31 +261,46 @@ HTML_TEMPLATE = """
 
     <script>
     function fetchData() {
-        window.location.href = '/fetch-data';
+        fetch('/fetch-data')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('✅ Data fetched successfully! Refreshing page...');
+                    location.reload();
+                } else {
+                    alert('❌ Failed to fetch data: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                alert('❌ Error: ' + error);
+            });
     }
     </script>
 </body>
 </html>
 """
 
-# Global variables to store fetched data
-schedule_data = None
-last_fetch_time = None
-fetch_error = None
-
 @app.route('/')
 def index():
     """Main page showing schedule data"""
-    total_days = len(schedule_data) if schedule_data else 0
+    total_days = 0
     total_assignments = 0
-    if schedule_data:
-        for day in schedule_data:
-            total_assignments += len(day.get('AssignementList', []))
     
-    raw_json_preview = json.dumps(schedule_data[:1] if schedule_data else [], indent=2)[:1000] + "..." if schedule_data else ""
+    if schedule_data and isinstance(schedule_data, list):
+        total_days = len(schedule_data)
+        for day in schedule_data:
+            if isinstance(day, dict):
+                total_assignments += len(day.get('AssignementList', []))
+    
+    raw_json_preview = ""
+    if schedule_data:
+        try:
+            raw_json_preview = json.dumps(schedule_data[:1] if isinstance(schedule_data, list) else schedule_data, indent=2)[:1000] + "..." 
+        except:
+            raw_json_preview = str(schedule_data)[:1000] + "..."
     
     return render_template_string(HTML_TEMPLATE,
-        schedule_data=schedule_data,
+        schedule_data=schedule_data if isinstance(schedule_data, list) else None,
         last_fetch=last_fetch_time,
         total_days=total_days,
         total_assignments=total_assignments,
@@ -274,25 +317,36 @@ def fetch_data():
         logger.info("🔄 Manual data fetch requested")
         new_data = client.get_schedule_data()
         
-        if new_data:
+        if new_data is not None:
             schedule_data = new_data
             last_fetch_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             fetch_error = None
             logger.info("✅ Data updated successfully")
+            return jsonify({
+                "success": True,
+                "data_count": len(schedule_data) if isinstance(schedule_data, list) else 1,
+                "last_fetch": last_fetch_time,
+                "error": None
+            })
         else:
             fetch_error = "Failed to fetch schedule data"
             logger.error("❌ Data fetch failed")
+            return jsonify({
+                "success": False,
+                "data_count": 0,
+                "last_fetch": last_fetch_time,
+                "error": fetch_error
+            })
             
     except Exception as e:
         fetch_error = f"Error: {str(e)}"
         logger.error(f"❌ Error in fetch-data: {e}")
-    
-    return jsonify({
-        "success": schedule_data is not None,
-        "data_count": len(schedule_data) if schedule_data else 0,
-        "last_fetch": last_fetch_time,
-        "error": fetch_error
-    })
+        return jsonify({
+            "success": False,
+            "data_count": 0,
+            "last_fetch": last_fetch_time,
+            "error": fetch_error
+        })
 
 @app.route('/health')
 def health():
@@ -300,12 +354,24 @@ def health():
     return jsonify({
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
-        "data_available": schedule_data is not None
+        "data_available": schedule_data is not None,
+        "last_fetch": last_fetch_time
+    })
+
+@app.route('/debug')
+def debug():
+    """Debug endpoint to see raw data"""
+    return jsonify({
+        "schedule_data_type": type(schedule_data).__name__,
+        "schedule_data_length": len(schedule_data) if isinstance(schedule_data, list) else None,
+        "last_fetch": last_fetch_time,
+        "error": fetch_error,
+        "sample_data": schedule_data[:2] if isinstance(schedule_data, list) and schedule_data else schedule_data
     })
 
 def start_flask():
     """Start Flask server in a thread"""
-    app.run(host='0.0.0.0', port=8000, debug=False)
+    app.run(host='0.0.0.0', port=8000, debug=False, use_reloader=False)
 
 def main():
     """Main function"""
@@ -319,14 +385,20 @@ def main():
     # Initial data fetch
     logger.info("📥 Performing initial data fetch...")
     global schedule_data, last_fetch_time
-    schedule_data = client.get_schedule_data()
-    if schedule_data:
+    initial_data = client.get_schedule_data()
+    if initial_data is not None:
+        schedule_data = initial_data
         last_fetch_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         logger.info("✅ Initial data fetch successful!")
     else:
         logger.error("❌ Initial data fetch failed")
     
-    logger.info("🎉 Application ready! Visit http://your-koyeb-url.koyeb.app")
+    logger.info("🎉 Application ready! Visit http://localhost:8000")
+    logger.info("📊 Available endpoints:")
+    logger.info("   /          - Main schedule viewer")
+    logger.info("   /fetch-data - Manually fetch new data")
+    logger.info("   /health     - Health check")
+    logger.info("   /debug      - Debug information")
     
     # Keep main thread alive
     try:

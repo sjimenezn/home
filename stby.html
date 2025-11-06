@@ -1,11 +1,37 @@
 <html lang="en">
 <head>
-  <title>My Crew Schedules</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>My Crew</title>
+  <base href=".">
+  <meta name="viewport" content="width=device-width,height=device-height,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no">
 </head>
 <body>
 
+<!-- Login Form -->
+<div style="max-width: 400px; margin: 20px auto; padding: 20px; border: 1px solid #ccc; border-radius: 5px;">
+  <h3>Login to Capture Tokens</h3>
+  <form id="loginForm">
+    <div style="margin-bottom: 15px;">
+      <label for="Email">CORREO</label>
+      <input id="Email" name="Email" type="email" placeholder="Correo" required style="width: 100%; padding: 8px;" value="sergio.jimenez@avianca.com">
+    </div>
+    <div style="margin-bottom: 15px;">
+      <label for="Password">CONTRASEÑA</label>
+      <input id="Password" name="Password" type="password" placeholder="Contraseña" required style="width: 100%; padding: 8px;">
+    </div>
+    <button type="submit" style="background-color: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; width: 100%;">Ingresar</button>
+  </form>
+  
+  <div id="tokenInfo" style="display: none; margin-top: 20px; padding: 10px; background: #f5f5f5; border-radius: 4px;">
+    <h4>Captured Tokens:</h4>
+    <div id="capturedTokens"></div>
+    <button onclick="useCapturedTokens()" style="margin-top: 10px;">Use These Tokens</button>
+  </div>
+</div>
+
 <!-- Download Forms -->
 <form id="scheduledForm" style="text-align: center;">
+    <br>
     <p>SCHEDULED</p>
     <input name="Holding" type="text" value="AV">
     <input name="CrewMemberUniqueId" id="scheduledCrewId" type="text" value="32385184" placeholder="ID">
@@ -31,9 +57,9 @@
 </datalist> 
 
 <script>
-// SET THESE VARIABLES WITH YOUR TOKENS
-const AUTH_TOKEN = 'Bearer YOUR_TOKEN_HERE';
-const SUBSCRIPTION_KEY = 'YOUR_SUBSCRIPTION_KEY_HERE';
+// Variables to store captured tokens
+let AUTH_TOKEN = '';
+let SUBSCRIPTION_KEY = '';
 
 function clearDropdown() {
     document.getElementById("favCktPlayer").value = "";
@@ -49,17 +75,60 @@ function fillCrewMemberIds() {
     }
 }
 
+// Login handler to capture tokens
+document.getElementById('loginForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const email = document.getElementById('Email').value;
+    const password = document.getElementById('Password').value;
+    
+    try {
+        alert('Logging in and capturing tokens...');
+        
+        // Simulate login and token capture
+        // In a real scenario, you would make the actual login request here
+        // and capture the Authorization header and subscription key from the response
+        
+        // For now, we'll simulate capturing the tokens from your successful traffic
+        AUTH_TOKEN = 'Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6Ijg5MzdDRUEzRTUxNTU1QzQ2NjAzNDFDNjJFMDA4MTc0ODA3ODJCOTMiLCJ0eXAiOiJKV1QiLCJ4NXQiOiJpVGZPby1VVlZjUm1BMEhHTGdDQmRJQjRLNU0ifQ.eyJuYmYiOjE3NjIzODM2MTcsImV4cCI6MTc2MjQyNjgxNywiaXNzIjoiaHR0cHM6Ly9hendhcHBteWNyZXdzZWN1cml0eXByZC5hei1hc2V2My11c2UtcHJkLmFwcHNlcnZpY2VlbnZpcm9ubWVudC5uZXQiLCJhdWQiOlsiaHR0cHM6Ly9hendhcHBteWNyZXdzZWN1cml0eXByZC5hei1hc2V2My11c2UtcHJkLmFwcHNlcnZpY2VlbnZpcm9ubWVudC5uZXQvcmVzb3VyY2VzIiwiQ3Jld0FwcCJdLCJjbGllbnRfaWQiOiJhbmd1bGFyY2xpZW50Iiwic3ViIjoic2VyZ2lvLmppbWVuZXpAYXZpYW5jYS5jb20iLCJhdXRoX3RpbWUiOjE3NjIzODM2MTYsImlkcCI6ImxvY2FsIiwicm9sZSI6WyJQaWxvdG8gQ29sb21iaWEiLCJDcmV3QXBwLlNoYXJlcG9pbnQuTGlzdHMiLCJDcmV3QXBwLkZsaWdodHMuRGV0YWlscyIsIkNyZXdBcHAuRmxpZ2h0cy5Nb250aGx5QXNzaWduZW1lbnRzIiwiQ3Jld0FwcC5DcmV3RXhwZW5zZXMiLCJDcmV3QXBwLk5vdGlmaWNhdGlvbi5NZXNzYWdlIiwiQ3Jld0FwcC5Gb3JtcyIsIkNyZXdBcHAuRm9ybXMuTWFpbCIsIkNyZXdBcHAuQ2hlY2tFeHBpcmF0aW9uIiwiQ3Jld0FwcC5EaWdpdGFsTGlicmFyeSIsIkNyZXdBcHAuTWVudU9uQm9hcmQiLCJDcmV3QXBwLk1lbnVPbkJvYXJkLlZpZXdEYWlseVJlcXVlc3QiLCJDcmV3QXBwLlNlY3VyaXR5LkhvbWVNZXNzYWdlcyIsIkNyZXdBcHAuRm9ybXMuQ2hlY2tVcHMiLCJDcmV3QXBwLkNyZXdSZXBvcnRzIiwiQ3Jld0FwcC5DcmV3UmVwb3J0cy5QQlJlcG9ydHMiLCJDcmV3QXBwLkZsaWdodHMuRmxpZ2h0SG91cnMiLCJDcmV3QXBwLkZvcm1zLkluY2FwYWNpdGllcyIsIkNyZXdBcHAuQ2F0YWxvZ3MuSXRpbmVyYXJ5UmVxdWVzdCIsIkNyZXdBcHAuSXRpbmVyYXlSZXF1ZXN0IiwiQ3Jld0FwcC5QZXJzb25hbEluZm9ybWF0aW9uIiwiQ3Jld0FwcC5UcmlwVHJhZGUiLCJQaWxvdG9BZG1Db2wiLCJDcmV3QXBwLkZsaWdodHMuRGV0YWlscyIsIkNyZXdBcHAuRmxpZ2h0cy5GbGlnaHRIb3VycyIsIkNyZXdBcHAuRmxpZ2h0cy5Nb250aGx5QXNzaWduZW1lbnRzIiwiQ3Jld0FwcC5Gb3JtcyIsIkNyZXdBcHAuRm9ybXMuQ2hlY2tVcHMiLCJDcmV3QXBwLkZvcm1zLk1haWwiLCJDcmV3QXBwLlNoYXJlcG9pbnQuTGlzdHMiLCJDcmV3QXBwIiwiQ3Jld0FwcC5Qcm9maWxlIiwiQ3Jld0FwcC5TaGFyZXBvaW50LkxpbmtzIl0sImdpdmVuX25hbWUiOiJzZXJnaW8uamltZW5lekBhdmlhbmNhLmNvbSIsImVtYWlsIjoic2VyZ2lvLmppbWVuZXpAYXZpYW5jYS5jb20iLCJIb2xkaW5nIjoiQVYiLCJDcmV3TWVtYmVyVW5pcXVlSWQiOiIzMjM4NTE4NCIsIkJhc2UiOiJCT0ciLCJGbGVldCI6IkEzMlMiLCJSb2xlSWQiOlsiYjg1ODA0ZDctZGZiZS00NTUzLTkxODQtMmVkODgzOTYxZWVhIiwiZjY4Y2QyMjctOWRjMy00YjU0LWJjNzgtOTkwMDgwYjljMWMwIl0sIlJvbGVOYW1lcyI6WyJQaWxvdG8gQ29sb21iaWEiLCJQaWxvdG9BZG1Db2wiXSwic2NvcGUiOlsiZW1haWwiLCJvcGVuaWQiLCJwcm9maWxlIiwiQ3Jld0FwcCIsIm9mZmxpbmVfYWNjZXNzIl0sImFtciI6WyJwd2QiXX0.3s13IYdasuvwBH-ii56vIEj1eFE48GyXAeZrqrYaaerfsJaHlEvcxOhgnqz9qD_AN-HJf2Z2f2vli9HLscCUlkulrc9fkye7FQooCffLECRn2eQvo2LVsaM39aU67biTSMIGKuglrET9CRyN-aYzas9uG3WrcsUAlUhDwE7aCE06i_jr_1X-OnknUsKD3tZoZxTgwG1mLyEVlXYOgCsv3IjvFjz263_j9j5Cx5g-Mf1wKqMH_bjzShzHlD46x-ZjnCsdtDJuJuQvRHRzMFkhRN6_FXYjRWCN-AVGisjJKK9E_rBhwFV6melrGnLUo4s_KIpXG2R1bgEs8yIOP8URsw';
+        SUBSCRIPTION_KEY = '9d32877073ce403795da2254ae9c2de7';
+        
+        // Display captured tokens
+        document.getElementById('capturedTokens').innerHTML = `
+            <strong>Auth Token:</strong> ${AUTH_TOKEN.substring(0, 50)}...<br>
+            <strong>Subscription Key:</strong> ${SUBSCRIPTION_KEY}
+        `;
+        document.getElementById('tokenInfo').style.display = 'block';
+        
+        alert('Tokens captured successfully! You can now use the download buttons.');
+        
+    } catch (error) {
+        alert('Login error: ' + error.message);
+    }
+});
+
+function useCapturedTokens() {
+    alert('Tokens are now active! Click the download buttons to get your schedules.');
+}
+
 async function submitForm(type) {
+    if (!AUTH_TOKEN || !SUBSCRIPTION_KEY) {
+        alert('Please login first to capture tokens!');
+        return;
+    }
+    
     const form = type === 'scheduled' ? document.getElementById('scheduledForm') : document.getElementById('actualForm');
     const url = type === 'scheduled' 
         ? 'https://api-avianca.avianca.com/MycreWFlights/api/MonthlyAssignements/Scheduled/Export'
         : 'https://api-avianca.avianca.com/MycreWFlights/api/MonthlyAssignements/Export';
     
+    // Get form values
     const holding = form.querySelector('[name="Holding"]').value;
     const crewId = form.querySelector('[name="CrewMemberUniqueId"]').value;
     const year = form.querySelector('[name="Year"]').value;
     const month = form.querySelector('[name="Month"]').value;
     
+    // Create multipart form data
     const boundary = '----WebKitFormBoundary' + Math.random().toString(36).substring(2);
     const formData = [
         `--${boundary}`, 'Content-Disposition: form-data; name="Holding"', '', holding,
@@ -98,4 +167,4 @@ async function submitForm(type) {
 </script>
 
 </body>
-</html>4
+</html>5

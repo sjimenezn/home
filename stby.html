@@ -13,11 +13,11 @@
   <form id="loginForm">
     <div style="margin-bottom: 15px;">
       <label for="Email">CORREO</label>
-      <input id="Email" name="Email" type="email" placeholder="Correo" required style="width: 100%; padding: 8px;">
+      <input id="Email" name="Email" type="email" placeholder="Correo" required style="width: 100%; padding: 8px;" value="sergio.jimenez@avianca.com">
     </div>
     <div style="margin-bottom: 15px;">
       <label for="Password">CONTRASEÑA</label>
-      <input id="Password" name="Password" type="password" placeholder="Contraseña" required style="width: 100%; padding: 8px;">
+      <input id="Password" name="Password" type="password" placeholder="Contraseña" required style="width: 100%; padding: 8px;" value="aLogout.8701">
     </div>
     <button type="submit" style="background-color: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; width: 100%;">Ingresar</button>
   </form>
@@ -85,7 +85,7 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
     try {
         alert('Logging in and capturing tokens...');
         
-        // Set blank tokens - user will need to fill these
+        // Set blank tokens - these will be captured after successful login
         AUTH_TOKEN = '';
         SUBSCRIPTION_KEY = '';
         
@@ -96,7 +96,7 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
         `;
         document.getElementById('tokenInfo').style.display = 'block';
         
-        alert('Please manually set AUTH_TOKEN and SUBSCRIPTION_KEY variables in the code!');
+        alert('Tokens will be captured after login. Check browser network tab for actual values.');
         
     } catch (error) {
         alert('Login error: ' + error.message);
@@ -124,7 +124,7 @@ async function submitForm(type) {
     const year = form.querySelector('[name="Year"]').value;
     const month = form.querySelector('[name="Month"]').value;
     
-    // Create multipart form data
+    // Create multipart form data EXACTLY like the successful request
     const boundary = '----WebKitFormBoundary' + Math.random().toString(36).substring(2);
     const formData = [
         `--${boundary}`,
@@ -153,9 +153,7 @@ async function submitForm(type) {
             headers: {
                 'Authorization': AUTH_TOKEN,
                 'Ocp-Apim-Subscription-Key': SUBSCRIPTION_KEY,
-                'Content-Type': `multipart/form-data; boundary=${boundary}`,
-                'Origin': 'https://mycrew.avianca.com',
-                'Referer': 'https://mycrew.avianca.com/'
+                'Content-Type': `multipart/form-data; boundary=${boundary}`
             },
             body: formData
         });
@@ -178,4 +176,4 @@ async function submitForm(type) {
 </script>
 
 </body>
-</html>
+</html>8

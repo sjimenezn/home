@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-My Crew Schedule Monitor - Optimized Display Version
+My Crew Schedule Monitor -Optimized Display Version
 """
 
 import os

@@ -4,14 +4,15 @@ My Crew Schedule Monitor - Fixed Version
 """
 
 import os
+import time
 import logging
 import requests
 import json
 from datetime import datetime
-from flask import Flask, render_template_string
+from flask import Flask, render_template_string, request, send_file
 
 # Configuration
-DEFAULT_CREW_ID = "19043635"
+DEFAULT_CREW_ID = "32385184"
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -97,9 +98,106 @@ class CrewAPIClient:
             logger.error(f"❌ Error fetching data: {e}")
             return None
 
+    def download_schedule_pdf(self, crew_id, schedule_type="actual", month="", year=""):
+        """Download schedule PDF using multipart form data"""
+        try:
+            logger.info(f"📥 Downloading {schedule_type} schedule PDF for crew {crew_id}...")
+            
+            # Always create a new session to ensure fresh data
+            self.create_new_session()
+            
+            email = os.getenv('CREW_EMAIL', 'sergio.jimenez@avianca.com')
+            password = os.getenv('CREW_PASSWORD', 'aLogout.8701')
+            
+            if not self.login(email, password):
+                logger.error("❌ Cannot download PDF - login failed")
+                return None
+            
+            # Determine endpoint
+            if schedule_type.lower() == "scheduled":
+                url = f"{self.base_url}/MonthlyAssignements/Scheduled/Export"
+            else:
+                url = f"{self.base_url}/MonthlyAssignements/Export"
+            
+            # Create multipart form data for schedule request
+            boundary = "----WebKitFormBoundary" + str(int(time.time() * 1000))
+            current_month = month or str(datetime.now().month)
+            current_year = year or str(datetime.now().year)
+            
+            body_parts = [
+                f"--{boundary}",
+                'Content-Disposition: form-data; name="Holding"',
+                '',
+                'AV',
+                f"--{boundary}",
+                'Content-Disposition: form-data; name="CrewMemberUniqueId"',
+                '',
+                crew_id,
+                f"--{boundary}",
+                'Content-Disposition: form-data; name="Year"',
+                '',
+                current_year,
+                f"--{boundary}",
+                'Content-Disposition: form-data; name="Month"',
+                '',
+                current_month,
+                f"--{boundary}--",
+                ''
+            ]
+            
+            form_data = "\r\n".join(body_parts)
+            
+            headers = {
+                "Authorization": self.auth_token,
+                "Ocp-Apim-Subscription-Key": self.subscription_key,
+                "Content-Type": f"multipart/form-data; boundary={boundary}",
+                "Origin": "https://mycrew.avianca.com",
+                "Referer": "https://mycrew.avianca.com/",
+                "Accept": "application/json, text/plain, */*",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            }
+            
+            logger.info(f"🌐 Making PDF request to: {url}")
+            logger.info(f"📦 With data: Holding=AV, CrewID={crew_id}, Year={current_year}, Month={current_month}")
+            
+            response = self.session.post(url, data=form_data, headers=headers, timeout=30)
+            
+            logger.info(f"📡 PDF response status: {response.status_code}")
+            logger.info(f"📡 Content-Type: {response.headers.get('content-type', 'Unknown')}")
+            logger.info(f"📡 Content-Length: {response.headers.get('content-length', 'Unknown')}")
+            
+            if response.status_code == 200:
+                content_type = response.headers.get('content-type', '').lower()
+                
+                if 'application/pdf' in content_type or 'pdf' in content_type:
+                    # Save PDF file
+                    filename = f"{schedule_type}_schedule_{crew_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+                    with open(filename, 'wb') as f:
+                        f.write(response.content)
+                    file_size = len(response.content)
+                    logger.info(f"✅ PDF downloaded: {filename} ({file_size} bytes)")
+                    return filename
+                elif 'application/json' in content_type:
+                    # JSON response - might be error
+                    logger.warning(f"⚠️ Got JSON response instead of PDF: {response.text[:200]}")
+                    return None
+                else:
+                    logger.warning(f"⚠️ Unexpected content type: {content_type}")
+                    return None
+            else:
+                logger.error(f"❌ PDF download failed with status: {response.status_code}")
+                if response.text:
+                    logger.error(f"Error response: {response.text}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"❌ PDF download error: {e}")
+            return None
+
 client = CrewAPIClient()
 schedule_data = None
 last_fetch_time = None
+current_crew_id = DEFAULT_CREW_ID
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -110,9 +208,18 @@ HTML_TEMPLATE = """
         body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
         .container { max-width: 1000px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; }
         .header { text-align: center; margin-bottom: 20px; }
+        .nav-buttons { text-align: center; margin: 15px 0; }
+        .nav-button { background: #6c757d; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; margin: 0 5px; text-decoration: none; display: inline-block; }
+        .nav-button:hover { background: #5a6268; }
+        .nav-button.active { background: #007bff; }
         .button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
         .button:hover { background: #0056b3; }
         .button:disabled { background: #6c757d; cursor: not-allowed; }
+        .pdf-button { background: #28a745; }
+        .pdf-button:hover { background: #218838; }
+        .input-group { margin: 15px 0; text-align: center; }
+        .input-label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .crew-input { padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; width: 200px; margin: 0 10px; }
         .info-box { background: #e9ecef; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center; }
         .month-section { border: 2px solid #007bff; padding: 15px; margin: 20px 0; border-radius: 8px; }
         .month-header { background: #007bff; color: white; padding: 10px; border-radius: 5px; margin-bottom: 15px; }
@@ -129,6 +236,24 @@ HTML_TEMPLATE = """
     <div class="container">
         <div class="header">
             <h1>✈️ My Crew Schedule</h1>
+        </div>
+
+        <div class="nav-buttons">
+            <a href="/" class="nav-button {% if request.path == '/' %}active{% endif %}">📋 Schedule View</a>
+            <a href="/pdf" class="nav-button {% if request.path == '/pdf' %}active{% endif %}">📄 PDF Download</a>
+        </div>
+
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>
+"""
+
+SCHEDULE_VIEW_TEMPLATE = """
+{% extends "base.html" %}
+
+{% block content %}
+        <div class="header">
             <button class="button" onclick="fetchData()" id="refreshBtn">🔄 Refresh Schedule</button>
         </div>
 
@@ -142,6 +267,7 @@ HTML_TEMPLATE = """
         <div class="info-box">
             <h3>Last updated: {{ last_fetch }}</h3>
             <p>Total days: {{ total_days }} | Total assignments: {{ total_assignments }}</p>
+            <p>Current Crew ID: <strong>{{ current_crew_id }}</strong></p>
         </div>
         {% endif %}
 
@@ -190,7 +316,6 @@ HTML_TEMPLATE = """
                 <p>Click "Refresh Schedule" to load your schedule.</p>
             </div>
         {% endif %}
-    </div>
 
     <script>
     function fetchData() {
@@ -202,7 +327,6 @@ HTML_TEMPLATE = """
             .then(r => r.json())
             .then(data => {
                 if (data.success) {
-                    // Add refresh parameter to show success message
                     const url = new URL(window.location);
                     url.searchParams.set('refresh', 'success');
                     window.location.href = url.toString();
@@ -219,8 +343,102 @@ HTML_TEMPLATE = """
             });
     }
     </script>
-</body>
-</html>
+{% endblock %}
+"""
+
+PDF_VIEW_TEMPLATE = """
+{% extends "base.html" %}
+
+{% block content %}
+        <div class="header">
+            <h2>📄 Download Schedule PDF</h2>
+        </div>
+
+        {% if pdf_message %}
+        <div class="{% if pdf_success %}success{% else %}error{% endif %}">
+            {{ pdf_message }}
+        </div>
+        {% endif %}
+
+        <div class="input-group">
+            <label class="input-label">Crew Member ID:</label>
+            <input type="text" id="crewId" class="crew-input" placeholder="Enter Crew ID" value="{{ current_crew_id }}">
+            <button class="button pdf-button" onclick="updateCrewId()">💾 Update Crew ID</button>
+        </div>
+
+        <div class="info-box">
+            <h3>Current Crew ID: <strong>{{ current_crew_id }}</strong></h3>
+            <p>This ID will be used for PDF downloads</p>
+        </div>
+
+        <div style="text-align: center; margin: 30px 0;">
+            <button class="button pdf-button" onclick="downloadPDF('actual')">📥 Download Actual Schedule PDF</button>
+            <button class="button pdf-button" onclick="downloadPDF('scheduled')" style="background: #ffc107; color: black;">📥 Download Scheduled PDF</button>
+        </div>
+
+        <div style="text-align: center; color: #666; margin-top: 20px;">
+            <p><strong>Note:</strong> PDF downloads may take a few moments to generate and download.</p>
+        </div>
+
+    <script>
+    function updateCrewId() {
+        const crewId = document.getElementById('crewId').value.trim();
+        if (!crewId) {
+            alert('Please enter a Crew Member ID');
+            return;
+        }
+        
+        const button = event.target;
+        button.disabled = true;
+        button.textContent = '⏳ Updating...';
+        
+        fetch('/update_crew_id?crew_id=' + crewId)
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Failed: ' + (data.error || 'Unknown error'));
+                    button.disabled = false;
+                    button.textContent = '💾 Update Crew ID';
+                }
+            })
+            .catch(err => {
+                alert('Error: ' + err);
+                button.disabled = false;
+                button.textContent = '💾 Update Crew ID';
+            });
+    }
+
+    function downloadPDF(type) {
+        const button = event.target;
+        const originalText = button.textContent;
+        button.disabled = true;
+        button.textContent = '⏳ Generating PDF...';
+        
+        // Open in new tab to download
+        window.open('/download_pdf?type=' + type, '_blank');
+        
+        // Re-enable button after a delay
+        setTimeout(() => {
+            button.disabled = false;
+            button.textContent = originalText;
+        }, 3000);
+    }
+
+    // Allow Enter key to update crew ID
+    document.getElementById('crewId').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            updateCrewId();
+        }
+    });
+
+    // Focus on input when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('crewId').focus();
+    });
+    </script>
+{% endblock %}
 """
 
 @app.route('/')
@@ -239,13 +457,56 @@ def index():
     
     refresh_message = "Data refreshed successfully!" if request.args.get('refresh') == 'success' else None
     
-    return render_template_string(HTML_TEMPLATE,
+    return render_template_string(SCHEDULE_VIEW_TEMPLATE,
         schedule_data=schedule_data,
         last_fetch=last_fetch_time,
         total_days=total_days,
         total_assignments=total_assignments,
-        refresh_message=refresh_message
+        refresh_message=refresh_message,
+        current_crew_id=current_crew_id
     )
+
+@app.route('/pdf')
+def pdf_view():
+    pdf_message = request.args.get('pdf_message')
+    pdf_success = request.args.get('pdf_success') == 'true'
+    
+    return render_template_string(PDF_VIEW_TEMPLATE,
+        current_crew_id=current_crew_id,
+        pdf_message=pdf_message,
+        pdf_success=pdf_success
+    )
+
+@app.route('/update_crew_id')
+def update_crew_id():
+    global current_crew_id
+    new_crew_id = request.args.get('crew_id', '').strip()
+    
+    if new_crew_id:
+        current_crew_id = new_crew_id
+        logger.info(f"✅ Crew ID updated to: {current_crew_id}")
+        return {"success": True, "new_crew_id": current_crew_id}
+    else:
+        return {"success": False, "error": "No crew ID provided"}
+
+@app.route('/download_pdf')
+def download_pdf():
+    schedule_type = request.args.get('type', 'actual')
+    
+    try:
+        logger.info(f"📄 PDF download requested for {schedule_type} schedule, crew {current_crew_id}")
+        filename = client.download_schedule_pdf(current_crew_id, schedule_type)
+        
+        if filename and os.path.exists(filename):
+            logger.info(f"✅ Sending PDF file: {filename}")
+            return send_file(filename, as_attachment=True, download_name=os.path.basename(filename))
+        else:
+            logger.error(f"❌ PDF file not found: {filename}")
+            return {"success": False, "error": "PDF generation failed"}, 400
+            
+    except Exception as e:
+        logger.error(f"❌ PDF download error: {e}")
+        return {"success": False, "error": str(e)}, 500
 
 @app.route('/fetch')
 def fetch_data():

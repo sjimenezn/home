@@ -119,24 +119,25 @@ class CrewAPIClient:
                 schedule_data = response.json()
                 logger.info(f"✅ Successfully fetched schedule data")
                 
-                # Properly handle the data structure based on the traffic analysis
+                # FIXED: Proper logging based on the actual data structure
                 if isinstance(schedule_data, list):
                     logger.info(f"📅 Data covers {len(schedule_data)} days")
                     
                     # Log basic info about the data
-                    for i, day in enumerate(schedule_data[:3]):
+                    for i, day in enumerate(schedule_data[:5]):  # First 5 days
                         if isinstance(day, dict):
                             date = day.get('StartDate', 'Unknown')
                             assignments_list = day.get('AssignementList', [])
                             assignments_count = len(assignments_list)
-                            logger.info(f"   📋 {date}: {assignments_count} assignments")
+                            dem_value = day.get('Dem', 'Unknown')
+                            logger.info(f"   📋 {date}: {assignments_count} assignments, DEM: {dem_value}")
                             
                             # Log first assignment details for debugging
                             if assignments_list and len(assignments_list) > 0:
                                 first_assignment = assignments_list[0]
                                 if isinstance(first_assignment, dict):
-                                    activity_code = first_assignment.get('ActivityCode', 'Unknown')
-                                    activity_desc = first_assignment.get('ActivityDesc', 'Unknown')
+                                    activity_code = first_assignment.get('ActivityCode', 'Unknown').strip()
+                                    activity_desc = first_assignment.get('ActivityDesc', 'Unknown').strip()
                                     logger.info(f"     ✈️ First assignment: {activity_code} - {activity_desc}")
                         else:
                             logger.info(f"   📋 Day {i+1}: Unexpected type {type(day)}")
@@ -199,6 +200,21 @@ HTML_TEMPLATE = """
         .status { padding: 10px; border-radius: 5px; margin: 10px 0; }
         .status-success { background: #d4edda; border: 1px solid #c3e6cb; }
         .status-error { background: #f8d7da; border: 1px solid #f5c6cb; }
+        pre { 
+            background: #f8f9fa; padding: 15px; border-radius: 5px; 
+            border: 1px solid #e9ecef; overflow-x: auto; max-height: 800px;
+            overflow-y: auto; white-space: pre-wrap; word-wrap: break-word;
+            font-size: 12px;
+        }
+        .day-header { 
+            background: #007bff; color: white; padding: 10px; 
+            border-radius: 5px; margin-bottom: 10px;
+        }
+        .dem-info { 
+            background: #17a2b8; color: white; padding: 5px 10px; 
+            border-radius: 3px; font-size: 0.9em; display: inline-block;
+            margin-left: 10px;
+        }
     </style>
 </head>
 <body>
@@ -220,21 +236,30 @@ HTML_TEMPLATE = """
 
         {% if schedule_data %}
         <div class="data-section">
-            <h2>📅 Schedule Data</h2>
+            <h2>📅 Schedule Data ({{ total_days }} days)</h2>
+            
             {% for day in schedule_data %}
             <div class="day-card">
-                <h3>{{ day.StartDate }} - {{ day.Dem }} DEM</h3>
+                <div class="day-header">
+                    <strong>{{ day.StartDate[:10] }}</strong>
+                    <span class="dem-info">DEM: {{ day.Dem }}</span>
+                </div>
                 <p><strong>Assignments:</strong> {{ day.AssignementList|length }}</p>
+                <p><strong>Sync Date:</strong> {{ day.SyncDate[:19] }}</p>
                 
                 {% if day.AssignementList %}
                     {% for assignment in day.AssignementList %}
                     <div class="assignment">
-                        <strong>{{ assignment.ActivityCode }} - {{ assignment.ActivityDesc }}</strong>
+                        <strong>{{ assignment.ActivityCode.strip() }} - {{ assignment.ActivityDesc.strip() }}</strong>
                         <div class="flight-info">
-                            {{ assignment.StartDateLocal }} to {{ assignment.EndDateLocal }}
+                            <strong>Time:</strong> {{ assignment.StartDateLocal[:16] }} to {{ assignment.EndDateLocal[:16] }}<br>
                             {% if assignment.FlighAssignement and assignment.FlighAssignement.CommercialFlightNumber != "XXX" %}
-                            | Flight: {{ assignment.FlighAssignement.Airline }} {{ assignment.FlighAssignement.CommercialFlightNumber }}
-                            | {{ assignment.FlighAssignement.OriginAirportIATACode }} → {{ assignment.FlighAssignement.FinalAirportIATACode }}
+                            <strong>Flight:</strong> {{ assignment.FlighAssignement.Airline }} {{ assignment.FlighAssignement.CommercialFlightNumber }}<br>
+                            <strong>Route:</strong> {{ assignment.FlighAssignement.OriginAirportIATACode }} → {{ assignment.FlighAssignement.FinalAirportIATACode }}<br>
+                            <strong>Duration:</strong> {{ assignment.FlighAssignement.Duration }} minutes<br>
+                            <strong>Aircraft:</strong> {{ assignment.Fleet }} {% if assignment.AircraftRegistrationNumber %}({{ assignment.AircraftRegistrationNumber }}){% endif %}
+                            {% else %}
+                            <strong>Type:</strong> {{ assignment.AssignementCategory }} - {{ assignment.ActivityType }}
                             {% endif %}
                         </div>
                     </div>
@@ -246,8 +271,8 @@ HTML_TEMPLATE = """
             {% endfor %}
             
             <details>
-                <summary>📋 View Raw JSON Data (First 1000 chars)</summary>
-                <pre>{{ raw_json_preview }}</pre>
+                <summary>📋 View Complete Raw JSON Data</summary>
+                <pre id="jsonData">{{ raw_json }}</pre>
             </details>
         </div>
         {% elif error %}
@@ -289,6 +314,17 @@ HTML_TEMPLATE = """
                 button.textContent = originalText;
             });
     }
+    
+    // Auto-expand JSON view if there's an error
+    document.addEventListener('DOMContentLoaded', function() {
+        const errorSection = document.querySelector('.status-error');
+        if (errorSection) {
+            const details = document.querySelector('details');
+            if (details) {
+                details.open = true;
+            }
+        }
+    });
     </script>
 </body>
 </html>
@@ -307,19 +343,20 @@ def index():
                 assignments = day.get('AssignementList', [])
                 total_assignments += len(assignments)
     
-    raw_json_preview = ""
+    # Generate complete JSON for display
+    raw_json = ""
     if schedule_data:
         try:
-            raw_json_preview = json.dumps(schedule_data[:1] if isinstance(schedule_data, list) else schedule_data, indent=2)[:1000] + "..." 
-        except:
-            raw_json_preview = str(schedule_data)[:1000] + "..."
+            raw_json = json.dumps(schedule_data, indent=2, ensure_ascii=False)
+        except Exception as e:
+            raw_json = f"Error formatting JSON: {str(e)}\n\nRaw data: {str(schedule_data)}"
     
     return render_template_string(HTML_TEMPLATE,
-        schedule_data=schedule_data if isinstance(schedule_data, list) else None,
+        schedule_data=schedule_data,
         last_fetch=last_fetch_time,
         total_days=total_days,
         total_assignments=total_assignments,
-        raw_json_preview=raw_json_preview,
+        raw_json=raw_json,
         error=fetch_error
     )
 
@@ -379,13 +416,6 @@ def health():
 @app.route('/debug')
 def debug():
     """Debug endpoint to see raw data"""
-    data_preview = None
-    if schedule_data:
-        if isinstance(schedule_data, list) and schedule_data:
-            data_preview = schedule_data[0] if len(schedule_data) > 0 else schedule_data
-        else:
-            data_preview = schedule_data
-    
     return jsonify({
         "schedule_data_type": type(schedule_data).__name__ if schedule_data else None,
         "schedule_data_length": len(schedule_data) if isinstance(schedule_data, list) else None,
@@ -393,8 +423,15 @@ def debug():
         "error": fetch_error,
         "is_logged_in": client.is_logged_in,
         "has_auth_token": client.auth_token is not None,
-        "sample_data": data_preview
     })
+
+@app.route('/raw-json')
+def raw_json():
+    """Endpoint to get raw JSON data"""
+    if schedule_data:
+        return jsonify(schedule_data)
+    else:
+        return jsonify({"error": "No data available"})
 
 def start_flask():
     """Start Flask server in a thread"""
@@ -426,6 +463,7 @@ def main():
     logger.info("   /fetch-data - Manually fetch new data")
     logger.info("   /health     - Health check")
     logger.info("   /debug      - Debug information")
+    logger.info("   /raw-json   - Raw JSON data")
     
     # Keep main thread alive
     try:

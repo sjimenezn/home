@@ -450,16 +450,17 @@ CALENDAR_VIEW_TEMPLATE = """
         .info-box { background: #e9ecef; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center; }
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin: 20px 0; }
         .calendar-day { border: 1px solid #ddd; padding: 10px; border-radius: 5px; min-height: 120px; background: white; }
-        .calendar-day-header { background: #17a2b8; color: white; padding: 5px; border-radius: 3px; margin-bottom: 5px; text-align: center; font-weight: bold; }
+        .calendar-day-header { background: #dc3545; color: white; padding: 5px; border-radius: 3px; margin-bottom: 5px; text-align: center; font-weight: bold; font-size: 1.5em; }
         .calendar-day.current-day { border: 3px solid #ffc107; background: #fff3cd; }
         .calendar-day.weekend { background: #f8f9fa; }
         .calendar-day.empty { background: #f5f5f5; border: 1px dashed #ddd; }
         .assignment-item { background: #e7f3ff; padding: 5px; margin: 3px 0; border-radius: 3px; border-left: 3px solid #007bff; font-size: 0.8em; }
         .assignment-flight { background: #d4edda; border-left-color: #28a745; }
         .assignment-ground { background: #fff3cd; border-left-color: #ffc107; }
-        .flight-number { font-weight: bold; color: #dc3545; font-size: 0.9em; }
-        .route { font-size: 0.75em; color: #495057; margin: 2px 0; }
-        .flight-times { font-size: 0.7em; color: #6c757d; margin-top: 2px; }
+        .flight-number { font-weight: bold; color: #dc3545; font-size: 1.3em; display: inline; }
+        .departure-stand { font-weight: bold; color: #0056b3; font-size: 1.3em; display: inline; margin-left: 8px; }
+        .route { font-size: 1.2em; color: #000; font-weight: bold; margin: 3px 0; }
+        .flight-times { font-size: 1.0em; color: #000; font-weight: bold; margin-top: 3px; }
         .status-on-time { color: #28a745; font-weight: bold; margin-left: 5px; }
         .status-delayed { color: #dc3545; font-weight: bold; margin-left: 5px; }
         .no-assignments { color: #6c757d; text-align: center; font-size: 0.8em; padding: 10px; }
@@ -524,12 +525,14 @@ CALENDAR_VIEW_TEMPLATE = """
                                     {% for assignment in day.assignments %}
                                     <div class="assignment-item {% if assignment.is_flight %}assignment-flight{% else %}assignment-ground{% endif %}">
                                         {% if assignment.is_flight %}
-                                            <div class="flight-number">
-                                                {{ assignment.airline }}{{ assignment.flight_number }}
+                                            <div>
+                                                <span class="flight-number">{{ assignment.flight_number }}</span>
+                                                {% if assignment.departure_stand %}
+                                                    <span class="departure-stand">{{ assignment.departure_stand }}</span>
+                                                {% endif %}
                                             </div>
                                             <div class="route">
                                                 {{ assignment.origin }}-{{ assignment.destination }}
-                                                {% if assignment.departure_stand %} | {{ assignment.departure_stand }}{% endif %}
                                             </div>
                                             <div class="flight-times">
                                                 {{ assignment.departure_time }} - {{ assignment.arrival_time }}
@@ -538,10 +541,10 @@ CALENDAR_VIEW_TEMPLATE = """
                                                 {% if assignment.aircraft_registration %} | {{ assignment.aircraft_registration }}{% endif %}
                                             </div>
                                         {% else %}
-                                            <div style="font-weight: bold; color: #495057;">
+                                            <div style="font-weight: bold; color: #000; font-size: 1.4em;">
                                                 {{ assignment.activity_code }}
                                             </div>
-                                            <div style="font-size: 0.7em; color: #666;">
+                                            <div style="font-size: 1.0em; color: #000; font-weight: bold;">
                                                 {{ assignment.start_time }} - {{ assignment.end_time }}
                                             </div>
                                         {% endif %}

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-My Crew Schedule Monitor - Fixed Version
+My Crew Schedule Monitor - Optimized Display Version
 """
 
 import os
@@ -206,7 +206,7 @@ SCHEDULE_VIEW_TEMPLATE = """
     <title>My Crew Schedule</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
-        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; }
         .header { text-align: center; margin-bottom: 20px; }
         .nav-buttons { text-align: center; margin: 15px 0; }
         .nav-button { background: #6c757d; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; margin: 0 5px; text-decoration: none; display: inline-block; }
@@ -220,11 +220,24 @@ SCHEDULE_VIEW_TEMPLATE = """
         .month-header { background: #007bff; color: white; padding: 10px; border-radius: 5px; margin-bottom: 15px; }
         .day-card { border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px; }
         .day-header { background: #17a2b8; color: white; padding: 8px; border-radius: 3px; margin-bottom: 10px; }
-        .assignment { background: #f8f9fa; padding: 10px; margin: 5px 0; border-left: 4px solid #28a745; }
-        .flight-info { color: #666; font-size: 0.9em; margin-top: 5px; }
+        .assignment { background: #f8f9fa; padding: 15px; margin: 10px 0; border-left: 4px solid #28a745; border-radius: 5px; }
+        .assignment-header { display: flex; justify-content: between; align-items: center; margin-bottom: 10px; }
+        .activity-code { font-weight: bold; font-size: 1.1em; color: #007bff; }
+        .activity-desc { color: #495057; margin-left: 10px; }
+        .assignment-category { background: #6c757d; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; margin-left: 10px; }
+        .assignment-type { background: #17a2b8; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; margin-left: 5px; }
+        .time-info { color: #666; font-size: 0.9em; margin: 5px 0; }
+        .flight-info { background: #e7f3ff; padding: 10px; margin: 8px 0; border-radius: 4px; border-left: 3px solid #007bff; }
+        .flight-header { font-weight: bold; color: #0056b3; margin-bottom: 5px; }
+        .flight-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; font-size: 0.85em; }
+        .flight-detail { padding: 3px 0; }
+        .flight-detail strong { color: #495057; }
+        .status-advanced { color: #28a745; font-weight: bold; }
+        .status-delayed { color: #dc3545; font-weight: bold; }
         .no-data { color: #6c757d; text-align: center; padding: 10px; }
         .error { color: #dc3545; text-align: center; padding: 20px; }
         .success { color: #155724; background: #d4edda; padding: 10px; border-radius: 5px; margin: 10px 0; text-align: center; }
+        .assignment-id { color: #999; font-size: 0.7em; float: right; }
     </style>
 </head>
 <body>
@@ -269,18 +282,89 @@ SCHEDULE_VIEW_TEMPLATE = """
                         {% if day.AssignementList and day.AssignementList|length > 0 %}
                             {% for assignment in day.AssignementList %}
                             <div class="assignment">
-                                <strong>{{ assignment.ActivityCode.strip() if assignment.ActivityCode else 'N/A' }}</strong>
-                                - {{ assignment.ActivityDesc.strip() if assignment.ActivityDesc else 'No Description' }}
-                                <div class="flight-info">
-                                    <strong>Time:</strong> {{ assignment.StartDateLocal[:16] if assignment.StartDateLocal else 'N/A' }} 
-                                    to {{ assignment.EndDateLocal[:16] if assignment.EndDateLocal else 'N/A' }}
-                                    {% if assignment.FlighAssignement and assignment.FlighAssignement.CommercialFlightNumber != "XXX" %}
-                                    <br><strong>Flight:</strong> {{ assignment.FlighAssignement.Airline }} {{ assignment.FlighAssignement.CommercialFlightNumber }}
-                                    | {{ assignment.FlighAssignement.OriginAirportIATACode }} → {{ assignment.FlighAssignement.FinalAirportIATACode }}
-                                    | {{ assignment.FlighAssignement.Duration }} min
-                                    {% if assignment.Fleet %}| Aircraft: {{ assignment.Fleet }}{% endif %}
-                                    {% endif %}
+                                <div class="assignment-header">
+                                    <div>
+                                        <span class="activity-code">{{ assignment.ActivityCode.strip() if assignment.ActivityCode else 'FLIGHT' }}</span>
+                                        <span class="activity-desc">{{ assignment.ActivityDesc.strip() if assignment.ActivityDesc else 'Flight Duty' }}</span>
+                                        {% if assignment.AssignementCategory %}
+                                        <span class="assignment-category">{{ assignment.AssignementCategory }}</span>
+                                        {% endif %}
+                                        {% if assignment.ActivityType %}
+                                        <span class="assignment-type">{{ assignment.ActivityType }}</span>
+                                        {% endif %}
+                                    </div>
+                                    <span class="assignment-id">#{{ assignment.Id }}</span>
                                 </div>
+                                
+                                <div class="time-info">
+                                    <strong>🕐 Time:</strong> {{ assignment.StartDateLocal[:16] if assignment.StartDateLocal else 'N/A' }} 
+                                    to {{ assignment.EndDateLocal[:16] if assignment.EndDateLocal else 'N/A' }}
+                                </div>
+
+                                {% if assignment.AircraftRegistrationNumber %}
+                                <div class="time-info">
+                                    <strong>✈️ Aircraft:</strong> {{ assignment.AircraftRegistrationNumber }}
+                                    {% if assignment.Fleet %}({{ assignment.Fleet }}){% endif %}
+                                </div>
+                                {% elif assignment.Fleet %}
+                                <div class="time-info">
+                                    <strong>✈️ Fleet:</strong> {{ assignment.Fleet }}
+                                </div>
+                                {% endif %}
+
+                                {% if assignment.FlighAssignement and assignment.FlighAssignement.CommercialFlightNumber != "XXX" %}
+                                <div class="flight-info">
+                                    <div class="flight-header">
+                                        🛫 Flight: {{ assignment.FlighAssignement.Airline }} {{ assignment.FlighAssignement.CommercialFlightNumber }}
+                                        {% if assignment.FlighAssignement.OperationalNumber and assignment.FlighAssignement.OperationalNumber != "0" %}
+                                        (Op: {{ assignment.FlighAssignement.OperationalNumber }})
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="flight-details">
+                                        <div class="flight-detail">
+                                            <strong>Route:</strong> {{ assignment.FlighAssignement.OriginAirportIATACode }} → {{ assignment.FlighAssignement.FinalAirportIATACode }}
+                                        </div>
+                                        <div class="flight-detail">
+                                            <strong>Duration:</strong> {{ assignment.FlighAssignement.Duration }} min (Scheduled: {{ assignment.FlighAssignement.ScheduledDuration }} min)
+                                        </div>
+                                        <div class="flight-detail">
+                                            <strong>Departure:</strong> {{ assignment.FlighAssignement.ScheduledDepartureDate[:16] }}
+                                            {% if assignment.FlighAssignement.DepartureStand %}
+                                            | Stand: {{ assignment.FlighAssignement.DepartureStand }}
+                                            {% endif %}
+                                        </div>
+                                        <div class="flight-detail">
+                                            <strong>Arrival:</strong> {{ assignment.FlighAssignement.ScheduledArrivalDate[:16] }}
+                                            {% if assignment.FlighAssignement.ArrivalStand %}
+                                            | Stand: {{ assignment.FlighAssignement.ArrivalStand }}
+                                            {% endif %}
+                                        </div>
+                                        {% if assignment.FlighAssignement.TimeAdvanced or assignment.FlighAssignement.TimeDelayed %}
+                                        <div class="flight-detail">
+                                            <strong>Status:</strong>
+                                            {% if assignment.FlighAssignement.TimeAdvanced %}
+                                            <span class="status-advanced">Advanced</span>
+                                            {% endif %}
+                                            {% if assignment.FlighAssignement.TimeDelayed %}
+                                            <span class="status-delayed">Delayed</span>
+                                            {% endif %}
+                                        </div>
+                                        {% endif %}
+                                        {% if assignment.FlighAssignement.OriginAirportICAOCode or assignment.FlighAssignement.FinalAirportICAOCode %}
+                                        <div class="flight-detail">
+                                            <strong>ICAO Codes:</strong>
+                                            {% if assignment.FlighAssignement.OriginAirportICAOCode %}
+                                            {{ assignment.FlighAssignement.OriginAirportICAOCode }}
+                                            {% endif %}
+                                            {% if assignment.FlighAssignement.FinalAirportICAOCode %}
+                                            → {{ assignment.FlighAssignement.FinalAirportICAOCode }}
+                                            {% endif %}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% endif %}
                             </div>
                             {% endfor %}
                         {% else %}
@@ -459,7 +543,7 @@ PDF_VIEW_TEMPLATE = """
 def index():
     global schedule_data, last_fetch_time
     
-    # 🔄 ADD THIS: Automatically fetch fresh data on every page load
+    # 🔄 ADDED: Automatically fetch fresh data on every page load
     logger.info("🔄 Auto-fetching fresh data on page load...")
     new_data = client.get_schedule_data()
     if new_data is not None:
@@ -470,7 +554,6 @@ def index():
     elif schedule_data is None:
         logger.warning("⚠️ Auto-fetch failed and no existing data available")
     
-    # Rest of the existing display logic remains the same
     total_days = 0
     total_assignments = 0
     

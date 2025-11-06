@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-My Crew Schedule - With Crew ID Input
+My Crew Schedule - With Calendar View
 """
 
 import os
 import logging
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import Flask, render_template_string, request, jsonify
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
@@ -72,7 +72,51 @@ class CrewAPIClient:
 client = CrewAPIClient()
 schedule_data = None
 last_fetch_time = None
-current_crew_id = "32385184"  # Default to your ID
+current_crew_id = "32385184"
+
+def create_calendar_data(schedule_data, center_date=None):
+    """Convert schedule data to calendar format"""
+    if not schedule_data or not isinstance(schedule_data, list):
+        return []
+    
+    # Flatten all days from all months
+    all_days = []
+    for month in schedule_data:
+        if isinstance(month, list):
+            for day in month:
+                if isinstance(day, dict) and day.get('StartDate'):
+                    all_days.append(day)
+    
+    # Create calendar centered on current UTC date or provided date
+    if not center_date:
+        center_date = datetime.utcnow()
+    
+    # Start 15 days before center date to create 30-day window
+    start_date = center_date - timedelta(days=15)
+    
+    calendar_days = []
+    for i in range(30):  # 30-day calendar
+        current_date = start_date + timedelta(days=i)
+        date_str = current_date.strftime('%Y-%m-%d')
+        
+        # Find matching schedule day
+        schedule_day = None
+        for day in all_days:
+            if day.get('StartDate', '').startswith(date_str):
+                schedule_day = day
+                break
+        
+        calendar_days.append({
+            'date': current_date,
+            'date_str': date_str,
+            'schedule_data': schedule_day,
+            'is_today': current_date.date() == datetime.utcnow().date(),
+            'has_assignments': schedule_day and schedule_day.get('AssignementList') and len(schedule_day.get('AssignementList', [])) > 0,
+            'assignment_count': len(schedule_day.get('AssignementList', [])) if schedule_day else 0,
+            'dem': schedule_day.get('Dem', 0) if schedule_day else 0
+        })
+    
+    return calendar_days
 
 HTML_TEMPLATE = '''
 <!DOCTYPE html>
@@ -83,12 +127,15 @@ HTML_TEMPLATE = '''
         body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
         .container { max-width: 1000px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; }
         .header { text-align: center; margin-bottom: 20px; }
+        .nav-buttons { text-align: center; margin: 15px 0; }
+        .nav-button { background: #6c757d; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; margin: 0 5px; text-decoration: none; display: inline-block; }
+        .nav-button:hover { background: #5a6268; }
+        .nav-button.active { background: #007bff; }
         .search-box { background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center; }
         .input-group { display: inline-flex; gap: 10px; align-items: center; }
         .crew-input { padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; width: 150px; }
         .button { background: #007bff; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; }
         .button:hover { background: #0056b3; }
-        .button:disabled { background: #6c757d; cursor: not-allowed; }
         .info-box { background: #e9ecef; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center; }
         .month-section { border: 2px solid #007bff; padding: 15px; margin: 20px 0; border-radius: 8px; }
         .month-header { background: #007bff; color: white; padding: 10px; border-radius: 5px; margin-bottom: 15px; }
@@ -99,12 +146,31 @@ HTML_TEMPLATE = '''
         .no-data { color: #6c757d; text-align: center; padding: 10px; }
         .error { color: #dc3545; text-align: center; padding: 20px; background: #f8d7da; border-radius: 5px; }
         .current-crew { background: #d4edda; padding: 5px 10px; border-radius: 3px; margin-left: 10px; }
+        
+        /* Calendar Styles */
+        .calendar-container { max-width: 1200px; }
+        .calendar-header { text-align: center; margin: 20px 0; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin: 20px 0; }
+        .calendar-day { border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-height: 120px; background: white; position: relative; }
+        .calendar-day.today { border: 2px solid #007bff; background: #e7f3ff; }
+        .calendar-day.has-assignments { background: #f8f9fa; border-left: 4px solid #28a745; }
+        .calendar-date { font-weight: bold; margin-bottom: 5px; }
+        .calendar-weekday { font-size: 0.8em; color: #666; }
+        .calendar-assignments { font-size: 0.75em; margin-top: 5px; }
+        .calendar-assignment { background: #e9ecef; padding: 2px 4px; margin: 1px 0; border-radius: 2px; }
+        .calendar-dem { position: absolute; bottom: 5px; right: 5px; font-size: 0.7em; color: #6c757d; }
+        .calendar-empty { background: #f8f9fa; color: #6c757d; text-align: center; padding: 20px; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>✈️ Crew Schedule Lookup</h1>
+        </div>
+
+        <div class="nav-buttons">
+            <a href="/?crew_id={{ current_crew_id }}" class="nav-button {% if request.path == '/' %}active{% endif %}">📋 List View</a>
+            <a href="/calendar?crew_id={{ current_crew_id }}" class="nav-button {% if request.path == '/calendar' %}active{% endif %}">📅 Calendar View</a>
         </div>
 
         <div class="search-box">
@@ -127,56 +193,7 @@ HTML_TEMPLATE = '''
         </div>
         {% endif %}
 
-        {% if schedule_data %}
-            {% for month in schedule_data %}
-            <div class="month-section">
-                <div class="month-header">
-                    <h3>📅 Month {{ loop.index }}</h3>
-                </div>
-                {% for day in month %}
-                    {% if day and day is mapping %}
-                    <div class="day-card">
-                        <div class="day-header">
-                            <strong>{{ day.StartDate[:10] if day.StartDate else "Unknown" }}</strong>
-                            <span style="float: right;">DEM: {{ day.Dem }}</span>
-                        </div>
-                        
-                        {% if day.AssignementList and day.AssignementList|length > 0 %}
-                            {% for assignment in day.AssignementList %}
-                            <div class="assignment">
-                                <strong>{{ assignment.ActivityCode.strip() if assignment.ActivityCode else "N/A" }}</strong>
-                                - {{ assignment.ActivityDesc.strip() if assignment.ActivityDesc else "No Description" }}
-                                <div class="flight-info">
-                                    <strong>Time:</strong> {{ assignment.StartDateLocal[:16] if assignment.StartDateLocal else "N/A" }} 
-                                    to {{ assignment.EndDateLocal[:16] if assignment.EndDateLocal else "N/A" }}
-                                    {% if assignment.FlighAssignement and assignment.FlighAssignement.CommercialFlightNumber != "XXX" %}
-                                    <br><strong>Flight:</strong> {{ assignment.FlighAssignement.Airline }} {{ assignment.FlighAssignement.CommercialFlightNumber }}
-                                    | {{ assignment.FlighAssignement.OriginAirportIATACode }} → {{ assignment.FlighAssignement.FinalAirportIATACode }}
-                                    | {{ assignment.FlighAssignement.Duration }} min
-                                    {% if assignment.Fleet %}| Aircraft: {{ assignment.Fleet }}{% endif %}
-                                    {% endif %}
-                                </div>
-                            </div>
-                            {% endfor %}
-                        {% else %}
-                            <div class="no-data">No assignments for this day</div>
-                        {% endif %}
-                    </div>
-                    {% endif %}
-                {% endfor %}
-            </div>
-            {% endfor %}
-        {% elif last_fetch %}
-            <div class="error">
-                <h3>No schedule data available for Crew ID: {{ current_crew_id }}</h3>
-                <p>Try a different Crew ID or check if the ID is correct.</p>
-            </div>
-        {% else %}
-            <div class="error">
-                <h3>Enter a Crew Member ID to load schedule</h3>
-                <p>Use the input box above to search for a crew member's schedule.</p>
-            </div>
-        {% endif %}
+        {% block content %}{% endblock %}
     </div>
 
     <script>
@@ -191,7 +208,8 @@ HTML_TEMPLATE = '''
         button.disabled = true;
         button.textContent = '⏳ Loading...';
         
-        // Update URL with crew ID
+        // Update URL with crew ID for current view
+        const currentPath = window.location.pathname;
         const url = new URL(window.location);
         url.searchParams.set('crew_id', crewId);
         window.location.href = url.toString();
@@ -213,11 +231,136 @@ HTML_TEMPLATE = '''
 </html>
 '''
 
+LIST_VIEW_TEMPLATE = '''
+{% extends "base.html" %}
+
+{% block content %}
+    {% if schedule_data %}
+        {% for month in schedule_data %}
+        <div class="month-section">
+            <div class="month-header">
+                <h3>📅 Month {{ loop.index }}</h3>
+            </div>
+            {% for day in month %}
+                {% if day and day is mapping %}
+                <div class="day-card">
+                    <div class="day-header">
+                        <strong>{{ day.StartDate[:10] if day.StartDate else "Unknown" }}</strong>
+                        <span style="float: right;">DEM: {{ day.Dem }}</span>
+                    </div>
+                    
+                    {% if day.AssignementList and day.AssignementList|length > 0 %}
+                        {% for assignment in day.AssignementList %}
+                        <div class="assignment">
+                            <strong>{{ assignment.ActivityCode.strip() if assignment.ActivityCode else "N/A" }}</strong>
+                            - {{ assignment.ActivityDesc.strip() if assignment.ActivityDesc else "No Description" }}
+                            <div class="flight-info">
+                                <strong>Time:</strong> {{ assignment.StartDateLocal[:16] if assignment.StartDateLocal else "N/A" }} 
+                                to {{ assignment.EndDateLocal[:16] if assignment.EndDateLocal else "N/A" }}
+                                {% if assignment.FlighAssignement and assignment.FlighAssignement.CommercialFlightNumber != "XXX" %}
+                                <br><strong>Flight:</strong> {{ assignment.FlighAssignement.Airline }} {{ assignment.FlighAssignement.CommercialFlightNumber }}
+                                | {{ assignment.FlighAssignement.OriginAirportIATACode }} → {{ assignment.FlighAssignement.FinalAirportIATACode }}
+                                | {{ assignment.FlighAssignement.Duration }} min
+                                {% if assignment.Fleet %}| Aircraft: {{ assignment.Fleet }}{% endif %}
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="no-data">No assignments for this day</div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+        {% endfor %}
+    {% elif last_fetch %}
+        <div class="error">
+            <h3>No schedule data available for Crew ID: {{ current_crew_id }}</h3>
+            <p>Try a different Crew ID or check if the ID is correct.</p>
+        </div>
+    {% else %}
+        <div class="error">
+            <h3>Enter a Crew Member ID to load schedule</h3>
+            <p>Use the input box above to search for a crew member's schedule.</p>
+        </div>
+    {% endif %}
+{% endblock %}
+'''
+
+CALENDAR_VIEW_TEMPLATE = '''
+{% extends "base.html" %}
+
+{% block content %}
+<div class="calendar-container">
+    {% if calendar_data %}
+        <div class="calendar-header">
+            <h2>📅 30-Day Calendar View</h2>
+            <p>Centered on {{ center_date.strftime('%Y-%m-%d') }} (Today: {{ today_date.strftime('%Y-%m-%d') }})</p>
+        </div>
+        
+        <div class="calendar-grid">
+            {% for day in calendar_data %}
+            <div class="calendar-day {% if day.is_today %}today{% endif %} {% if day.has_assignments %}has-assignments{% endif %}">
+                <div class="calendar-date">
+                    {{ day.date.day }}
+                </div>
+                <div class="calendar-weekday">
+                    {{ day.date.strftime('%a') }}
+                </div>
+                
+                {% if day.schedule_data %}
+                    <div class="calendar-assignments">
+                        {% if day.schedule_data.AssignementList %}
+                            {% for assignment in day.schedule_data.AssignementList %}
+                            <div class="calendar-assignment" title="{{ assignment.ActivityCode }} - {{ assignment.ActivityDesc }}">
+                                {{ assignment.ActivityCode|replace(' ', '') }}
+                                {% if assignment.FlighAssignement and assignment.FlighAssignement.CommercialFlightNumber != "XXX" %}
+                                <br><small>{{ assignment.FlighAssignement.CommercialFlightNumber }}</small>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="calendar-empty">No assignments</div>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <div class="calendar-empty">No data</div>
+                {% endif %}
+                
+                {% if day.schedule_data and day.schedule_data.Dem > 0 %}
+                <div class="calendar-dem">DEM: {{ day.schedule_data.Dem }}</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        
+        <div style="text-align: center; margin-top: 20px;">
+            <small>
+                <strong>Legend:</strong> 
+                <span style="border-left: 4px solid #28a745; padding: 0 10px;">Has Assignments</span>
+                <span style="border: 2px solid #007bff; padding: 0 10px; background: #e7f3ff;">Today</span>
+            </small>
+        </div>
+    {% elif last_fetch %}
+        <div class="error">
+            <h3>No schedule data available for Crew ID: {{ current_crew_id }}</h3>
+            <p>Try a different Crew ID or check if the ID is correct.</p>
+        </div>
+    {% else %}
+        <div class="error">
+            <h3>Enter a Crew Member ID to load schedule</h3>
+            <p>Use the input box above to search for a crew member's schedule.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+'''
+
 @app.route('/')
 def index():
     global current_crew_id
     
-    # Get crew ID from URL parameter or use default
     crew_id = request.args.get('crew_id', '32385184')
     current_crew_id = crew_id
     
@@ -233,8 +376,41 @@ def index():
                         assignments = day.get('AssignementList', [])
                         total_assignments += len(assignments)
     
-    return render_template_string(HTML_TEMPLATE,
+    return render_template_string(LIST_VIEW_TEMPLATE,
         schedule_data=schedule_data,
+        last_fetch=last_fetch_time,
+        total_days=total_days,
+        total_assignments=total_assignments,
+        current_crew_id=current_crew_id
+    )
+
+@app.route('/calendar')
+def calendar_view():
+    global current_crew_id
+    
+    crew_id = request.args.get('crew_id', '32385184')
+    current_crew_id = crew_id
+    
+    # Create calendar data centered on current UTC date
+    center_date = datetime.utcnow()
+    calendar_data = create_calendar_data(schedule_data, center_date)
+    
+    total_days = 0
+    total_assignments = 0
+    
+    if schedule_data and isinstance(schedule_data, list):
+        for month in schedule_data:
+            if isinstance(month, list):
+                total_days += len(month)
+                for day in month:
+                    if isinstance(day, dict):
+                        assignments = day.get('AssignementList', [])
+                        total_assignments += len(assignments)
+    
+    return render_template_string(CALENDAR_VIEW_TEMPLATE,
+        calendar_data=calendar_data,
+        center_date=center_date,
+        today_date=datetime.utcnow(),
         last_fetch=last_fetch_time,
         total_days=total_days,
         total_assignments=total_assignments,
@@ -245,7 +421,6 @@ def index():
 def fetch_data():
     global schedule_data, last_fetch_time, current_crew_id
     
-    # Get crew ID from URL parameter
     crew_id = request.args.get('crew_id', '32385184')
     current_crew_id = crew_id
     
@@ -260,7 +435,6 @@ def fetch_data():
         return {"success": False, "error": str(e)}
 
 if __name__ == "__main__":
-    # Initial data fetch with default crew ID
     initial_data = client.get_schedule_data()
     if initial_data is not None:
         schedule_data = initial_data

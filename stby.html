@@ -85,14 +85,14 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
     try {
         alert('Logging in and capturing tokens...');
         
-        // Set blank tokens
-        AUTH_TOKEN = '';
-        SUBSCRIPTION_KEY = '';
+        // Set the captured tokens from your successful traffic
+        AUTH_TOKEN = 'Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6Ijg5MzdDRUEzRTUxNTU1QzQ2NjAzNDFDNjJFMDA4MTc0ODA3ODJCOTMiLCJ0eXAiOiJKV1QiLCJ4NXQiOiJpVGZPby1VVlZjUm1BMEhHTGdDQmRJQjRLNU0ifQ.eyJuYmYiOjE3NjIzOTMxNjAsImV4cCI6MTc2MjQzNjM2MCwiaXNzIjoiaHR0cHM6Ly9hendhcHBteWNyZXdzZWN1cml0eXByZC5hei1hc2V2My11c2UtcHJkLmFwcHNlcnZpY2VlbnZpcm9ubWVudC5uZXQiLCJhdWQiOlsiaHR0cHM6Ly9hendhcHBteWNyZXdzZWN1cml0eXByZC5hei1hc2V2My11c2UtcHJkLmFwcHNlcnZpY2VlbnZpcm9ubWVudC5uZXQvcmVzb3VyY2VzIiwiQ3Jld0FwcCJdLCJjbGllbnRfaWQiOiJhbmd1bGFyY2xpZW50Iiwic3ViIjoic2VyZ2lvLmppbWVuZXpAYXZpYW5jYS5jb20iLCJhdXRoX3RpbWUiOjE3NjIzOTMxNjAsImlkcCI6ImxvY2FsIiwicm9sZSI6WyJQaWxvdG8gQ29sb21iaWEiLCJDcmV3QXBwLlNoYXJlcG9pbnQuTGlzdHMiLCJDcmV3QXBwLkZsaWdodHMuRGV0YWlscyIsIkNyZXdBcHAuRmxpZ2h0cy5Nb250aGx5QXNzaWduZW1lbnRzIiwiQ3Jld0FwcC5DcmV3RXhwZW5zZXMiLCJDcmV3QXBwLk5vdGlmaWNhdGlvbi5NZXNzYWdlIiwiQ3Jld0FwcC5Gb3JtcyIsIkNyZXdBcHAuRm9ybXMuTWFpbCIsIkNyZXdBcHAuQ2hlY2tFeHBpcmF0aW9uIiwiQ3Jld0FwcC5EaWdpdGFsTGlicmFyeSIsIkNyZXdBcHAuTWVudU9uQm9hcmQiLCJDcmV3QXBwLk1lbnVPbkJvYXJkLlZpZXdEYWlseVJlcXVlc3QiLCJDcmV3QXBwLlNlY3VyaXR5LkhvbWVNZXNzYWdlcyIsIkNyZXdBcHAuRm9ybXMuQ2hlY2tVcHMiLCJDcmV3QXBwLkNyZXdSZXBvcnRzIiwiQ3Jld0FwcC5DcmV3UmVwb3J0cy5QQlJlcG9ydHMiLCJDcmV3QXBwLkZsaWdodHMuRmxpZ2h0SG91cnMiLCJDcmV3QXBwLkZvcm1zLkluY2FwYWNpdGllcyIsIkNyZXdBcHAuQ2F0YWxvZ3MuSXRpbmVyYXJ5UmVxdWVzdCIsIkNyZXdBcHAuSXRpbmVyYXlSZXF1ZXN0IiwiQ3Jld0FwcC5QZXJzb25hbEluZm9ybWF0aW9uIiwiQ3Jld0FwcC5UcmlwVHJhZGUiLCJQaWxvdG9BZG1Db2wiLCJDcmV3QXBwLkZsaWdodHMuRGV0YWlscyIsIkNyZXdBcHAuRmxpZ2h0cy5GbGlnaHRIb3VycyIsIkNyZXdBcHAuRmxpZ2h0cy5Nb250aGx5QXNzaWduZW1lbnRzIiwiQ3Jld0FwcC5Gb3JtcyIsIkNyZXdBcHAuRm9ybXMuQ2hlY2tVcHMiLCJDcmV3QXBwLkZvcm1zLk1haWwiLCJDcmV3QXBwLlNoYXJlcG9pbnQuTGlzdHMiLCJDcmV3QXBwIiwiQ3Jld0FwcC5Qcm9maWxlIiwiQ3Jld0FwcC5TaGFyZXBvaW50LkxpbmtzIl0sImdpdmVuX25hbWUiOiJzZXJnaW8uamltZW5lekBhdmlhbmNhLmNvbSIsImVtYWlsIjoic2VyZ2lvLmppbWVuZXpAYXZpYW5jYS5jb20iLCJIb2xkaW5nIjoiQVYiLCJDcmV3TWVtYmVyVW5pcXVlSWQiOiIzMjM4NTE4NCIsIkJhc2UiOiJCT0ciLCJGbGVldCI6IkEzMlMiLCJSb2xlSWQiOlsiYjg1ODA0ZDctZGZiZS00NTUzLTkxODQtMmVkODgzOTYxZWVhIiwiZjY4Y2QyMjctOWRjMy00YjU0LWJjNzgtOTkwMDgwYjljMWMwIl0sIlJvbGVOYW1lcyI6WyJQaWxvdG8gQ29sb21iaWEiLCJQaWxvdG9BZG1Db2wiXSwic2NvcGUiOlsiZW1haWwiLCJvcGVuaWQiLCJwcm9maWxlIiwiQ3Jld0FwcCIsIm9mZmxpbmVfYWNjZXNzIl0sImFtciI6WyJwd2QiXX0.jtyo1OflEEFmG3DUpS4gXvVkDh73C3zlQyc8Dm6sBRnDQ-xzgamCtkCFBqgNZIzm2-UgjRXi38QUd_BA9W-w1Nlso8EwNPfhDEtZ9YlbHbMBN9iq88nZpNXbGO04Uy96_R4_Gyl501Rvy8_AQo8RGhljOPV7gvTGT__mQr0iFGJKsy2qAwRYKNxdOJb2a-okL_aQS9srC4LWP36DEj6dJzODKD0S3r3jN-Fi_1zqIXNBv2joVcrlSLmHW5EJbPzXmSezw9MeafrSVPKf43TI7ekt1FU56Jb7_OGSmiiPGKUGvJGosalgISsBgagrzElsC4czllzos060bHr_yHdDow';
+        SUBSCRIPTION_KEY = '9d32877073ce403795da2254ae9c2de7';
         
         // Display captured tokens
         document.getElementById('capturedTokens').innerHTML = `
-            <strong>Auth Token:</strong> ${AUTH_TOKEN || 'NOT CAPTURED'}<br>
-            <strong>Subscription Key:</strong> ${SUBSCRIPTION_KEY || 'NOT CAPTURED'}
+            <strong>Auth Token:</strong> ${AUTH_TOKEN.substring(0, 50)}...<br>
+            <strong>Subscription Key:</strong> ${SUBSCRIPTION_KEY}
         `;
         document.getElementById('tokenInfo').style.display = 'block';
         
@@ -178,4 +178,4 @@ async function submitForm(type) {
 </script>
 
 </body>
-</html>
+</html>4

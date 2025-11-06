@@ -119,28 +119,34 @@ class CrewAPIClient:
                 schedule_data = response.json()
                 logger.info(f"✅ Successfully fetched schedule data")
                 
-                # FIXED: Proper logging based on the actual data structure
+                # FIXED: Handle nested list structure
                 if isinstance(schedule_data, list):
-                    logger.info(f"📅 Data covers {len(schedule_data)} days")
+                    logger.info(f"📅 Data structure: list with {len(schedule_data)} items")
                     
-                    # Log basic info about the data
-                    for i, day in enumerate(schedule_data[:5]):  # First 5 days
-                        if isinstance(day, dict):
-                            date = day.get('StartDate', 'Unknown')
-                            assignments_list = day.get('AssignementList', [])
-                            assignments_count = len(assignments_list)
-                            dem_value = day.get('Dem', 'Unknown')
-                            logger.info(f"   📋 {date}: {assignments_count} assignments, DEM: {dem_value}")
-                            
-                            # Log first assignment details for debugging
-                            if assignments_list and len(assignments_list) > 0:
-                                first_assignment = assignments_list[0]
-                                if isinstance(first_assignment, dict):
-                                    activity_code = first_assignment.get('ActivityCode', 'Unknown').strip()
-                                    activity_desc = first_assignment.get('ActivityDesc', 'Unknown').strip()
-                                    logger.info(f"     ✈️ First assignment: {activity_code} - {activity_desc}")
-                        else:
-                            logger.info(f"   📋 Day {i+1}: Unexpected type {type(day)}")
+                    # Check if it's a nested list structure
+                    if schedule_data and isinstance(schedule_data[0], list):
+                        logger.info("📊 Nested list structure detected")
+                        total_days = 0
+                        for i, month_list in enumerate(schedule_data):
+                            if isinstance(month_list, list):
+                                logger.info(f"   📅 Month {i+1}: {len(month_list)} days")
+                                total_days += len(month_list)
+                                # Log first few days of first month
+                                if i == 0:
+                                    for j, day in enumerate(month_list[:3]):
+                                        if isinstance(day, dict):
+                                            date = day.get('StartDate', 'Unknown')
+                                            assignments_count = len(day.get('AssignementList', []))
+                                            logger.info(f"     📋 {date}: {assignments_count} assignments")
+                        logger.info(f"📅 Total days across all months: {total_days}")
+                    else:
+                        logger.info("📊 Flat list structure detected")
+                        logger.info(f"📅 Data covers {len(schedule_data)} days")
+                        for i, day in enumerate(schedule_data[:3]):
+                            if isinstance(day, dict):
+                                date = day.get('StartDate', 'Unknown')
+                                assignments_count = len(day.get('AssignementList', []))
+                                logger.info(f"   📋 {date}: {assignments_count} assignments")
                 else:
                     logger.info(f"📅 Data type: {type(schedule_data)}")
                     
@@ -215,6 +221,14 @@ HTML_TEMPLATE = """
             border-radius: 3px; font-size: 0.9em; display: inline-block;
             margin-left: 10px;
         }
+        .month-section { 
+            border: 2px solid #007bff; padding: 15px; margin: 20px 0; 
+            border-radius: 8px; background: #f0f8ff;
+        }
+        .month-header { 
+            background: #007bff; color: white; padding: 10px; 
+            border-radius: 5px; margin-bottom: 15px; text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -231,6 +245,7 @@ HTML_TEMPLATE = """
             <h3>Last fetched: {{ last_fetch }}</h3>
             <p>Total days: {{ total_days }}</p>
             <p>Total assignments: {{ total_assignments }}</p>
+            <p>Data structure: {{ data_structure }}</p>
         </div>
         {% endif %}
 
@@ -238,37 +253,84 @@ HTML_TEMPLATE = """
         <div class="data-section">
             <h2>📅 Schedule Data ({{ total_days }} days)</h2>
             
-            {% for day in schedule_data %}
-            <div class="day-card">
-                <div class="day-header">
-                    <strong>{{ day.StartDate[:10] }}</strong>
-                    <span class="dem-info">DEM: {{ day.Dem }}</span>
-                </div>
-                <p><strong>Assignments:</strong> {{ day.AssignementList|length }}</p>
-                <p><strong>Sync Date:</strong> {{ day.SyncDate[:19] }}</p>
-                
-                {% if day.AssignementList %}
-                    {% for assignment in day.AssignementList %}
-                    <div class="assignment">
-                        <strong>{{ assignment.ActivityCode.strip() }} - {{ assignment.ActivityDesc.strip() }}</strong>
-                        <div class="flight-info">
-                            <strong>Time:</strong> {{ assignment.StartDateLocal[:16] }} to {{ assignment.EndDateLocal[:16] }}<br>
-                            {% if assignment.FlighAssignement and assignment.FlighAssignement.CommercialFlightNumber != "XXX" %}
-                            <strong>Flight:</strong> {{ assignment.FlighAssignement.Airline }} {{ assignment.FlighAssignement.CommercialFlightNumber }}<br>
-                            <strong>Route:</strong> {{ assignment.FlighAssignement.OriginAirportIATACode }} → {{ assignment.FlighAssignement.FinalAirportIATACode }}<br>
-                            <strong>Duration:</strong> {{ assignment.FlighAssignement.Duration }} minutes<br>
-                            <strong>Aircraft:</strong> {{ assignment.Fleet }} {% if assignment.AircraftRegistrationNumber %}({{ assignment.AircraftRegistrationNumber }}){% endif %}
+            {% if data_structure == 'nested' %}
+                <!-- Handle nested list structure (list of months) -->
+                {% for month_index, month in enumerate(schedule_data) %}
+                <div class="month-section">
+                    <div class="month-header">
+                        <h3>📅 Month {{ month_index + 1 }}</h3>
+                    </div>
+                    {% for day in month %}
+                        {% if day and day is mapping %}
+                        <div class="day-card">
+                            <div class="day-header">
+                                <strong>{{ day.StartDate[:10] if day.StartDate else 'Unknown Date' }}</strong>
+                                <span class="dem-info">DEM: {{ day.Dem }}</span>
+                            </div>
+                            <p><strong>Assignments:</strong> {{ day.AssignementList|length if day.AssignementList else 0 }}</p>
+                            <p><strong>Sync Date:</strong> {{ day.SyncDate[:19] if day.SyncDate else 'Unknown' }}</p>
+                            
+                            {% if day.AssignementList and day.AssignementList|length > 0 %}
+                                {% for assignment in day.AssignementList %}
+                                <div class="assignment">
+                                    <strong>{{ assignment.ActivityCode.strip() if assignment.ActivityCode else 'N/A' }} - {{ assignment.ActivityDesc.strip() if assignment.ActivityDesc else 'No Description' }}</strong>
+                                    <div class="flight-info">
+                                        <strong>Time:</strong> {{ assignment.StartDateLocal[:16] if assignment.StartDateLocal else 'N/A' }} to {{ assignment.EndDateLocal[:16] if assignment.EndDateLocal else 'N/A' }}<br>
+                                        {% if assignment.FlighAssignement and assignment.FlighAssignement.CommercialFlightNumber != "XXX" %}
+                                        <strong>Flight:</strong> {{ assignment.FlighAssignement.Airline }} {{ assignment.FlighAssignement.CommercialFlightNumber }}<br>
+                                        <strong>Route:</strong> {{ assignment.FlighAssignement.OriginAirportIATACode }} → {{ assignment.FlighAssignement.FinalAirportIATACode }}<br>
+                                        <strong>Duration:</strong> {{ assignment.FlighAssignement.Duration }} minutes<br>
+                                        <strong>Aircraft:</strong> {{ assignment.Fleet }} {% if assignment.AircraftRegistrationNumber %}({{ assignment.AircraftRegistrationNumber }}){% endif %}
+                                        {% else %}
+                                        <strong>Type:</strong> {{ assignment.AssignementCategory }} - {{ assignment.ActivityType }}
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% endfor %}
                             {% else %}
-                            <strong>Type:</strong> {{ assignment.AssignementCategory }} - {{ assignment.ActivityType }}
+                                <p class="loading">No assignments for this day</p>
                             {% endif %}
                         </div>
-                    </div>
+                        {% endif %}
                     {% endfor %}
-                {% else %}
-                    <p class="loading">No assignments for this day</p>
-                {% endif %}
-            </div>
-            {% endfor %}
+                </div>
+                {% endfor %}
+            {% else %}
+                <!-- Handle flat list structure -->
+                {% for day in schedule_data %}
+                    {% if day and day is mapping %}
+                    <div class="day-card">
+                        <div class="day-header">
+                            <strong>{{ day.StartDate[:10] if day.StartDate else 'Unknown Date' }}</strong>
+                            <span class="dem-info">DEM: {{ day.Dem }}</span>
+                        </div>
+                        <p><strong>Assignments:</strong> {{ day.AssignementList|length if day.AssignementList else 0 }}</p>
+                        <p><strong>Sync Date:</strong> {{ day.SyncDate[:19] if day.SyncDate else 'Unknown' }}</p>
+                        
+                        {% if day.AssignementList and day.AssignementList|length > 0 %}
+                            {% for assignment in day.AssignementList %}
+                            <div class="assignment">
+                                <strong>{{ assignment.ActivityCode.strip() if assignment.ActivityCode else 'N/A' }} - {{ assignment.ActivityDesc.strip() if assignment.ActivityDesc else 'No Description' }}</strong>
+                                <div class="flight-info">
+                                    <strong>Time:</strong> {{ assignment.StartDateLocal[:16] if assignment.StartDateLocal else 'N/A' }} to {{ assignment.EndDateLocal[:16] if assignment.EndDateLocal else 'N/A' }}<br>
+                                    {% if assignment.FlighAssignement and assignment.FlighAssignement.CommercialFlightNumber != "XXX" %}
+                                    <strong>Flight:</strong> {{ assignment.FlighAssignement.Airline }} {{ assignment.FlighAssignement.CommercialFlightNumber }}<br>
+                                    <strong>Route:</strong> {{ assignment.FlighAssignement.OriginAirportIATACode }} → {{ assignment.FlighAssignement.FinalAirportIATACode }}<br>
+                                    <strong>Duration:</strong> {{ assignment.FlighAssignement.Duration }} minutes<br>
+                                    <strong>Aircraft:</strong> {{ assignment.Fleet }} {% if assignment.AircraftRegistrationNumber %}({{ assignment.AircraftRegistrationNumber }}){% endif %}
+                                    {% else %}
+                                    <strong>Type:</strong> {{ assignment.AssignementCategory }} - {{ assignment.ActivityType }}
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <p class="loading">No assignments for this day</p>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
             
             <details>
                 <summary>📋 View Complete Raw JSON Data</summary>
@@ -335,13 +397,30 @@ def index():
     """Main page showing schedule data"""
     total_days = 0
     total_assignments = 0
+    data_structure = 'unknown'
     
-    if schedule_data and isinstance(schedule_data, list):
-        total_days = len(schedule_data)
-        for day in schedule_data:
-            if isinstance(day, dict):
-                assignments = day.get('AssignementList', [])
-                total_assignments += len(assignments)
+    if schedule_data:
+        # FIXED: Handle nested list structure
+        if isinstance(schedule_data, list):
+            if schedule_data and isinstance(schedule_data[0], list):
+                logger.info("📊 Rendering: Nested list structure")
+                data_structure = 'nested'
+                # Count days in nested structure
+                for month in schedule_data:
+                    if isinstance(month, list):
+                        total_days += len(month)
+                        for day in month:
+                            if isinstance(day, dict):
+                                assignments = day.get('AssignementList', [])
+                                total_assignments += len(assignments)
+            else:
+                logger.info("📊 Rendering: Flat list structure")
+                data_structure = 'flat'
+                total_days = len(schedule_data)
+                for day in schedule_data:
+                    if isinstance(day, dict):
+                        assignments = day.get('AssignementList', [])
+                        total_assignments += len(assignments)
     
     # Generate complete JSON for display
     raw_json = ""
@@ -357,6 +436,7 @@ def index():
         total_days=total_days,
         total_assignments=total_assignments,
         raw_json=raw_json,
+        data_structure=data_structure,
         error=fetch_error
     )
 
@@ -416,9 +496,18 @@ def health():
 @app.route('/debug')
 def debug():
     """Debug endpoint to see raw data"""
+    data_structure = 'unknown'
+    if schedule_data:
+        if isinstance(schedule_data, list):
+            if schedule_data and isinstance(schedule_data[0], list):
+                data_structure = 'nested_list'
+            else:
+                data_structure = 'flat_list'
+    
     return jsonify({
         "schedule_data_type": type(schedule_data).__name__ if schedule_data else None,
         "schedule_data_length": len(schedule_data) if isinstance(schedule_data, list) else None,
+        "data_structure": data_structure,
         "last_fetch": last_fetch_time,
         "error": fetch_error,
         "is_logged_in": client.is_logged_in,

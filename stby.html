@@ -112,12 +112,14 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
             ''
         ].join('\r\n');
         
-        // Make the actual login request
+        // Make the actual login request with proper origin and referer
         const loginResponse = await fetch('https://api-avianca.avianca.com/MyCrewSecurity/connect/token', {
             method: 'POST',
             headers: {
                 'Ocp-Apim-Subscription-Key': SUBSCRIPTION_KEY,
-                'Content-Type': `multipart/form-data; boundary=${boundary}`
+                'Content-Type': `multipart/form-data; boundary=${boundary}`,
+                'Origin': 'https://mycrew.avianca.com',
+                'Referer': 'https://mycrew.avianca.com/'
             },
             body: formData
         });
@@ -193,7 +195,9 @@ async function submitForm(type) {
             headers: {
                 'Authorization': AUTH_TOKEN,
                 'Ocp-Apim-Subscription-Key': SUBSCRIPTION_KEY,
-                'Content-Type': `multipart/form-data; boundary=${boundary}`
+                'Content-Type': `multipart/form-data; boundary=${boundary}`,
+                'Origin': 'https://mycrew.avianca.com',
+                'Referer': 'https://mycrew.avianca.com/'
             },
             body: formData
         });
@@ -216,4 +220,4 @@ async function submitForm(type) {
 </script>
 
 </body>
-</html>2
+</html>89

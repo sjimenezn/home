@@ -59,9 +59,9 @@ class CrewAPIClient:
             return False
     
     def get_schedule_data(self, crew_id=None):
-        """Get schedule data - optionally for specific crew member"""
+        """Get schedule data for specific crew member"""
         try:
-            logger.info("📊 Fetching schedule data...")
+            logger.info(f"📊 Fetching schedule data for crew: {crew_id or 'default'}...")
             
             # Always create a new session to ensure fresh data
             self.create_new_session()
@@ -75,9 +75,9 @@ class CrewAPIClient:
             url = f"{self.base_url}/Assignements/AssignmentsComplete"
             params = {"timeZoneOffset": -300}
             
-            # If crew_id provided, try to use it
-            if crew_id:
-                params["crewMemberUniqueId"] = crew_id
+            # ALWAYS use crewMemberUniqueId parameter - this is the key fix!
+            target_crew_id = crew_id or DEFAULT_CREW_ID
+            params["crewMemberUniqueId"] = target_crew_id
             
             headers = {
                 "Authorization": self.auth_token, "Ocp-Apim-Subscription-Key": self.subscription_key,
@@ -85,89 +85,23 @@ class CrewAPIClient:
                 "Referer": "https://mycrew.avianca.com/",
             }
             
-            logger.info(f"🌐 Making API request to: {url} with params: {params}")
+            logger.info(f"🌐 Making API request for crew {target_crew_id} to: {url}")
             response = self.session.get(url, params=params, headers=headers, timeout=30)
             
             if response.status_code == 200:
                 data = response.json()
                 if isinstance(data, list):
-                    logger.info(f"✅ Schedule data fetched! Structure: {len(data)} months")
+                    logger.info(f"✅ Schedule data fetched for crew {target_crew_id}! Structure: {len(data)} months")
                     if data and isinstance(data[0], list):
                         logger.info(f"📅 First month has {len(data[0])} days")
-                logger.info("✅ Schedule data fetched successfully!")
+                logger.info(f"✅ Schedule data fetched successfully for crew {target_crew_id}!")
                 return data
                 
-            logger.error(f"❌ Failed to fetch schedule data: {response.status_code}")
+            logger.error(f"❌ Failed to fetch schedule data for crew {target_crew_id}: {response.status_code}")
             return None
         except Exception as e:
-            logger.error(f"❌ Error fetching data: {e}")
+            logger.error(f"❌ Error fetching data for crew {crew_id}: {e}")
             return None
-
-    def get_crew_schedule_data(self, crew_id):
-        """Try multiple endpoints and parameters to fetch other crew data"""
-        if not self.is_logged_in:
-            email = os.getenv('CREW_EMAIL', 'sergio.jimenez@avianca.com')
-            password = os.getenv('CREW_PASSWORD', 'aLogout.8701')
-            if not self.login(email, password):
-                return None
-    
-        headers = {
-            "Authorization": self.auth_token, 
-            "Ocp-Apim-Subscription-Key": self.subscription_key,
-            "Accept": "application/json", 
-            "Origin": "https://mycrew.avianca.com", 
-            "Referer": "https://mycrew.avianca.com/",
-        }
-        
-        # Get your data first for comparison
-        your_data = self.get_schedule_data()
-        
-        # Different endpoint variations to try
-        endpoints = [
-            f"{self.base_url}/Assignements/AssignmentsComplete",
-            f"{self.base_url}/Assignements",
-            f"{self.base_url}/MonthlyAssignements/Data",
-            f"{self.base_url}/CrewMember/{crew_id}/Assignments",
-            f"{self.base_url}/Assignements/Crew/{crew_id}",
-        ]
-        
-        # Different parameter combinations
-        param_combinations = [
-            {"crewMemberId": crew_id, "timeZoneOffset": -300},
-            {"crewMemberUniqueId": crew_id, "timeZoneOffset": -300},
-            {"employeeId": crew_id, "timeZoneOffset": -300},
-            {"uniqueId": crew_id, "timeZoneOffset": -300},
-            {"id": crew_id, "timeZoneOffset": -300},
-            {"CrewMemberUniqueId": crew_id, "timeZoneOffset": -300},
-            {"timeZoneOffset": -300},  # Some endpoints might get crew from auth
-        ]
-        
-        for endpoint in endpoints:
-            for params in param_combinations:
-                try:
-                    logger.info(f"🔍 Testing: {endpoint} with {params}")
-                    response = self.session.get(endpoint, params=params, headers=headers, timeout=15)
-                    
-                    if response.status_code == 200:
-                        data = response.json()
-                        # Check if we got valid, non-empty data that's different from yours
-                        if (data and data != your_data and 
-                            ((isinstance(data, list) and len(data) > 0) or 
-                             (isinstance(data, dict) and data))):
-                            logger.info(f"✅ SUCCESS! Found working endpoint: {endpoint}")
-                            logger.info(f"📊 Data structure: {type(data)}, length: {len(data) if isinstance(data, list) else 'dict'}")
-                            return data
-                        elif response.status_code == 200 and not data:
-                            logger.info(f"⚠️ Got 200 but empty data from: {endpoint}")
-                        elif data == your_data:
-                            logger.info(f"⚠️ Got YOUR data again from: {endpoint}")
-                            
-                except Exception as e:
-                    logger.info(f"❌ Failed {endpoint}: {str(e)}")
-                    continue
-        
-        logger.error("❌ No working endpoint found for other crew members")
-        return None
 
     def download_schedule_pdf(self, crew_id, schedule_type="actual", month="", year=""):
         """Download schedule PDF using multipart form data"""
@@ -270,8 +204,9 @@ schedule_data = None
 last_fetch_time = None
 current_crew_id = DEFAULT_CREW_ID
 
-# [ALL THE TEMPLATES REMAIN EXACTLY THE SAME - SCHEDULE_VIEW_TEMPLATE, CALENDAR_VIEW_TEMPLATE, PDF_VIEW_TEMPLATE]
-# Since they are very long, I'm keeping them as they were in your previous code
+# [KEEP ALL YOUR EXISTING TEMPLATES EXACTLY THE SAME]
+# SCHEDULE_VIEW_TEMPLATE, CALENDAR_VIEW_TEMPLATE, PDF_VIEW_TEMPLATE
+# They should work unchanged since we're maintaining the same data structure
 
 SCHEDULE_VIEW_TEMPLATE = """
 [YOUR EXISTING SCHEDULE_VIEW_TEMPLATE CODE HERE - UNCHANGED]
@@ -398,15 +333,15 @@ def create_calendar_view_data(month_data, month_name):
 
 @app.route('/')
 def index():
-    global schedule_data, last_fetch_time
+    global schedule_data, last_fetch_time, current_crew_id
     
-    # 🔄 ADDED: Automatically fetch fresh data on every page load
-    logger.info("🔄 Auto-fetching fresh data on page load...")
-    new_data = client.get_schedule_data()
+    # 🔄 Automatically fetch fresh data for CURRENT crew member
+    logger.info(f"🔄 Auto-fetching fresh data for crew {current_crew_id} on page load...")
+    new_data = client.get_schedule_data(current_crew_id)  # Pass current_crew_id here!
     if new_data is not None:
         schedule_data = new_data
         last_fetch_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        logger.info("✅ Auto-fetch completed successfully!")
+        logger.info(f"✅ Auto-fetch completed for crew {current_crew_id}!")
     # If fetch fails, keep existing data but log warning
     elif schedule_data is None:
         logger.warning("⚠️ Auto-fetch failed and no existing data available")
@@ -443,12 +378,12 @@ def index():
 
 @app.route('/calendar')
 def calendar_view():
-    global schedule_data, last_fetch_time
+    global schedule_data, last_fetch_time, current_crew_id
     
-    # Auto-fetch data if needed
+    # Auto-fetch data for CURRENT crew member if needed
     if schedule_data is None:
-        logger.info("🔄 Auto-fetching data for calendar view...")
-        new_data = client.get_schedule_data()
+        logger.info(f"🔄 Auto-fetching data for crew {current_crew_id} for calendar view...")
+        new_data = client.get_schedule_data(current_crew_id)  # Pass current_crew_id here!
         if new_data is not None:
             schedule_data = new_data
             last_fetch_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -503,76 +438,6 @@ def pdf_view():
         pdf_success=pdf_success
     )
 
-@app.route('/test_crew_data')
-def test_crew_data():
-    """Test endpoint to try fetching data for other crew members"""
-    test_crew_id = "26559705"
-    
-    logger.info(f"🧪 Testing data fetch for crew ID: {test_crew_id}")
-    crew_data = client.get_crew_schedule_data(test_crew_id)
-    
-    if crew_data:
-        return {
-            "success": True, 
-            "message": f"Found data for crew {test_crew_id}",
-            "data_type": type(crew_data).__name__,
-            "data_length": len(crew_data) if isinstance(crew_data, list) else "N/A",
-            "data_sample": str(crew_data)[:500] + "..." if crew_data else "No data"
-        }
-    else:
-        return {
-            "success": False,
-            "message": f"Could not fetch data for crew {test_crew_id} - PDF parsing required"
-        }
-
-@app.route('/update_crew_id')
-def update_crew_id():
-    global current_crew_id
-    new_crew_id = request.args.get('crew_id', '').strip()
-    
-    if new_crew_id:
-        current_crew_id = new_crew_id
-        logger.info(f"✅ Crew ID updated to: {current_crew_id}")
-        return {"success": True, "new_crew_id": current_crew_id}
-    else:
-        return {"success": False, "error": "No crew ID provided"}
-
-@app.route('/download_pdf')
-def download_pdf():
-    schedule_type = request.args.get('type', 'actual')
-    
-    try:
-        logger.info(f"📄 PDF download requested for {schedule_type} schedule, crew {current_crew_id}")
-        filename = client.download_schedule_pdf(current_crew_id, schedule_type)
-        
-        if filename and os.path.exists(filename):
-            logger.info(f"✅ Sending PDF file: {filename}")
-            return send_file(filename, as_attachment=True, download_name=os.path.basename(filename))
-        else:
-            logger.error(f"❌ PDF file not found: {filename}")
-            return {"success": False, "error": "PDF generation failed"}, 400
-            
-    except Exception as e:
-        logger.error(f"❌ PDF download error: {e}")
-        return {"success": False, "error": str(e)}, 500
-
-@app.route('/fetch')
-def fetch_data():
-    global schedule_data, last_fetch_time
-    try:
-        logger.info("🔄 Manual data refresh requested - creating fresh session...")
-        new_data = client.get_schedule_data()
-        if new_data is not None:
-            schedule_data = new_data
-            last_fetch_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            logger.info("✅ Data updated successfully with fresh session!")
-            return {"success": True}
-        logger.error("❌ Data refresh failed - no data received")
-        return {"success": False, "error": "Failed to fetch data"}
-    except Exception as e:
-        logger.error(f"❌ Error in /fetch endpoint: {e}")
-        return {"success": False, "error": str(e)}
-
 @app.route('/test_simple')
 def test_simple():
     """Simple test endpoint that returns the working endpoint"""
@@ -623,14 +488,67 @@ def test_simple():
         logger.error(f"❌ Test error: {e}")
         return f"ERROR: {str(e)}"
 
+@app.route('/update_crew_id')
+def update_crew_id():
+    global current_crew_id, schedule_data, last_fetch_time
+    new_crew_id = request.args.get('crew_id', '').strip()
+    
+    if new_crew_id:
+        current_crew_id = new_crew_id
+        logger.info(f"✅ Crew ID updated to: {current_crew_id}")
+        
+        # Clear cached data so it fetches fresh data for the new crew member
+        schedule_data = None
+        last_fetch_time = None
+        
+        return {"success": True, "new_crew_id": current_crew_id}
+    else:
+        return {"success": False, "error": "No crew ID provided"}
+
+@app.route('/download_pdf')
+def download_pdf():
+    schedule_type = request.args.get('type', 'actual')
+    
+    try:
+        logger.info(f"📄 PDF download requested for {schedule_type} schedule, crew {current_crew_id}")
+        filename = client.download_schedule_pdf(current_crew_id, schedule_type)
+        
+        if filename and os.path.exists(filename):
+            logger.info(f"✅ Sending PDF file: {filename}")
+            return send_file(filename, as_attachment=True, download_name=os.path.basename(filename))
+        else:
+            logger.error(f"❌ PDF file not found: {filename}")
+            return {"success": False, "error": "PDF generation failed"}, 400
+            
+    except Exception as e:
+        logger.error(f"❌ PDF download error: {e}")
+        return {"success": False, "error": str(e)}, 500
+
+@app.route('/fetch')
+def fetch_data():
+    global schedule_data, last_fetch_time, current_crew_id
+    try:
+        logger.info(f"🔄 Manual data refresh requested for crew {current_crew_id} - creating fresh session...")
+        new_data = client.get_schedule_data(current_crew_id)  # Pass current_crew_id here!
+        if new_data is not None:
+            schedule_data = new_data
+            last_fetch_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            logger.info(f"✅ Data updated successfully for crew {current_crew_id}!")
+            return {"success": True}
+        logger.error(f"❌ Data refresh failed for crew {current_crew_id} - no data received")
+        return {"success": False, "error": "Failed to fetch data"}
+    except Exception as e:
+        logger.error(f"❌ Error in /fetch endpoint for crew {current_crew_id}: {e}")
+        return {"success": False, "error": str(e)}
+
 def main():
-    global schedule_data, last_fetch_time
+    global schedule_data, last_fetch_time, current_crew_id
     logger.info("🚀 Starting Crew Schedule Application...")
-    initial_data = client.get_schedule_data()
+    initial_data = client.get_schedule_data(current_crew_id)  # Pass current_crew_id here!
     if initial_data is not None:
         schedule_data = initial_data
         last_fetch_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        logger.info("✅ Initial data fetch successful!")
+        logger.info(f"✅ Initial data fetch successful for crew {current_crew_id}!")
     app.run(host='0.0.0.0', port=8000, debug=False)
 
 if __name__ == "__main__":

@@ -470,9 +470,15 @@ CALENDAR_VIEW_TEMPLATE = """
         .status-delayed { color: #dc3545; font-weight: bold; margin-left: 5px; }
         .no-assignments { color: #6c757d; text-align: center; font-size: 0.8em; padding: 10px; }
         .month-section { margin: 30px 0; }
-        .month-header { background: #000; color: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; text-align: center; }
+        .month-header { background: #000; color: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; text-align: center; position: relative; }
+        .month-navigation { display: flex; justify-content: center; align-items: center; gap: 20px; }
+        .chevron { background: none; border: none; color: white; font-size: 2em; cursor: pointer; padding: 0 15px; }
+        .chevron:hover { color: #ffc107; }
+        .chevron:disabled { color: #6c757d; cursor: not-allowed; }
+        .month-title { font-size: 1.5em; margin: 0 20px; }
         .week-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin-bottom: 10px; }
         .week-day { text-align: center; font-weight: bold; padding: 8px; background: #6c757d; color: white; border-radius: 4px; }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
@@ -503,9 +509,13 @@ CALENDAR_VIEW_TEMPLATE = """
 
         {% if schedule_data %}
             {% for month in schedule_data %}
-            <div class="month-section">
+            <div class="month-section {% if loop.index0 != 0 %}hidden{% endif %}" id="month-{{ loop.index0 }}" data-month-index="{{ loop.index0 }}">
                 <div class="month-header">
-                    <h2>{{ month_names[loop.index0] }}</h2>
+                    <div class="month-navigation">
+                        <button class="chevron" onclick="navigateMonth(-1)" id="prevMonth">〈</button>
+                        <div class="month-title">{{ month_names[loop.index0] }}</div>
+                        <button class="chevron" onclick="navigateMonth(1)" id="nextMonth">〉</button>
+                    </div>
                 </div>
                 
                 <div class="week-days">
@@ -575,6 +585,36 @@ CALENDAR_VIEW_TEMPLATE = """
     </div>
 
     <script>
+    let currentMonthIndex = 0;
+    const totalMonths = {{ schedule_data|length if schedule_data else 0 }};
+
+    function navigateMonth(direction) {
+        const newIndex = currentMonthIndex + direction;
+        
+        // Check bounds
+        if (newIndex >= 0 && newIndex < totalMonths) {
+            // Hide current month
+            document.getElementById(`month-${currentMonthIndex}`).classList.add('hidden');
+            
+            // Show new month
+            document.getElementById(`month-${newIndex}`).classList.remove('hidden');
+            
+            // Update current index
+            currentMonthIndex = newIndex;
+            
+            // Update button states
+            updateNavigationButtons();
+            
+            // Scroll to top of month section
+            document.getElementById(`month-${newIndex}`).scrollIntoView({ behavior: 'smooth' });
+        }
+    }
+
+    function updateNavigationButtons() {
+        document.getElementById('prevMonth').disabled = currentMonthIndex === 0;
+        document.getElementById('nextMonth').disabled = currentMonthIndex === totalMonths - 1;
+    }
+
     function fetchData() {
         const button = document.getElementById('refreshBtn');
         button.disabled = true;
@@ -600,8 +640,11 @@ CALENDAR_VIEW_TEMPLATE = """
             });
     }
 
-    // Scroll to current date on page load
+    // Initialize on page load
     document.addEventListener('DOMContentLoaded', function() {
+        updateNavigationButtons();
+        
+        // Scroll to current date in the visible month
         const currentDayElement = document.querySelector('.current-day');
         if (currentDayElement) {
             currentDayElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -611,6 +654,9 @@ CALENDAR_VIEW_TEMPLATE = """
 </body>
 </html>
 """
+
+
+
 
 
 

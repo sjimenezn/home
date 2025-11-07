@@ -1052,6 +1052,52 @@ def fetch_data():
         logger.error(f"❌ Error in /fetch endpoint: {e}")
         return {"success": False, "error": str(e)}
 
+
+@app.route('/debug_test')
+def debug_test():
+    """Better test to see what data we're actually getting"""
+    test_crew_id = "26559705"
+    
+    # Get data for test crew
+    test_data = client.get_schedule_data(test_crew_id)
+    
+    # Get your data for comparison  
+    your_data = client.get_schedule_data()
+    
+    # Compare the actual content
+    if test_data == your_data:
+        return "❌ SAME DATA - API is ignoring crew ID, returning YOUR data"
+    else:
+        # Check if it's actually different
+        if test_data and your_data:
+            # Compare specific fields
+            your_first_flight = None
+            test_first_flight = None
+            
+            # Extract first flight number from each dataset
+            for month in your_data:
+                for day in month:
+                    for assignment in day.get('AssignementList', []):
+                        flight_data = assignment.get('FlighAssignement')
+                        if flight_data and flight_data.get('CommercialFlightNumber') != "XXX":
+                            your_first_flight = flight_data.get('CommercialFlightNumber')
+                            break
+            
+            for month in test_data:
+                for day in month:
+                    for assignment in day.get('AssignementList', []):
+                        flight_data = assignment.get('FlighAssignement')
+                        if flight_data and flight_data.get('CommercialFlightNumber') != "XXX":
+                            test_first_flight = flight_data.get('CommercialFlightNumber')
+                            break
+            
+            if your_first_flight == test_first_flight:
+                return f"❌ SAME FLIGHTS - Both have flight {your_first_flight}"
+            else:
+                return f"✅ DIFFERENT DATA! Your flight: {your_first_flight}, Their flight: {test_first_flight}"
+        else:
+            return "❌ One dataset is empty"
+            
 def main():
     global schedule_data, last_fetch_time
     logger.info("🚀 Starting Crew Schedule Application...")

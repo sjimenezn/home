@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-My Crew Schedule Monitor -Optimized Display Version
+My Crew Schedule Monitor - Optimized Display Version
 """
 
 import os
@@ -432,11 +432,6 @@ SCHEDULE_VIEW_TEMPLATE = """
 </html>
 """
 
-
-
-
-
-
 CALENDAR_VIEW_TEMPLATE = """
 <!DOCTYPE html>
 <html>
@@ -509,7 +504,7 @@ CALENDAR_VIEW_TEMPLATE = """
 
         {% if schedule_data %}
             {% for month in schedule_data %}
-            <div class="month-section {% if loop.index0 != 0 %}hidden{% endif %}" id="month-{{ loop.index0 }}" data-month-index="{{ loop.index0 }}">
+            <div class="month-section {% if loop.index0 != current_month_index %}hidden{% endif %}" id="month-{{ loop.index0 }}" data-month-index="{{ loop.index0 }}">
                 <div class="month-header">
                     <div class="month-navigation">
                         <button class="chevron" onclick="navigateMonth(-1)" id="prevMonth">〈</button>
@@ -585,7 +580,7 @@ CALENDAR_VIEW_TEMPLATE = """
     </div>
 
     <script>
-    let currentMonthIndex = 0;
+    let currentMonthIndex = {{ current_month_index }};
     const totalMonths = {{ schedule_data|length if schedule_data else 0 }};
 
     function navigateMonth(direction) {
@@ -654,16 +649,6 @@ CALENDAR_VIEW_TEMPLATE = """
 </body>
 </html>
 """
-
-
-
-
-
-
-
-
-
-
 
 PDF_VIEW_TEMPLATE = """
 <!DOCTYPE html>
@@ -808,6 +793,18 @@ def get_month_name_from_data(month_data):
     
     return "Unknown Month"
 
+def get_current_month_index(schedule_data, current_date):
+    """Find which month index contains the current date"""
+    if not schedule_data or not isinstance(schedule_data, list):
+        return 0
+    
+    for month_index, month in enumerate(schedule_data):
+        if month and isinstance(month, list):
+            for day in month:
+                if day and isinstance(day, dict) and day.get('StartDate', '').startswith(current_date):
+                    return month_index
+    return 0  # Fallback to first month if not found
+
 def create_calendar_view_data(month_data, month_name):
     """Convert month data to calendar grid format"""
     if not month_data or not isinstance(month_data, list):
@@ -828,8 +825,8 @@ def create_calendar_view_data(month_data, month_name):
     if not first_day:
         return []
     
-    # Calculate calendar start (first Sunday of the calendar view)
-    calendar_start = first_day - timedelta(days=first_day.weekday() + 1)
+    # Calculate calendar start (first Monday of the calendar view)
+    calendar_start = first_day - timedelta(days=first_day.weekday())
     
     # Create 6 weeks of calendar data (42 days)
     calendar_days = []
@@ -969,6 +966,9 @@ def calendar_view():
                         assignments = day.get('AssignementList', [])
                         total_assignments += len(assignments)
     
+    # Find current month index
+    current_month_index = get_current_month_index(schedule_data, current_date)
+    
     refresh_message = "Data refreshed successfully!" if request.args.get('refresh') == 'success' else None
     
     return render_template_string(CALENDAR_VIEW_TEMPLATE,
@@ -980,7 +980,8 @@ def calendar_view():
         current_crew_id=current_crew_id,
         month_names=month_names,
         month_calendars=month_calendars,
-        current_date=current_date
+        current_date=current_date,
+        current_month_index=current_month_index
     )
 
 @app.route('/pdf')

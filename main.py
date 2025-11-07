@@ -659,26 +659,192 @@ PDF_VIEW_TEMPLATE = """
 <html>
 <head>
     <title>PDF Download - My Crew Schedule</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
-        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; }
-        .header { text-align: center; margin-bottom: 20px; }
-        .nav-buttons { text-align: center; margin: 15px 0; }
-        .nav-button { background: #6c757d; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; margin: 0 5px; text-decoration: none; display: inline-block; }
-        .nav-button:hover { background: #5a6268; }
-        .nav-button.active { background: #007bff; }
-        .button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
-        .button:hover { background: #0056b3; }
-        .button:disabled { background: #6c757d; cursor: not-allowed; }
-        .pdf-button { background: #28a745; }
-        .pdf-button:hover { background: #218838; }
-        .input-group { margin: 15px 0; text-align: center; }
-        .input-label { display: block; margin-bottom: 5px; font-weight: bold; }
-        .crew-input { padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; width: 350px; margin: 0 10px; }
-        .info-box { background: #e9ecef; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center; }
-        .no-data { color: #6c757d; text-align: center; padding: 10px; }
-        .error { color: #dc3545; text-align: center; padding: 20px; }
-        .success { color: #155724; background: #d4edda; padding: 10px; border-radius: 5px; margin: 10px 0; text-align: center; }
+        /* --- Sober & Mobile-First Redesign --- */
+        
+        /* Base settings */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 10px;
+            background: #121212; /* Very dark background */
+            color: #f0f0f0;      /* Light text */
+            font-size: 18px;     /* Larger base font for mobile */
+            line-height: 1.6;
+        }
+        
+        /* Main content container */
+        .container {
+            max-width: 600px; /* Constrains width on desktop, 100% on mobile */
+            margin: 10px auto;
+            background: #2a2a2a; /* Dark card background */
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #444;
+        }
+
+        /* Headers */
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #444;
+            padding-bottom: 20px;
+        }
+        .header h1 {
+            color: #ffffff;
+            font-weight: 600;
+            margin: 0;
+        }
+        .header h2 {
+            color: #f0f0f0;
+            font-weight: 300;
+            margin: 10px 0 0;
+        }
+
+        /* Navigation buttons */
+        .nav-buttons {
+            display: flex;
+            flex-wrap: wrap; /* Allows buttons to stack on small screens */
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .nav-button {
+            padding: 10px 15px;
+            border: 1px solid #666;
+            border-radius: 5px;
+            background: #3a3a3a;
+            color: #f0f0f0;
+            text-decoration: none;
+            font-size: 0.9em;
+            font-weight: 500;
+            flex-grow: 1; /* Makes buttons share space */
+            text-align: center;
+        }
+        .nav-button:hover {
+            background: #4a4a4a;
+        }
+        .nav-button.active {
+            background: #f0f0f0; /* Active button is light */
+            color: #121212;
+            border-color: #f0f0f0;
+            font-weight: 700;
+        }
+
+        /* Input groups */
+        .input-group {
+            margin-bottom: 25px;
+        }
+        .input-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #ccc;
+            font-size: 0.95em;
+        }
+        
+        /* Main text input style */
+        .crew-input {
+            width: 100%;
+            padding: 14px 16px; /* Large, tappable inputs */
+            font-size: 1.1em;   /* Bigger text in input */
+            color: #ffffff;
+            background: #1e1e1e;
+            border: 1px solid #555;
+            border-radius: 5px;
+            box-sizing: border-box; /* Critical for 100% width */
+        }
+        
+        /* Flex layout for search + clear button */
+        .flex-group {
+            display: flex;
+            gap: 10px;
+        }
+        .flex-group .crew-input {
+            flex-grow: 1; /* Input takes available space */
+        }
+
+        /* Button base style */
+        .button {
+            width: 100%;
+            padding: 16px; /* Large, tappable buttons */
+            font-size: 1.15em;
+            font-weight: 700;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            box-sizing: border-box;
+        }
+        .button:disabled {
+            background: #333;
+            color: #777;
+            cursor: not-allowed;
+        }
+
+        /* Specific button colors (Sober) */
+        #updateCrewBtn {
+            background: #f0f0f0; /* Primary action is light */
+            color: #121212;
+        }
+        #updateCrewBtn:hover {
+            background: #ffffff;
+        }
+        
+        .pdf-button {
+            background: #555; /* Dark grey for downloads */
+            color: #ffffff;
+            margin-top: 10px;
+        }
+        .pdf-button:hover {
+            background: #666;
+        }
+        
+        .pdf-button.scheduled {
+            background: #444; /* Even darker for secondary download */
+        }
+        .pdf-button.scheduled:hover {
+            background: #555;
+        }
+        
+        .button.clear-btn {
+            width: auto; /* Override 100% width */
+            flex-shrink: 0;
+            background: #4a4a4a;
+            color: #f0f0f0;
+            font-size: 1.1em;
+            padding: 14px 16px;
+        }
+
+        /* Info box */
+        .info-box {
+            background: #1e1e1e;
+            padding: 20px;
+            border-radius: 5px;
+            text-align: center;
+            border: 1px solid #444;
+        }
+        .info-box strong {
+            color: #ffffff;
+            font-size: 1.2em;
+        }
+
+        /* Alerts */
+        .success, .error {
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            font-weight: 600;
+            text-align: center;
+        }
+        .success {
+            background: #2e4b2e;
+            color: #d4edda;
+        }
+        .error {
+            background: #5a3a3a;
+            color: #f8d7da;
+        }
     </style>
 </head>
 <body>
@@ -686,11 +852,11 @@ PDF_VIEW_TEMPLATE = """
         <div class="header">
             <h1>✈️ My Crew Schedule</h1>
             <div class="nav-buttons">
-                <a href="/" class="nav-button">📋 Schedule View</a>
-                <a href="/calendar" class="nav-button">📅 Calendar View</a>
-                <a href="/pdf" class="nav-button active">📄 PDF Download</a>
+                <a href="/" class="nav-button">📋 Schedule</a>
+                <a href="/calendar" class="nav-button">📅 Calendar</a>
+                <a href="/pdf" class="nav-button active">📄 PDF</a>
             </div>
-            <h2>📄 Download Schedule PDF</h2>
+            <h2>Download Schedule PDF</h2>
         </div>
 
         {% if pdf_message %}
@@ -699,60 +865,59 @@ PDF_VIEW_TEMPLATE = """
         </div>
         {% endif %}
 
-        <div class="input-group">
-            <label class="input-label" for="crewSelectorInput">Select Crew Member (Searchable):</label>
-            <input type="text" id="crewSelectorInput" list="crewDatalist" class="crew-input" onchange="handleCrewSelect()" placeholder="Start typing a name...">
-            <datalist id="crewDatalist">
-                <option value="ABONDANO COZZARELLI CARLOS ERNESTO 80412229">
-                <option value="ABONDANO VARGAS WILMAN  80815221">
-                <option value="ABRIL COTE CARLOS ALBERTO 91524541">
-                <option value="Sergio Jimenez 32385184">
-                <option value="Jane Doe 12345678">
-                <option value="John Smith 87654321">
-                <option value="ZUÑIGA LOPEZ JUAN ESTEBAN 80038857">
-            </datalist>
-            <button class="button" onclick="clearDropdown()" style="background: #6c757d;">Clear</button>
+        <div class="input-group flex-group">
+            <div style="flex-grow: 1;">
+                <label class="input-label" for="crewSelectorInput">Select Crew Member:</label>
+                <input type="text" id="crewSelectorInput" list="crewDatalist" class="crew-input" onchange="handleCrewSelect()" placeholder="Start typing a name...">
+                <datalist id="crewDatalist">
+                    <option value="ABONDANO COZZARELLI CARLOS ERNESTO 80412229">
+                    <option value="ABONDANO VARGAS WILMAN  80815221">
+                    <option value="ABRIL COTE CARLOS ALBERTO 91524541">
+                    <option value="Sergio Jimenez 32385184">
+                    <option value="Jane Doe 12345678">
+                    <option value="John Smith 87654321">
+                    <option value="ZUÑIGA LOPEZ JUAN ESTEBAN 80038857">
+                </datalist>
+            </div>
+            <button class="button clear-btn" onclick="clearDropdown()">Clear</button>
         </div>
 
         <div class="input-group">
             <label class="input-label" for="crewId">Selected Crew ID:</label>
             <input type="text" id="crewId" class="crew-input" placeholder="Enter Crew ID" value="{{ current_crew_id }}">
-            <button class="button pdf-button" id="updateCrewBtn" onclick="updateCrewId()">💾 Update Crew ID</button>
+        </div>
+        
+        <div class="input-group">
+            <button class="button" id="updateCrewBtn" onclick="updateCrewId()">💾 Update Crew ID</button>
         </div>
 
         <div class="info-box">
-            <h3>Current Crew ID: <strong>{{ current_crew_id }}</strong></h3>
-            <p>This ID will be used for PDF downloads</p>
+            <p>Current ID for Download:<br><strong>{{ current_crew_id }}</strong></p>
         </div>
 
-        <div style="text-align: center; margin: 30px 0;">
-            <button class="button pdf-button" onclick="downloadPDF('actual')">📥 Download Actual Schedule PDF</button>
-            <button class="button pdf-button" onclick="downloadPDF('scheduled')" style="background: #ffc107; color: black;">📥 Download Scheduled PDF</button>
+        <div class="input-group" style="margin-top: 30px;">
+            <button class="button pdf-button" onclick="downloadPDF('actual')">📥 Download Actual PDF</button>
+            <button class="button pdf-button scheduled" onclick="downloadPDF('scheduled')">📥 Download Scheduled PDF</button>
         </div>
+
+    </div>
 
     <script>
     
-    // NEW FUNCTION: Handles the datalist selection
     function handleCrewSelect() {
         const input = document.getElementById('crewSelectorInput');
         const selectedValue = input.value.trim();
         
-        // Check if the value is long enough
         if (selectedValue.length >= 8) {
-            // Get the last 8 characters
             const crewId = selectedValue.slice(-8).trim();
-            
-            // Put the 8-digit ID into the input box
             document.getElementById('crewId').value = crewId;
-            
-            // Automatically click the 'Update Crew ID' button
             document.getElementById('updateCrewBtn').click();
         }
     }
 
-    // NEW FUNCTION: Clears the dropdown input
     function clearDropdown() {
         document.getElementById("crewSelectorInput").value = "";
+        document.getElementById("crewSelectorInput").focus();
     }
 
     function updateCrewId() {
@@ -770,7 +935,7 @@ PDF_VIEW_TEMPLATE = """
             .then(r => r.json())
             .then(data => {
                 if (data.success) {
-                    location.reload(); // Reloads to show new ID
+                    location.reload();
                 } else {
                     alert('Failed: ' + (data.error || 'Unknown error'));
                     button.disabled = false;
@@ -798,14 +963,12 @@ PDF_VIEW_TEMPLATE = """
         }, 3000);
     }
 
-    // Allow Enter key to update crew ID
     document.getElementById('crewId').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
             updateCrewId();
         }
     });
 
-    // Focus on the searchable input when page loads
     document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('crewSelectorInput').focus();
     });
@@ -813,6 +976,7 @@ PDF_VIEW_TEMPLATE = """
 </body>
 </html>
 """
+
 
 
 def get_month_name_from_data(month_data):

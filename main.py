@@ -432,6 +432,9 @@ SCHEDULE_VIEW_TEMPLATE = """
 </html>
 """
 
+
+
+
 CALENDAR_VIEW_TEMPLATE = """
 <!DOCTYPE html>
 <html>
@@ -635,20 +638,26 @@ CALENDAR_VIEW_TEMPLATE = """
             });
     }
 
-    // Initialize on page load
+    // Initialize on page load - SCROLL MONTH TO TOP instead of current date
     document.addEventListener('DOMContentLoaded', function() {
         updateNavigationButtons();
         
-        // Scroll to current date in the visible month
-        const currentDayElement = document.querySelector('.current-day');
-        if (currentDayElement) {
-            currentDayElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Scroll the current month to the very top of the viewport
+        const currentMonthElement = document.getElementById(`month-${currentMonthIndex}`);
+        if (currentMonthElement) {
+            currentMonthElement.scrollIntoView({ behavior: 'smooth' });
         }
     });
     </script>
 </body>
 </html>
 """
+
+
+
+
+
+
 
 PDF_VIEW_TEMPLATE = """
 <!DOCTYPE html>

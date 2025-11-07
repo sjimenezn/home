@@ -658,10 +658,10 @@ PDF_VIEW_TEMPLATE = """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>PDF Download - My Crew Schedule</title>
+    <title>PDF Download</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        /* --- Sober & Mobile-First Redesign --- */
+        /* --- Sober & Mobile-First Redesign (v2) --- */
         
         /* Base settings */
         body {
@@ -676,7 +676,7 @@ PDF_VIEW_TEMPLATE = """
         
         /* Main content container */
         .container {
-            max-width: 600px; /* Constrains width on desktop, 100% on mobile */
+            max-width: 600px;
             margin: 10px auto;
             background: #2a2a2a; /* Dark card background */
             padding: 20px;
@@ -684,42 +684,29 @@ PDF_VIEW_TEMPLATE = """
             border: 1px solid #444;
         }
 
-        /* Headers */
+        /* Header (now just a container for the nav banner) */
         .header {
             text-align: center;
-            margin-bottom: 20px;
-            border-bottom: 1px solid #444;
-            padding-bottom: 20px;
-        }
-        .header h1 {
-            color: #ffffff;
-            font-weight: 600;
-            margin: 0;
-        }
-        .header h2 {
-            color: #f0f0f0;
-            font-weight: 300;
-            margin: 10px 0 0;
+            margin-bottom: 25px;
         }
 
-        /* Navigation buttons */
-        .nav-buttons {
-            display: flex;
-            flex-wrap: wrap; /* Allows buttons to stack on small screens */
-            justify-content: center;
-            gap: 10px;
-            margin: 20px 0;
+        /* NEW: Navigation Banner */
+        .nav-banner {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr; /* 3-column layout */
+            gap: 1px;
+            background: #444; /* Gaps will show this color */
+            border: 1px solid #444;
+            border-radius: 8px;
+            overflow: hidden; /* To keep rounded corners */
         }
         .nav-button {
-            padding: 10px 15px;
-            border: 1px solid #666;
-            border-radius: 5px;
+            padding: 12px 5px;
             background: #3a3a3a;
             color: #f0f0f0;
             text-decoration: none;
             font-size: 0.9em;
             font-weight: 500;
-            flex-grow: 1; /* Makes buttons share space */
             text-align: center;
         }
         .nav-button:hover {
@@ -728,13 +715,12 @@ PDF_VIEW_TEMPLATE = """
         .nav-button.active {
             background: #f0f0f0; /* Active button is light */
             color: #121212;
-            border-color: #f0f0f0;
             font-weight: 700;
         }
 
         /* Input groups */
         .input-group {
-            margin-bottom: 25px;
+            margin-bottom: 20px;
         }
         .input-label {
             display: block;
@@ -747,28 +733,29 @@ PDF_VIEW_TEMPLATE = """
         /* Main text input style */
         .crew-input {
             width: 100%;
-            padding: 14px 16px; /* Large, tappable inputs */
-            font-size: 1.1em;   /* Bigger text in input */
+            padding: 14px 16px;
+            font-size: 1.1em;
             color: #ffffff;
             background: #1e1e1e;
             border: 1px solid #555;
             border-radius: 5px;
-            box-sizing: border-box; /* Critical for 100% width */
+            box-sizing: border-box;
         }
         
         /* Flex layout for search + clear button */
         .flex-group {
             display: flex;
             gap: 10px;
+            align-items: flex-end; /* Aligns button with input */
         }
         .flex-group .crew-input {
-            flex-grow: 1; /* Input takes available space */
+            flex-grow: 1;
         }
 
         /* Button base style */
         .button {
             width: 100%;
-            padding: 16px; /* Large, tappable buttons */
+            padding: 16px;
             font-size: 1.15em;
             font-weight: 700;
             border: none;
@@ -781,52 +768,98 @@ PDF_VIEW_TEMPLATE = """
             color: #777;
             cursor: not-allowed;
         }
-
-        /* Specific button colors (Sober) */
-        #updateCrewBtn {
-            background: #f0f0f0; /* Primary action is light */
-            color: #121212;
-        }
-        #updateCrewBtn:hover {
-            background: #ffffff;
-        }
-        
-        .pdf-button {
-            background: #555; /* Dark grey for downloads */
-            color: #ffffff;
-            margin-top: 10px;
-        }
-        .pdf-button:hover {
-            background: #666;
-        }
-        
-        .pdf-button.scheduled {
-            background: #444; /* Even darker for secondary download */
-        }
-        .pdf-button.scheduled:hover {
-            background: #555;
-        }
         
         .button.clear-btn {
-            width: auto; /* Override 100% width */
+            width: auto;
             flex-shrink: 0;
             background: #4a4a4a;
             color: #f0f0f0;
             font-size: 1.1em;
             padding: 14px 16px;
         }
+        
+        /* NEW: Square Download Buttons */
+        .square-button-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr; /* Side-by-side */
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .pdf-button {
+            background: #555;
+            color: #ffffff;
+            aspect-ratio: 1 / 1; /* Makes it square */
+            width: 100%;
+            
+            /* Center text in the square */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            
+            padding: 10px;
+            font-size: 1em;
+            line-height: 1.3;
+            font-weight: 600;
+        }
+        .pdf-button:hover {
+            background: #666;
+        }
+        .pdf-button.scheduled {
+            background: #444; /* Darker for secondary */
+        }
+        .pdf-button.scheduled:hover {
+            background: #555;
+        }
+        
+        /* --- NEW: Footer Section --- */
+        .divider {
+            border: none;
+            border-top: 1px solid #444;
+            margin: 30px 0 25px 0;
+        }
+        .footer-section {
+            text-align: center;
+        }
+        /* MOVED: Update button */
+        #updateCrewBtn {
+            background: #f0f0f0; /* Primary action is light */
+            color: #121212;
+            max-width: 350px; /* Constrain width */
+            margin: 0 auto;
+        }
+        #updateCrewBtn:hover {
+            background: #ffffff;
+        }
+        
+        /* MOVED: Crew ID input */
+        .footer-section .crew-input {
+            max-width: 350px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        .footer-section .input-label {
+            text-align: center;
+        }
 
-        /* Info box */
+        /* MODIFIED: Info box */
         .info-box {
-            background: #1e1e1e;
-            padding: 20px;
+            background: #3a3a3a;
+            padding: 0.5em 1em; /* Much smaller padding */
             border-radius: 5px;
             text-align: center;
-            border: 1px solid #444;
+            display: inline-block; /* Fits content */
+            margin: 15px 0 25px 0;
+        }
+        .info-box p {
+            margin: 0;
+            font-size: 1.05em;
+            color: #ccc;
         }
         .info-box strong {
             color: #ffffff;
-            font-size: 1.2em;
+            font-weight: 600;
         }
 
         /* Alerts */
@@ -849,14 +882,13 @@ PDF_VIEW_TEMPLATE = """
 </head>
 <body>
     <div class="container">
+        
         <div class="header">
-            <h1>✈️ My Crew Schedule</h1>
-            <div class="nav-buttons">
+            <div class="nav-banner">
                 <a href="/" class="nav-button">📋 Schedule</a>
                 <a href="/calendar" class="nav-button">📅 Calendar</a>
                 <a href="/pdf" class="nav-button active">📄 PDF</a>
             </div>
-            <h2>Download Schedule PDF</h2>
         </div>
 
         {% if pdf_message %}
@@ -882,22 +914,27 @@ PDF_VIEW_TEMPLATE = """
             <button class="button clear-btn" onclick="clearDropdown()">Clear</button>
         </div>
 
-        <div class="input-group">
-            <label class="input-label" for="crewId">Selected Crew ID:</label>
-            <input type="text" id="crewId" class="crew-input" placeholder="Enter Crew ID" value="{{ current_crew_id }}">
-        </div>
-        
-        <div class="input-group">
-            <button class="button" id="updateCrewBtn" onclick="updateCrewId()">💾 Update Crew ID</button>
+        <div class="square-button-group">
+            <button class="button pdf-button" onclick="downloadPDF('actual')">📥<br>Actual PDF</button>
+            <button class="button pdf-button scheduled" onclick="downloadPDF('scheduled')">📥<br>Scheduled PDF</button>
         </div>
 
-        <div class="info-box">
-            <p>Current ID for Download:<br><strong>{{ current_crew_id }}</strong></p>
-        </div>
+        <hr class="divider">
+        <div class="footer-section">
 
-        <div class="input-group" style="margin-top: 30px;">
-            <button class="button pdf-button" onclick="downloadPDF('actual')">📥 Download Actual PDF</button>
-            <button class="button pdf-button scheduled" onclick="downloadPDF('scheduled')">📥 Download Scheduled PDF</button>
+            <div class="info-box">
+                <p>ID: <strong>{{ current_crew_id }}</strong></p>
+            </div>
+
+            <div class="input-group">
+                <label class="input-label" for="crewId">Selected Crew ID:</label>
+                <input type="text" id="crewId" class="crew-input" placeholder="Enter Crew ID" value="{{ current_crew_id }}">
+            </div>
+            
+            <div class="input-group">
+                <button class="button" id="updateCrewBtn" onclick="updateCrewId()">💾 Update Crew ID</button>
+            </div>
+
         </div>
 
     </div>
@@ -953,13 +990,13 @@ PDF_VIEW_TEMPLATE = """
         const button = event.target;
         const originalText = button.textContent;
         button.disabled = true;
-        button.textContent = '⏳ Generating PDF...';
+        button.textContent = '⏳'; // Just a spinner for the square
         
         window.open('/download_pdf?type=' + type, '_blank');
         
         setTimeout(() => {
             button.disabled = false;
-            button.textContent = originalText;
+            button.innerHTML = originalText; // Use innerHTML to restore line breaks
         }, 3000);
     }
 
@@ -976,6 +1013,8 @@ PDF_VIEW_TEMPLATE = """
 </body>
 </html>
 """
+
+
 
 
 

@@ -575,7 +575,7 @@ def fetch_data():
 
 @app.route('/test_simple')
 def test_simple():
-    """Simple test endpoint"""
+    """Simple test endpoint that returns the working endpoint"""
     try:
         logger.info("🧪 Starting simple test...")
         test_crew_id = "26559705"
@@ -584,13 +584,40 @@ def test_simple():
         your_data = client.get_schedule_data()
         logger.info(f"✅ Your data fetched: {type(your_data)}")
         
-        # Test the new method
-        crew_data = client.get_crew_schedule_data(test_crew_id)
+        # We need to modify the get_crew_schedule_data to return the endpoint
+        # For now, let's create a quick test here
+        headers = {
+            "Authorization": client.auth_token, 
+            "Ocp-Apim-Subscription-Key": client.subscription_key,
+            "Accept": "application/json", 
+            "Origin": "https://mycrew.avianca.com", 
+            "Referer": "https://mycrew.avianca.com/",
+        }
         
-        if crew_data:
-            return f"SUCCESS! Found data for crew {test_crew_id}"
-        else:
-            return f"NO DATA - Could not fetch data for crew {test_crew_id}"
+        # Test the most likely endpoints one by one and return which one works
+        endpoints_to_test = [
+            (f"{client.base_url}/Assignements/AssignmentsComplete", {"crewMemberUniqueId": test_crew_id, "timeZoneOffset": -300}),
+            (f"{client.base_url}/Assignements", {"crewMemberUniqueId": test_crew_id, "timeZoneOffset": -300}),
+            (f"{client.base_url}/MonthlyAssignements/Data", {"crewMemberUniqueId": test_crew_id, "timeZoneOffset": -300}),
+            (f"{client.base_url}/CrewMember/{test_crew_id}/Assignments", {"timeZoneOffset": -300}),
+            (f"{client.base_url}/Assignements/Crew/{test_crew_id}", {"timeZoneOffset": -300}),
+        ]
+        
+        for endpoint, params in endpoints_to_test:
+            try:
+                logger.info(f"🔍 Testing: {endpoint} with {params}")
+                response = client.session.get(endpoint, params=params, headers=headers, timeout=10)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    if data and data != your_data:
+                        return f"✅ WORKING ENDPOINT: {endpoint}<br>PARAMS: {params}<br>DATA TYPE: {type(data)}"
+                    else:
+                        return f"⚠️ Got 200 but same/empty data from: {endpoint}"
+            except Exception as e:
+                continue
+                
+        return "❌ No working endpoint found"
             
     except Exception as e:
         logger.error(f"❌ Test error: {e}")

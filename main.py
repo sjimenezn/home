@@ -573,6 +573,29 @@ def fetch_data():
         logger.error(f"❌ Error in /fetch endpoint: {e}")
         return {"success": False, "error": str(e)}
 
+@app.route('/test_simple')
+def test_simple():
+    """Simple test endpoint"""
+    try:
+        logger.info("🧪 Starting simple test...")
+        test_crew_id = "26559705"
+        
+        # Test basic API connectivity first
+        your_data = client.get_schedule_data()
+        logger.info(f"✅ Your data fetched: {type(your_data)}")
+        
+        # Test the new method
+        crew_data = client.get_crew_schedule_data(test_crew_id)
+        
+        if crew_data:
+            return f"SUCCESS! Found data for crew {test_crew_id}"
+        else:
+            return f"NO DATA - Could not fetch data for crew {test_crew_id}"
+            
+    except Exception as e:
+        logger.error(f"❌ Test error: {e}")
+        return f"ERROR: {str(e)}"
+
 def main():
     global schedule_data, last_fetch_time
     logger.info("🚀 Starting Crew Schedule Application...")

@@ -674,7 +674,7 @@ PDF_VIEW_TEMPLATE = """
         .pdf-button:hover { background: #218838; }
         .input-group { margin: 15px 0; text-align: center; }
         .input-label { display: block; margin-bottom: 5px; font-weight: bold; }
-        .crew-input { padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; width: 200px; margin: 0 10px; }
+        .crew-input { padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; width: 350px; margin: 0 10px; }
         .info-box { background: #e9ecef; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center; }
         .no-data { color: #6c757d; text-align: center; padding: 10px; }
         .error { color: #dc3545; text-align: center; padding: 20px; }
@@ -700,9 +700,24 @@ PDF_VIEW_TEMPLATE = """
         {% endif %}
 
         <div class="input-group">
-            <label class="input-label">Crew Member ID:</label>
+            <label class="input-label" for="crewSelectorInput">Select Crew Member (Searchable):</label>
+            <input type="text" id="crewSelectorInput" list="crewDatalist" class="crew-input" onchange="handleCrewSelect()" placeholder="Start typing a name...">
+            <datalist id="crewDatalist">
+                <option value="ABONDANO COZZARELLI CARLOS ERNESTO 80412229">
+                <option value="ABONDANO VARGAS WILMAN  80815221">
+                <option value="ABRIL COTE CARLOS ALBERTO 91524541">
+                <option value="Sergio Jimenez 32385184">
+                <option value="Jane Doe 12345678">
+                <option value="John Smith 87654321">
+                <option value="ZUÑIGA LOPEZ JUAN ESTEBAN 80038857">
+            </datalist>
+            <button class="button" onclick="clearDropdown()" style="background: #6c757d;">Clear</button>
+        </div>
+
+        <div class="input-group">
+            <label class="input-label" for="crewId">Selected Crew ID:</label>
             <input type="text" id="crewId" class="crew-input" placeholder="Enter Crew ID" value="{{ current_crew_id }}">
-            <button class="button pdf-button" onclick="updateCrewId()">💾 Update Crew ID</button>
+            <button class="button pdf-button" id="updateCrewBtn" onclick="updateCrewId()">💾 Update Crew ID</button>
         </div>
 
         <div class="info-box">
@@ -715,11 +730,31 @@ PDF_VIEW_TEMPLATE = """
             <button class="button pdf-button" onclick="downloadPDF('scheduled')" style="background: #ffc107; color: black;">📥 Download Scheduled PDF</button>
         </div>
 
-        <div style="text-align: center; color: #666; margin-top: 20px;">
-            <p><strong>Note:</strong> PDF downloads may take a few moments to generate and download.</p>
-        </div>
-
     <script>
+    
+    // NEW FUNCTION: Handles the datalist selection
+    function handleCrewSelect() {
+        const input = document.getElementById('crewSelectorInput');
+        const selectedValue = input.value.trim();
+        
+        // Check if the value is long enough
+        if (selectedValue.length >= 8) {
+            // Get the last 8 characters
+            const crewId = selectedValue.slice(-8).trim();
+            
+            // Put the 8-digit ID into the input box
+            document.getElementById('crewId').value = crewId;
+            
+            // Automatically click the 'Update Crew ID' button
+            document.getElementById('updateCrewBtn').click();
+        }
+    }
+
+    // NEW FUNCTION: Clears the dropdown input
+    function clearDropdown() {
+        document.getElementById("crewSelectorInput").value = "";
+    }
+
     function updateCrewId() {
         const crewId = document.getElementById('crewId').value.trim();
         if (!crewId) {
@@ -727,7 +762,7 @@ PDF_VIEW_TEMPLATE = """
             return;
         }
         
-        const button = event.target;
+        const button = document.getElementById('updateCrewBtn');
         button.disabled = true;
         button.textContent = '⏳ Updating...';
         
@@ -735,7 +770,7 @@ PDF_VIEW_TEMPLATE = """
             .then(r => r.json())
             .then(data => {
                 if (data.success) {
-                    location.reload();
+                    location.reload(); // Reloads to show new ID
                 } else {
                     alert('Failed: ' + (data.error || 'Unknown error'));
                     button.disabled = false;
@@ -755,10 +790,8 @@ PDF_VIEW_TEMPLATE = """
         button.disabled = true;
         button.textContent = '⏳ Generating PDF...';
         
-        // Open in new tab to download
         window.open('/download_pdf?type=' + type, '_blank');
         
-        // Re-enable button after a delay
         setTimeout(() => {
             button.disabled = false;
             button.textContent = originalText;
@@ -772,14 +805,15 @@ PDF_VIEW_TEMPLATE = """
         }
     });
 
-    // Focus on input when page loads
+    // Focus on the searchable input when page loads
     document.addEventListener('DOMContentLoaded', function() {
-        document.getElementById('crewId').focus();
+        document.getElementById('crewSelectorInput').focus();
     });
     </script>
 </body>
 </html>
 """
+
 
 def get_month_name_from_data(month_data):
     """Extract month name from the first valid day in month data"""

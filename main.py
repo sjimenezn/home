@@ -486,6 +486,35 @@ CALENDAR_VIEW_TEMPLATE = """
 <html>
 <head>
     <title>My Crew Schedule - Calendar View</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- iOS PWA Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Crew Schedule">
+    
+    <!-- App Icons -->
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-57x57.png') }}" sizes="57x57">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-60x60.png') }}" sizes="60x60">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-72x72.png') }}" sizes="72x72">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-76x76.png') }}" sizes="76x76">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-114x114.png') }}" sizes="114x114">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-120x120.png') }}" sizes="120x120">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-144x144.png') }}" sizes="144x144">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-152x152.png') }}" sizes="152x152">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-180x180.png') }}" sizes="180x180">
+    
+    <!-- For older iOS versions -->
+    <link rel="apple-touch-icon-precomposed" href="{{ url_for('static', filename='icons/icon-152x152.png') }}">
+    
+    <!-- Web App Manifest -->
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    
+    <!-- Theme Color -->
+    <meta name="theme-color" content="#007bff">
+    <meta name="msapplication-TileColor" content="#007bff">
+    
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
         .container { max-width: 1400px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; }
@@ -698,7 +727,6 @@ CALENDAR_VIEW_TEMPLATE = """
 </body>
 </html>
 """
-
 PDF_VIEW_TEMPLATE = """
 <!DOCTYPE html>
 <html>

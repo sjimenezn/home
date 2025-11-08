@@ -787,6 +787,25 @@ PDF_VIEW_TEMPLATE = """
             box-sizing: border-box;
         }
         
+        /* Date input group */
+        .date-input-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .date-input {
+            width: 100%;
+            padding: 14px 16px;
+            font-size: 1.1em;
+            color: #ffffff;
+            background: #1e1e1e;
+            border: 1px solid #555;
+            border-radius: 5px;
+            box-sizing: border-box;
+            text-align: center;
+        }
+        
         /* Flex layout for search + clear button */
         .flex-group {
             display: flex;
@@ -960,6 +979,22 @@ PDF_VIEW_TEMPLATE = """
             <button class="button pdf-button scheduled" onclick="downloadPDF('scheduled')">📥<br>Scheduled PDF</button>
         </div>
 
+        <!-- NEW: Month and Year Inputs -->
+        <div class="input-group">
+            <label class="input-label">Select Month & Year (Optional):</label>
+            <div class="date-input-group">
+                <div>
+                    <input type="number" id="pdfMonth" class="date-input" placeholder="Month (1-12)" min="1" max="12">
+                </div>
+                <div>
+                    <input type="number" id="pdfYear" class="date-input" placeholder="Year (e.g., 2024)" min="2023" max="2030">
+                </div>
+            </div>
+            <div style="text-align: center; margin-top: 10px; font-size: 0.9em; color: #ccc;">
+                Leave blank for current month/year
+            </div>
+        </div>
+
         <hr class="divider">
         <div class="footer-section">
 
@@ -1032,8 +1067,22 @@ PDF_VIEW_TEMPLATE = """
         button.disabled = true;
         button.textContent = '⏳';
         
+        // Get month and year values
+        const monthInput = document.getElementById('pdfMonth');
+        const yearInput = document.getElementById('pdfYear');
+        
+        let url = '/download_pdf?type=' + type;
+        
+        // Add month and year parameters if provided
+        if (monthInput.value && monthInput.value >= 1 && monthInput.value <= 12) {
+            url += '&month=' + monthInput.value;
+        }
+        if (yearInput.value && yearInput.value >= 2023 && yearInput.value <= 2030) {
+            url += '&year=' + yearInput.value;
+        }
+        
         // Download in same window/tab
-        window.location.href = '/download_pdf?type=' + type;
+        window.location.href = url;
         
         // Re-enable button after delay (user will be prompted to download)
         setTimeout(() => {
@@ -1046,6 +1095,19 @@ PDF_VIEW_TEMPLATE = """
         if (e.key === 'Enter') {
             updateCrewId();
         }
+    });
+
+    // Add input validation for month and year
+    document.getElementById('pdfMonth').addEventListener('input', function(e) {
+        let value = parseInt(e.target.value);
+        if (value < 1) e.target.value = 1;
+        if (value > 12) e.target.value = 12;
+    });
+
+    document.getElementById('pdfYear').addEventListener('input', function(e) {
+        let value = parseInt(e.target.value);
+        if (value < 2023) e.target.value = 2023;
+        if (value > 2030) e.target.value = 2030;
     });
 
     document.addEventListener('DOMContentLoaded', function() {
@@ -1295,10 +1357,12 @@ def update_crew_id():
 @app.route('/download_pdf')
 def download_pdf():
     schedule_type = request.args.get('type', 'actual')
+    month = request.args.get('month', '').strip()
+    year = request.args.get('year', '').strip()
     
     try:
-        logger.info(f"📄 PDF download requested for {schedule_type} schedule, crew {current_crew_id}")
-        filename = client.download_schedule_pdf(current_crew_id, schedule_type)
+        logger.info(f"📄 PDF download requested for {schedule_type} schedule, crew {current_crew_id}, month: {month if month else 'current'}, year: {year if year else 'current'}")
+        filename = client.download_schedule_pdf(current_crew_id, schedule_type, month, year)
         
         if filename and os.path.exists(filename):
             logger.info(f"✅ Sending PDF file: {filename}")

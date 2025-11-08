@@ -981,7 +981,6 @@ PDF_VIEW_TEMPLATE = """
     </div>
 
     <script>
-    
     function handleCrewSelect() {
         const input = document.getElementById('crewSelectorInput');
         const selectedValue = input.value.trim();
@@ -1031,13 +1030,15 @@ PDF_VIEW_TEMPLATE = """
         const button = event.target;
         const originalText = button.textContent;
         button.disabled = true;
-        button.textContent = '⏳'; // Just a spinner for the square
+        button.textContent = '⏳';
         
-        window.open('/download_pdf?type=' + type, '_blank');
+        // Download in same window/tab
+        window.location.href = '/download_pdf?type=' + type;
         
+        // Re-enable button after delay (user will be prompted to download)
         setTimeout(() => {
             button.disabled = false;
-            button.innerHTML = originalText; // Use innerHTML to restore line breaks
+            button.innerHTML = originalText;
         }, 3000);
     }
 

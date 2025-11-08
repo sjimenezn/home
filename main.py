@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 def load_crew_names():
-    """Load crew names from name_list.txt file and handle the numbered format"""
+    """Load crew names from name_list.txt file and handle semicolon format"""
     try:
         if os.path.exists('name_list.txt'):
             with open('name_list.txt', 'r', encoding='utf-8') as f:
@@ -30,28 +30,18 @@ def load_crew_names():
             for line in lines:
                 line = line.strip()
                 if line and not line.startswith('#'):  # Skip empty lines and comments
-                    # Handle the format: "GRACIA GRANADOS ALVARO HERNANDO 1 79150332"
-                    # We want to remove the number before the crew ID
-                    parts = line.split()
-                    if len(parts) >= 3:
-                        # Find the crew ID (last part that is all digits and 8 characters long)
-                        crew_id = None
-                        name_parts = []
-                        
-                        for part in parts:
-                            if part.isdigit() and len(part) == 8:
-                                crew_id = part
-                            else:
-                                name_parts.append(part)
-                        
-                        if crew_id:
-                            # Reconstruct the name without the middle number
-                            crew_name = " ".join(name_parts) + " " + crew_id
+                    # Handle the format: "GRACIA GRANADOS ALVARO HERNANDO;1;79150332"
+                    if ';' in line:
+                        parts = line.split(';')
+                        if len(parts) >= 3:
+                            # parts[0] = name, parts[1] = number, parts[2] = crew ID
+                            crew_name = f"{parts[0].strip()} {parts[2].strip()}"
                             crew_list.append(crew_name)
                         else:
-                            # Fallback: use the line as is
-                            crew_list.append(line)
+                            # Fallback if semicolon format is incomplete
+                            crew_list.append(line.replace(';', ' '))
                     else:
+                        # If no semicolons, use the line as is
                         crew_list.append(line)
             
             logger.info(f"✅ Loaded {len(crew_list)} crew names from name_list.txt")
@@ -60,7 +50,7 @@ def load_crew_names():
             logger.warning("⚠️ name_list.txt not found, using default crew list")
             return [
                 "GRACIA GRANADOS ALVARO HERNANDO 79150332",
-                "HERNANDEZ MONTES CARLOS AUGUSTO 79154225",
+                "HERNANDEZ MONTES CARLOS AUGUSTO 79154225", 
                 "RAMIREZ PLAZAS CARLOS AUGUSTO 19466758",
                 "LUNA RIOS SANTIAGO 79157055",
                 "CAYCEDO BALLESTEROS CARLOS EDUARDO 79234161",

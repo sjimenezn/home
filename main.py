@@ -8,37 +8,68 @@ import time
 import logging
 import requests
 import json
-import io # NEW: For in-memory file handling (PDF)
 from datetime import datetime, timedelta
-# Added jsonify for the new API endpoint
-from flask import Flask, render_template_string, request, send_file, jsonify 
+from flask import Flask, render_template_string, request, send_file
 
 # Configuration
 DEFAULT_CREW_ID = "32385184"
-CREW_NAMES_FILE = 'name_list.txt' # Configuration for the list file
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-# --- Data Loading Functions ---
-
-def load_crew_name_list():
-    """Loads the large list of crew names from the text file."""
+def load_crew_names():
+    """Load crew names from name_list.txt file and handle the numbered format"""
     try:
-        # Assumes name_list.txt is in the same directory (workspace)
-        with open(CREW_NAMES_FILE, 'r') as f:
-            crew_list = [line.strip() for line in f if line.strip()]
-            logger.info(f"✅ Successfully loaded {len(crew_list)} crew names from {CREW_NAMES_FILE}.")
+        if os.path.exists('name_list.txt'):
+            with open('name_list.txt', 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+            
+            crew_list = []
+            for line in lines:
+                line = line.strip()
+                if line and not line.startswith('#'):  # Skip empty lines and comments
+                    # Handle the format: "GRACIA GRANADOS ALVARO HERNANDO 1 79150332"
+                    # We want to remove the number before the crew ID
+                    parts = line.split()
+                    if len(parts) >= 3:
+                        # Find the crew ID (last part that is all digits and 8 characters long)
+                        crew_id = None
+                        name_parts = []
+                        
+                        for part in parts:
+                            if part.isdigit() and len(part) == 8:
+                                crew_id = part
+                            else:
+                                name_parts.append(part)
+                        
+                        if crew_id:
+                            # Reconstruct the name without the middle number
+                            crew_name = " ".join(name_parts) + " " + crew_id
+                            crew_list.append(crew_name)
+                        else:
+                            # Fallback: use the line as is
+                            crew_list.append(line)
+                    else:
+                        crew_list.append(line)
+            
+            logger.info(f"✅ Loaded {len(crew_list)} crew names from name_list.txt")
             return crew_list
-    except FileNotFoundError:
-        logger.error(f"🚨 Error: Crew names file '{CREW_NAMES_FILE}' not found. Datalist will be empty.")
-        return []
+        else:
+            logger.warning("⚠️ name_list.txt not found, using default crew list")
+            return [
+                "GRACIA GRANADOS ALVARO HERNANDO 79150332",
+                "HERNANDEZ MONTES CARLOS AUGUSTO 79154225",
+                "RAMIREZ PLAZAS CARLOS AUGUSTO 19466758",
+                "LUNA RIOS SANTIAGO 79157055",
+                "CAYCEDO BALLESTEROS CARLOS EDUARDO 79234161",
+                "MUSTAFA LOTERO ANDRES ANTONIO 71660758",
+                "VELASCO BARRIGA JUAN CARLOS 79152641"
+            ]
     except Exception as e:
-        logger.error(f"🚨 Error reading crew names file: {e}")
+        logger.error(f"❌ Error loading name_list.txt: {e}")
         return []
-
 
 class CrewAPIClient:
     def __init__(self):
@@ -55,11 +86,6 @@ class CrewAPIClient:
         
     def login(self, email, password):
         try:
-            # SECURITY FIX: ENSURE CREDENTIALS ARE SET
-            if not email or not password:
-                logger.error("❌ Login failed: CREW_EMAIL or CREW_PASSWORD environment variables are not set.")
-                return False
-            
             logger.info("🔐 Attempting API login...")
             form_data = {
                 'username': email, 'password': password, 'grant_type': 'password',
@@ -89,11 +115,11 @@ class CrewAPIClient:
             target_crew_id = crew_id or current_crew_id
             logger.info(f"📊 Fetching schedule data for crew: {target_crew_id}...")
             
+            # Always create a new session to ensure fresh data
             self.create_new_session()
             
-            # SECURITY FIX: REMOVED HARDCODED FALLBACKS
-            email = os.getenv('CREW_EMAIL')
-            password = os.getenv('CREW_PASSWORD')
+            email = os.getenv('CREW_EMAIL', 'sergio.jimenez@avianca.com')
+            password = os.getenv('CREW_PASSWORD', 'aLogout.8701')
             
             if not self.login(email, password):
                 return None
@@ -101,7 +127,7 @@ class CrewAPIClient:
             url = f"{self.base_url}/Assignements/AssignmentsComplete"
             params = {
                 "timeZoneOffset": -300,
-                "crewMemberUniqueId": target_crew_id
+                "crewMemberUniqueId": target_crew_id  # THIS IS THE KEY LINE!
             }
             headers = {
                 "Authorization": self.auth_token, "Ocp-Apim-Subscription-Key": self.subscription_key,
@@ -114,8 +140,11 @@ class CrewAPIClient:
             
             if response.status_code == 200:
                 data = response.json()
+                # Log data structure for debugging
                 if isinstance(data, list):
                     logger.info(f"✅ Schedule data fetched for crew {target_crew_id}! Structure: {len(data)} months")
+                    if data and isinstance(data[0], list):
+                        logger.info(f"📅 First month has {len(data[0])} days")
                 logger.info(f"✅ Schedule data fetched successfully for crew {target_crew_id}!")
                 return data
                 
@@ -126,15 +155,15 @@ class CrewAPIClient:
             return None
 
     def download_schedule_pdf(self, crew_id, schedule_type="actual", month="", year=""):
-        """Download schedule PDF using multipart form data, returning data buffer and filename."""
+        """Download schedule PDF using multipart form data"""
         try:
             logger.info(f"📥 Downloading {schedule_type} schedule PDF for crew {crew_id}...")
             
+            # Always create a new session to ensure fresh data
             self.create_new_session()
             
-            # SECURITY FIX: REMOVED HARDCODED FALLBACKS
-            email = os.getenv('CREW_EMAIL')
-            password = os.getenv('CREW_PASSWORD')
+            email = os.getenv('CREW_EMAIL', 'sergio.jimenez@avianca.com')
+            password = os.getenv('CREW_PASSWORD', 'aLogout.8701')
             
             if not self.login(email, password):
                 logger.error("❌ Cannot download PDF - login failed")
@@ -152,35 +181,60 @@ class CrewAPIClient:
             current_year = year or str(datetime.now().year)
             
             body_parts = [
-                f"--{boundary}", 'Content-Disposition: form-data; name="Holding"', '', 'AV',
-                f"--{boundary}", 'Content-Disposition: form-data; name="CrewMemberUniqueId"', '', crew_id,
-                f"--{boundary}", 'Content-Disposition: form-data; name="Year"', '', current_year,
-                f"--{boundary}", 'Content-Disposition: form-data; name="Month"', '', current_month,
-                f"--{boundary}--", ''
+                f"--{boundary}",
+                'Content-Disposition: form-data; name="Holding"',
+                '',
+                'AV',
+                f"--{boundary}",
+                'Content-Disposition: form-data; name="CrewMemberUniqueId"',
+                '',
+                crew_id,
+                f"--{boundary}",
+                'Content-Disposition: form-data; name="Year"',
+                '',
+                current_year,
+                f"--{boundary}",
+                'Content-Disposition: form-data; name="Month"',
+                '',
+                current_month,
+                f"--{boundary}--",
+                ''
             ]
+            
             form_data = "\r\n".join(body_parts)
             
             headers = {
-                "Authorization": self.auth_token, "Ocp-Apim-Subscription-Key": self.subscription_key,
+                "Authorization": self.auth_token,
+                "Ocp-Apim-Subscription-Key": self.subscription_key,
                 "Content-Type": f"multipart/form-data; boundary={boundary}",
-                "Origin": "https://mycrew.avianca.com", "Referer": "https://mycrew.avianca.com/",
+                "Origin": "https://mycrew.avianca.com",
+                "Referer": "https://mycrew.avianca.com/",
                 "Accept": "application/json, text/plain, */*",
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
             }
             
+            logger.info(f"🌐 Making PDF request to: {url}")
+            logger.info(f"📦 With data: Holding=AV, CrewID={crew_id}, Year={current_year}, Month={current_month}")
+            
             response = self.session.post(url, data=form_data, headers=headers, timeout=30)
+            
+            logger.info(f"📡 PDF response status: {response.status_code}")
+            logger.info(f"📡 Content-Type: {response.headers.get('content-type', 'Unknown')}")
+            logger.info(f"📡 Content-Length: {response.headers.get('content-length', 'Unknown')}")
             
             if response.status_code == 200:
                 content_type = response.headers.get('content-type', '').lower()
                 
-                # STABILITY FIX: RETURN IN-MEMORY BUFFER (io.BytesIO) INSTEAD OF SAVING TO DISK
                 if 'application/pdf' in content_type or 'pdf' in content_type:
-                    pdf_data = io.BytesIO(response.content) # Store PDF in memory
+                    # Save PDF file
                     filename = f"{schedule_type}_schedule_{crew_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-                    logger.info(f"✅ PDF data prepared in memory for: {filename}")
-                    return pdf_data, filename # Return the buffer and the desired filename
-                
+                    with open(filename, 'wb') as f:
+                        f.write(response.content)
+                    file_size = len(response.content)
+                    logger.info(f"✅ PDF downloaded: {filename} ({file_size} bytes)")
+                    return filename
                 elif 'application/json' in content_type:
+                    # JSON response - might be error
                     logger.warning(f"⚠️ Got JSON response instead of PDF: {response.text[:200]}")
                     return None
                 else:
@@ -188,22 +242,21 @@ class CrewAPIClient:
                     return None
             else:
                 logger.error(f"❌ PDF download failed with status: {response.status_code}")
+                if response.text:
+                    logger.error(f"Error response: {response.text}")
                 return None
                 
         except Exception as e:
             logger.error(f"❌ PDF download error: {e}")
             return None
 
-
-# --- GLOBAL APPLICATION STATE ---
 client = CrewAPIClient()
 schedule_data = None
 last_fetch_time = None
 current_crew_id = DEFAULT_CREW_ID
-CREW_DATALIST = load_crew_name_list() # <-- LOAD THE LIST ON STARTUP
 
-
-# --- HTML TEMPLATES (Truncated for readability, only PDF_VIEW is modified) ---
+# Load crew names at startup
+crew_names = load_crew_names()
 
 SCHEDULE_VIEW_TEMPLATE = """
 <!DOCTYPE html>
@@ -211,14 +264,228 @@ SCHEDULE_VIEW_TEMPLATE = """
 <head>
     <title>My Crew Schedule</title>
     <style>
-        /* ... (CSS code) ... */
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; }
+        .header { text-align: center; margin-bottom: 20px; }
+        .nav-buttons { text-align: center; margin: 15px 0; }
+        .nav-button { background: #6c757d; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; margin: 0 5px; text-decoration: none; display: inline-block; }
+        .nav-button:hover { background: #5a6268; }
+        .nav-button.active { background: #007bff; }
+        .button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
+        .button:hover { background: #0056b3; }
+        .button:disabled { background: #6c757d; cursor: not-allowed; }
+        .info-box { background: #e9ecef; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center; }
+        .month-section { border: 2px solid #007bff; padding: 15px; margin: 20px 0; border-radius: 8px; }
+        .month-header { background: #007bff; color: white; padding: 10px; border-radius: 5px; margin-bottom: 15px; }
+        .day-card { border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .day-header { background: #17a2b8; color: white; padding: 8px; border-radius: 3px; margin-bottom: 10px; }
+        .assignment { background: #f8f9fa; padding: 15px; margin: 10px 0; border-left: 4px solid #28a745; border-radius: 5px; }
+        .assignment-header { display: flex; justify-content: between; align-items: center; margin-bottom: 10px; }
+        .activity-code { font-weight: bold; font-size: 1.1em; color: #007bff; }
+        .activity-desc { color: #495057; margin-left: 10px; }
+        .assignment-category { background: #6c757d; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; margin-left: 10px; }
+        .assignment-type { background: #17a2b8; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; margin-left: 5px; }
+        .time-info { color: #666; font-size: 0.9em; margin: 5px 0; }
+        .flight-info { background: #e7f3ff; padding: 10px; margin: 8px 0; border-radius: 4px; border-left: 3px solid #007bff; }
+        .flight-header { font-weight: bold; color: #0056b3; margin-bottom: 5px; }
+        .flight-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; font-size: 0.85em; }
+        .flight-detail { padding: 3px 0; }
+        .flight-detail strong { color: #495057; }
+        .status-advanced { color: #28a745; font-weight: bold; }
+        .status-delayed { color: #dc3545; font-weight: bold; }
+        .no-data { color: #6c757d; text-align: center; padding: 10px; }
+        .error { color: #dc3545; text-align: center; padding: 20px; }
+        .success { color: #155724; background: #d4edda; padding: 10px; border-radius: 5px; margin: 10px 0; text-align: center; }
+        .assignment-id { color: #999; font-size: 0.7em; float: right; }
+        .current-day { border: 3px solid #ffc107; background: #fff3cd; }
+        .actual-time { color: #dc3545; font-weight: bold; }
+        .scheduled-time { color: #6c757d; }
     </style>
 </head>
 <body>
     <div class="container">
+        <div class="header">
+            <h1>✈️ My Crew Schedule</h1>
+            <div class="nav-buttons">
+                <a href="/" class="nav-button active">📋 Schedule View</a>
+                <a href="/calendar" class="nav-button">📅 Calendar View</a>
+                <a href="/pdf" class="nav-button">📄 PDF Download</a>
+            </div>
+            <button class="button" onclick="fetchData()" id="refreshBtn">🔄 Refresh Schedule</button>
         </div>
+
+        {% if refresh_message %}
+        <div class="success">
+            {{ refresh_message }}
+        </div>
+        {% endif %}
+
+        {% if last_fetch %}
+        <div class="info-box">
+            <h3>Last updated: {{ last_fetch }}</h3>
+            <p>Total days: {{ total_days }} | Total assignments: {{ total_assignments }}</p>
+            <p>Current Crew ID: <strong>{{ current_crew_id }}</strong></p>
+        </div>
+        {% endif %}
+
+        {% if schedule_data %}
+            {% for month in schedule_data %}
+            <div class="month-section">
+                <div class="month-header">
+                    <h3>📅 {{ month_names[loop.index0] }}</h3>
+                </div>
+                {% for day in month %}
+                    {% if day and day is mapping %}
+                    <div class="day-card {% if day.StartDate[:10] == current_date %}current-day{% endif %}" id="day-{{ day.StartDate[:10] }}">
+                        <div class="day-header">
+                            <strong>{{ day.StartDate[:10] if day.StartDate else 'Unknown' }}</strong>
+                            <span style="float: right;">DEM: {{ day.Dem }}</span>
+                        </div>
+                        
+                        {% if day.AssignementList and day.AssignementList|length > 0 %}
+                            {% for assignment in day.AssignementList %}
+                            <div class="assignment">
+                                <div class="assignment-header">
+                                    <div>
+                                        <span class="activity-code">{{ assignment.ActivityCode.strip() if assignment.ActivityCode else 'FLIGHT' }}</span>
+                                        <span class="activity-desc">{{ assignment.ActivityDesc.strip() if assignment.ActivityDesc else 'Flight Duty' }}</span>
+                                        {% if assignment.AssignementCategory %}
+                                        <span class="assignment-category">{{ assignment.AssignementCategory }}</span>
+                                        {% endif %}
+                                        {% if assignment.ActivityType %}
+                                        <span class="assignment-type">{{ assignment.ActivityType }}</span>
+                                        {% endif %}
+                                    </div>
+                                    <span class="assignment-id">#{{ assignment.Id }}</span>
+                                </div>
+                                
+                                <div class="time-info">
+                                    <strong>🕐 Time:</strong> 
+                                    <span class="actual-time">{{ assignment.StartDateLocal[11:16] if assignment.StartDateLocal else 'N/A' }}</span> 
+                                    to <span class="actual-time">{{ assignment.EndDateLocal[11:16] if assignment.EndDateLocal else 'N/A' }}</span>
+                                    ({{ assignment.StartDateLocal[:10] if assignment.StartDateLocal else '' }})
+                                </div>
+
+                                {% if assignment.AircraftRegistrationNumber %}
+                                <div class="time-info">
+                                    <strong>✈️ Aircraft:</strong> {{ assignment.AircraftRegistrationNumber }}
+                                    {% if assignment.Fleet %}({{ assignment.Fleet }}){% endif %}
+                                </div>
+                                {% elif assignment.Fleet %}
+                                <div class="time-info">
+                                    <strong>✈️ Fleet:</strong> {{ assignment.Fleet }}
+                                </div>
+                                {% endif %}
+
+                                {% if assignment.FlighAssignement and assignment.FlighAssignement.CommercialFlightNumber != "XXX" %}
+                                <div class="flight-info">
+                                    <div class="flight-header">
+                                        🛫 Flight: {{ assignment.FlighAssignement.Airline }} {{ assignment.FlighAssignement.CommercialFlightNumber }}
+                                    </div>
+                                    
+                                    <div class="flight-details">
+                                        <div class="flight-detail">
+                                            <strong>Route:</strong> {{ assignment.FlighAssignement.OriginAirportIATACode }} → {{ assignment.FlighAssignement.FinalAirportIATACode }}
+                                        </div>
+                                        <div class="flight-detail">
+                                            <strong>Duration:</strong> {{ assignment.FlighAssignement.Duration }} min (Scheduled: {{ assignment.FlighAssignement.ScheduledDuration }} min)
+                                        </div>
+                                        <div class="flight-detail">
+                                            <strong>Departure:</strong> 
+                                            <span class="scheduled-time">{{ assignment.FlighAssignement.ScheduledDepartureDate[11:16] if assignment.FlighAssignement.ScheduledDepartureDate else 'N/A' }}</span>
+                                            {% if assignment.FlighAssignement.DepartureDate %}
+                                            → <span class="actual-time">{{ assignment.FlighAssignement.DepartureDate[11:16] if assignment.FlighAssignement.DepartureDate else 'N/A' }}</span>
+                                            {% endif %}
+                                            {% if assignment.FlighAssignement.DepartureStand %}
+                                            | Stand: {{ assignment.FlighAssignement.DepartureStand }}
+                                            {% endif %}
+                                        </div>
+                                        <div class="flight-detail">
+                                            <strong>Arrival:</strong> 
+                                            <span class="scheduled-time">{{ assignment.FlighAssignement.ScheduledArrivalDate[11:16] if assignment.FlighAssignement.ScheduledArrivalDate else 'N/A' }}</span>
+                                            {% if assignment.FlighAssignement.ArrivalDate %}
+                                            → <span class="actual-time">{{ assignment.FlighAssignement.ArrivalDate[11:16] if assignment.FlighAssignement.ArrivalDate else 'N/A' }}</span>
+                                            {% endif %}
+                                            {% if assignment.FlighAssignement.ArrivalStand %}
+                                            | Stand: {{ assignment.FlighAssignement.ArrivalStand }}
+                                            {% endif %}
+                                        </div>
+                                        {% if assignment.FlighAssignement.TimeAdvanced or assignment.FlighAssignement.TimeDelayed %}
+                                        <div class="flight-detail">
+                                            <strong>Status:</strong>
+                                            {% if assignment.FlighAssignement.TimeAdvanced %}
+                                            <span class="status-advanced">Advanced</span>
+                                            {% endif %}
+                                            {% if assignment.FlighAssignement.TimeDelayed %}
+                                            <span class="status-delayed">Delayed</span>
+                                            {% endif %}
+                                        </div>
+                                        {% endif %}
+                                        {% if assignment.FlighAssignement.OriginAirportICAOCode or assignment.FlighAssignement.FinalAirportICAOCode %}
+                                        <div class="flight-detail">
+                                            <strong>ICAO Codes:</strong>
+                                            {% if assignment.FlighAssignement.OriginAirportICAOCode %}
+                                            {{ assignment.FlighAssignement.OriginAirportICAOCode }}
+                                            {% endif %}
+                                            {% if assignment.FlighAssignement.FinalAirportICAOCode %}
+                                            → {{ assignment.FlighAssignement.FinalAirportICAOCode }}
+                                            {% endif %}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="no-data">No assignments for this day</div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="error">
+                <h3>No schedule data available</h3>
+                <p>Click "Refresh Schedule" to load your schedule.</p>
+            </div>
+        {% endif %}
+    </div>
+
     <script>
-    /* ... (JavaScript content) ... */
+    function fetchData() {
+        const button = document.getElementById('refreshBtn');
+        button.disabled = true;
+        button.textContent = '⏳ Loading...';
+        
+        fetch('/fetch?refresh=true')
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    const url = new URL(window.location);
+                    url.searchParams.set('refresh', 'success');
+                    window.location.href = url.toString();
+                } else {
+                    alert('Failed: ' + (data.error || 'Unknown error'));
+                    button.disabled = false;
+                    button.textContent = '🔄 Refresh Schedule';
+                }
+            })
+            .catch(err => {
+                alert('Error: ' + err);
+                button.disabled = false;
+                button.textContent = '🔄 Refresh Schedule';
+            });
+    }
+
+    // Scroll to current date on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        const currentDayElement = document.querySelector('.current-day');
+        if (currentDayElement) {
+            currentDayElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    });
     </script>
 </body>
 </html>
@@ -230,14 +497,213 @@ CALENDAR_VIEW_TEMPLATE = """
 <head>
     <title>My Crew Schedule - Calendar View</title>
     <style>
-        /* ... (CSS code) ... */
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 1400px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; }
+        .header { text-align: center; margin-bottom: 20px; }
+        .nav-buttons { text-align: center; margin: 15px 0; }
+        .nav-button { background: #6c757d; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; margin: 0 5px; text-decoration: none; display: inline-block; }
+        .nav-button:hover { background: #5a6268; }
+        .nav-button.active { background: #28a745; }
+        .button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
+        .button:hover { background: #0056b3; }
+        .info-box { background: #e9ecef; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin: 20px 0; }
+        .calendar-day { border: 1px solid #ddd; padding: 5px; border-radius: 5px; min-height: 110px; background: white; }
+        .calendar-day-header { background: #6c757d; color: white; padding: 5px; border-radius: 3px; margin-bottom: 5px; text-align: center; font-weight: bold; font-size: 1.5em; }
+        .calendar-day.current-day { border: 3px solid #dc3545; background: #f8d7da; }
+        .calendar-day.weekend { background: #f8f9fa; }
+        .calendar-day.empty { background: #f5f5f5; border: 1px dashed #ddd; }
+        .assignment-item { background: #e7f3ff; padding: 3px; margin: 2px 0; border-radius: 3px; border-left: none; font-size: 0.8em; }
+        .assignment-flight { background: #f8f9fa; border-left: none; }
+        .assignment-ground { background: #fff3cd; border-left: none; }
+        .flight-number { font-weight: bold; color: #dc3545; font-size: 1.6em; display: inline; }
+        .departure-stand { font-weight: bold; color: #0056b3; font-size: 1.6em; display: inline; margin-left: 8px; }
+        .route { font-size: 1.4em; color: #000; font-weight: bold; margin: 3px 0; }
+        .flight-times { font-size: 1.2em; color: #000; font-weight: bold; margin-top: 3px; }
+        .status-on-time { color: #28a745; font-weight: bold; margin-left: 5px; }
+        .status-delayed { color: #dc3545; font-weight: bold; margin-left: 5px; }
+        .no-assignments { color: #6c757d; text-align: center; font-size: 0.8em; padding: 10px; }
+        .month-section { margin: 30px 0; }
+        .month-header { background: #000; color: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; text-align: center; position: relative; }
+        .month-navigation { display: flex; justify-content: center; align-items: center; gap: 20px; }
+        .chevron { background: none; border: none; color: white; font-size: 2em; cursor: pointer; padding: 0 15px; }
+        .chevron:hover { color: #ffc107; }
+        .chevron:disabled { color: #6c757d; cursor: not-allowed; }
+        .month-title { font-size: 1.5em; margin: 0 20px; }
+        .week-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin-bottom: 10px; }
+        .week-day { text-align: center; font-weight: bold; padding: 8px; background: #6c757d; color: white; border-radius: 4px; }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
     <div class="container">
+        <div class="header">
+            <h1>My Crew Schedule - Calendar View</h1>
+            <div class="nav-buttons">
+                <a href="/" class="nav-button">Schedule View</a>
+                <a href="/calendar" class="nav-button active">Calendar View</a>
+                <a href="/pdf" class="nav-button">PDF Download</a>
+            </div>
+            <button class="button" onclick="fetchData()" id="refreshBtn">Refresh Schedule</button>
         </div>
+
+        {% if refresh_message %}
+        <div class="success">
+            {{ refresh_message }}
+        </div>
+        {% endif %}
+
+        {% if last_fetch %}
+        <div class="info-box">
+            <h3>Last updated: {{ last_fetch }}</h3>
+            <p>Total days: {{ total_days }} | Total assignments: {{ total_assignments }}</p>
+            <p>Current Crew ID: <strong>{{ current_crew_id }}</strong></p>
+        </div>
+        {% endif %}
+
+        {% if schedule_data %}
+            {% for month in schedule_data %}
+            <div class="month-section {% if loop.index0 != current_month_index %}hidden{% endif %}" id="month-{{ loop.index0 }}" data-month-index="{{ loop.index0 }}">
+                <div class="month-header">
+                    <div class="month-navigation">
+                        <button class="chevron" onclick="navigateMonth(-1)" id="prevMonth">〈</button>
+                        <div class="month-title">{{ month_names[loop.index0] }}</div>
+                        <button class="chevron" onclick="navigateMonth(1)" id="nextMonth">〉</button>
+                    </div>
+                </div>
+                
+                <div class="week-days">
+                    <div class="week-day">MON</div>
+                    <div class="week-day">TUE</div>
+                    <div class="week-day">WED</div>
+                    <div class="week-day">THU</div>
+                    <div class="week-day">FRI</div>
+                    <div class="week-day">SAT</div>
+                    <div class="week-day">SUN</div>
+                </div>
+                
+                <div class="calendar-grid">
+                    {% for day in month_calendars[loop.index0] %}
+                        {% if day %}
+                            <div class="calendar-day {% if day.date == current_date %}current-day{% endif %} {% if day.weekend %}weekend{% endif %}" id="cal-day-{{ day.date }}">
+                                <div class="calendar-day-header">
+                                    {{ day.day_number }}
+                                </div>
+                                
+                                {% if day.assignments and day.assignments|length > 0 %}
+                                    {% for assignment in day.assignments %}
+                                    <div class="assignment-item {% if assignment.is_flight %}assignment-flight{% else %}assignment-ground{% endif %}">
+                                        {% if assignment.is_flight %}
+                                            <div>
+                                                <span class="flight-number">{{ assignment.flight_number }}</span>
+                                                {% if assignment.departure_stand %}
+                                                    <span class="departure-stand">{{ assignment.departure_stand }}</span>
+                                                {% endif %}
+                                            </div>
+                                            <div class="route">
+                                                {{ assignment.origin }}-{{ assignment.destination }}
+                                            </div>
+                                            <div class="flight-times">
+                                                {{ assignment.departure_time }} - {{ assignment.arrival_time }}
+                                                {% if assignment.time_advanced %}<span class="status-on-time">On Time</span>{% endif %}
+                                                {% if assignment.time_delayed %}<span class="status-delayed">Delayed</span>{% endif %}
+                                                {% if assignment.aircraft_registration %} | {{ assignment.aircraft_registration }}{% endif %}
+                                            </div>
+                                        {% else %}
+                                            <div style="font-weight: bold; color: #000; font-size: 1.4em;">
+                                                {{ assignment.activity_code }}
+                                            </div>
+                                            <div style="font-size: 1.2em; color: #000; font-weight: bold;">
+                                                {{ assignment.start_time }} - {{ assignment.end_time }}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="no-assignments">No assignments</div>
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            <div class="calendar-day empty"></div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="error">
+                <h3>No schedule data available</h3>
+                <p>Click "Refresh Schedule" to load your schedule.</p>
+            </div>
+        {% endif %}
+    </div>
+
     <script>
-    /* ... (JavaScript content) ... */
+    let currentMonthIndex = {{ current_month_index }};
+    const totalMonths = {{ schedule_data|length if schedule_data else 0 }};
+
+    function navigateMonth(direction) {
+        const newIndex = currentMonthIndex + direction;
+        
+        // Check bounds
+        if (newIndex >= 0 && newIndex < totalMonths) {
+            // Hide current month
+            document.getElementById(`month-${currentMonthIndex}`).classList.add('hidden');
+            
+            // Show new month
+            document.getElementById(`month-${newIndex}`).classList.remove('hidden');
+            
+            // Update current index
+            currentMonthIndex = newIndex;
+            
+            // Update button states
+            updateNavigationButtons();
+            
+            // Scroll to top of month section
+            document.getElementById(`month-${newIndex}`).scrollIntoView({ behavior: 'smooth' });
+        }
+    }
+
+    function updateNavigationButtons() {
+        document.getElementById('prevMonth').disabled = currentMonthIndex === 0;
+        document.getElementById('nextMonth').disabled = currentMonthIndex === totalMonths - 1;
+    }
+
+    function fetchData() {
+        const button = document.getElementById('refreshBtn');
+        button.disabled = true;
+        button.textContent = 'Loading...';
+        
+        fetch('/fetch?refresh=true')
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    const url = new URL(window.location);
+                    url.searchParams.set('refresh', 'success');
+                    window.location.href = url.toString();
+                } else {
+                    alert('Failed: ' + (data.error || 'Unknown error'));
+                    button.disabled = false;
+                    button.textContent = 'Refresh Schedule';
+                }
+            })
+            .catch(err => {
+                alert('Error: ' + err);
+                button.disabled = false;
+                button.textContent = 'Refresh Schedule';
+            });
+    }
+
+    // Initialize on page load - SCROLL MONTH TO TOP instead of current date
+    document.addEventListener('DOMContentLoaded', function() {
+        updateNavigationButtons();
+        
+        // Scroll the current month to the very top of the viewport
+        const currentMonthElement = document.getElementById(`month-${currentMonthIndex}`);
+        if (currentMonthElement) {
+            currentMonthElement.scrollIntoView({ behavior: 'smooth' });
+        }
+    });
     </script>
 </body>
 </html>
@@ -491,7 +957,10 @@ PDF_VIEW_TEMPLATE = """
                 <label class="input-label" for="crewSelectorInput">Select Crew Member:</label>
                 <input type="text" id="crewSelectorInput" list="crewDatalist" class="crew-input" onchange="handleCrewSelect()" placeholder="Start typing a name...">
                 <datalist id="crewDatalist">
-                    </datalist>
+                    {% for crew_name in crew_names %}
+                    <option value="{{ crew_name }}">
+                    {% endfor %}
+                </datalist>
             </div>
             <button class="button clear-btn" onclick="clearDropdown()">Clear</button>
         </div>
@@ -523,43 +992,14 @@ PDF_VIEW_TEMPLATE = """
 
     <script>
     
-    // NEW: Function to fetch names from API and populate the datalist
-    function loadCrewDatalist() {
-        const datalist = document.getElementById('crewDatalist');
-        
-        fetch('/api/crew-names')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(crewList => {
-                crewList.forEach(item => {
-                    const option = document.createElement('option');
-                    option.value = item; 
-                    datalist.appendChild(option);
-                });
-                console.log(`Successfully loaded ${crewList.length} crew names into datalist.`);
-            })
-            .catch(error => {
-                console.error('Error loading crew names:', error);
-            });
-    }
-
     function handleCrewSelect() {
         const input = document.getElementById('crewSelectorInput');
         const selectedValue = input.value.trim();
         
         if (selectedValue.length >= 8) {
-            // Find the ID (the last 8 digits)
-            const match = selectedValue.match(/\d{8}$/);
-            const crewId = match ? match[0] : null;
-
-            if (crewId) {
-                document.getElementById('crewId').value = crewId;
-                document.getElementById('updateCrewBtn').click();
-            }
+            const crewId = selectedValue.slice(-8).trim();
+            document.getElementById('crewId').value = crewId;
+            document.getElementById('updateCrewBtn').click();
         }
     }
 
@@ -619,14 +1059,11 @@ PDF_VIEW_TEMPLATE = """
 
     document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('crewSelectorInput').focus();
-        loadCrewDatalist(); // Call the function to load names
     });
     </script>
 </body>
 </html>
 """
-
-# --- Helper Functions (Identical to user's code) ---
 
 def get_month_name_from_data(month_data):
     """Extract month name from the first valid day in month data"""
@@ -698,6 +1135,7 @@ def create_calendar_view_data(month_data, month_name):
                         assignment_data = {
                             'is_flight': True,
                             'flight_number': flight_data.get('CommercialFlightNumber', ''),
+                            'airline': flight_data.get('Airline', ''),
                             'origin': flight_data.get('OriginAirportIATACode', '').strip(),
                             'destination': flight_data.get('FinalAirportIATACode', '').strip(),
                             'departure_stand': flight_data.get('DepartureStand', '').strip(),
@@ -738,19 +1176,18 @@ def create_calendar_view_data(month_data, month_name):
     
     return calendar_days
 
-
-# --- FLASK ROUTES ---
-
 @app.route('/')
 def index():
     global schedule_data, last_fetch_time
     
+    # 🔄 ADDED: Automatically fetch fresh data on every page load
     logger.info("🔄 Auto-fetching fresh data on page load...")
     new_data = client.get_schedule_data(current_crew_id)
     if new_data is not None:
         schedule_data = new_data
         last_fetch_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         logger.info("✅ Auto-fetch completed successfully!")
+    # If fetch fails, keep existing data but log warning
     elif schedule_data is None:
         logger.warning("⚠️ Auto-fetch failed and no existing data available")
     
@@ -760,6 +1197,7 @@ def index():
     current_date = datetime.now().strftime('%Y-%m-%d')
     
     if schedule_data and isinstance(schedule_data, list):
+        # Generate month names for display
         month_names = [get_month_name_from_data(month) for month in schedule_data]
         
         for month in schedule_data:
@@ -787,6 +1225,7 @@ def index():
 def calendar_view():
     global schedule_data, last_fetch_time
     
+    # Auto-fetch data if needed
     if schedule_data is None:
         logger.info("🔄 Auto-fetching data for calendar view...")
         new_data = client.get_schedule_data(current_crew_id)
@@ -801,6 +1240,7 @@ def calendar_view():
     current_date = datetime.now().strftime('%Y-%m-%d')
     
     if schedule_data and isinstance(schedule_data, list):
+        # Generate month names and calendar data
         for month in schedule_data:
             month_name = get_month_name_from_data(month)
             month_names.append(month_name)
@@ -814,7 +1254,9 @@ def calendar_view():
                         assignments = day.get('AssignementList', [])
                         total_assignments += len(assignments)
     
+    # Find current month index
     current_month_index = get_current_month_index(schedule_data, current_date)
+    
     refresh_message = "Data refreshed successfully!" if request.args.get('refresh') == 'success' else None
     
     return render_template_string(CALENDAR_VIEW_TEMPLATE,
@@ -830,13 +1272,6 @@ def calendar_view():
         current_month_index=current_month_index
     )
 
-@app.route('/api/crew-names') # NEW: API endpoint
-def get_crew_names_api():
-    """Endpoint to return the large list of crew names as JSON."""
-    logger.info(f"Serving API request for crew names. {len(CREW_DATALIST)} items.")
-    return jsonify(CREW_DATALIST)
-
-
 @app.route('/pdf')
 def pdf_view():
     pdf_message = request.args.get('pdf_message')
@@ -845,7 +1280,8 @@ def pdf_view():
     return render_template_string(PDF_VIEW_TEMPLATE,
         current_crew_id=current_crew_id,
         pdf_message=pdf_message,
-        pdf_success=pdf_success
+        pdf_success=pdf_success,
+        crew_names=crew_names
     )
 
 @app.route('/update_crew_id')
@@ -856,8 +1292,11 @@ def update_crew_id():
     if new_crew_id:
         current_crew_id = new_crew_id
         logger.info(f"✅ Crew ID updated to: {current_crew_id}")
+        
+        # Clear cached data so it fetches fresh data for the new crew member
         schedule_data = None
         last_fetch_time = None
+        
         return {"success": True, "new_crew_id": current_crew_id}
     else:
         return {"success": False, "error": "No crew ID provided"}
@@ -868,27 +1307,18 @@ def download_pdf():
     
     try:
         logger.info(f"📄 PDF download requested for {schedule_type} schedule, crew {current_crew_id}")
-        # Client now returns a tuple (data_buffer, filename)
-        pdf_result = client.download_schedule_pdf(current_crew_id, schedule_type)
+        filename = client.download_schedule_pdf(current_crew_id, schedule_type)
         
-        if pdf_result and len(pdf_result) == 2:
-            pdf_data, filename = pdf_result
-            
-            # Use send_file with the in-memory buffer
-            return send_file(
-                pdf_data, 
-                as_attachment=True, 
-                download_name=filename, 
-                mimetype='application/pdf'
-            )
+        if filename and os.path.exists(filename):
+            logger.info(f"✅ Sending PDF file: {filename}")
+            return send_file(filename, as_attachment=True, download_name=os.path.basename(filename))
         else:
-            logger.error("❌ PDF generation failed - no data buffer returned.")
+            logger.error(f"❌ PDF file not found: {filename}")
             return {"success": False, "error": "PDF generation failed"}, 400
             
     except Exception as e:
         logger.error(f"❌ PDF download error: {e}")
         return {"success": False, "error": str(e)}, 500
-
 
 @app.route('/fetch')
 def fetch_data():
@@ -907,6 +1337,7 @@ def fetch_data():
         logger.error(f"❌ Error in /fetch endpoint: {e}")
         return {"success": False, "error": str(e)}
 
+
 @app.route('/debug_test')
 def debug_test():
     """Better test to see what data we're actually getting"""
@@ -924,6 +1355,7 @@ def debug_test():
     else:
         # Check if it's actually different
         if test_data and your_data:
+            # Compare specific fields
             your_first_flight = None
             test_first_flight = None
             

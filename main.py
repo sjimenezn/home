@@ -15,7 +15,7 @@ from flask import Flask, render_template_string, request, send_file, jsonify
 
 # Configuration
 DEFAULT_CREW_ID = "32385184"
-CREW_NAMES_FILE = 'names_list.txt' # Configuration for the list file
+CREW_NAMES_FILE = 'name_list.txt' # Configuration for the list file
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -24,10 +24,10 @@ app = Flask(__name__)
 
 # --- Data Loading Functions ---
 
-def load_crew_names_list():
+def load_crew_name_list():
     """Loads the large list of crew names from the text file."""
     try:
-        # Assumes names_list.txt is in the same directory (workspace)
+        # Assumes name_list.txt is in the same directory (workspace)
         with open(CREW_NAMES_FILE, 'r') as f:
             crew_list = [line.strip() for line in f if line.strip()]
             logger.info(f"✅ Successfully loaded {len(crew_list)} crew names from {CREW_NAMES_FILE}.")
@@ -200,7 +200,7 @@ client = CrewAPIClient()
 schedule_data = None
 last_fetch_time = None
 current_crew_id = DEFAULT_CREW_ID
-CREW_DATALIST = load_crew_names_list() # <-- LOAD THE LIST ON STARTUP
+CREW_DATALIST = load_crew_name_list() # <-- LOAD THE LIST ON STARTUP
 
 
 # --- HTML TEMPLATES (Truncated for readability, only PDF_VIEW is modified) ---

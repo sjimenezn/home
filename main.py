@@ -633,6 +633,22 @@ CALENDAR_VIEW_TEMPLATE = """
     let currentMonthIndex = {{ current_month_index }};
     const totalMonths = {{ schedule_data|length if schedule_data else 0 }};
 
+    // Check if page was launched from home screen and reload if needed
+    function checkForReload() {
+        // Check if we're in standalone mode (launched from home screen)
+        if (window.navigator.standalone === true) {
+            // Check if we should reload (only reload once per session)
+            if (!sessionStorage.getItem('homeScreenLaunched')) {
+                sessionStorage.setItem('homeScreenLaunched', 'true');
+                
+                // Small delay to ensure page is fully loaded, then reload
+                setTimeout(() => {
+                    window.location.reload();
+                }, 100);
+            }
+        }
+    }
+
     function navigateMonth(direction) {
         const newIndex = currentMonthIndex + direction;
         
@@ -685,9 +701,12 @@ CALENDAR_VIEW_TEMPLATE = """
             });
     }
 
-    // Initialize on page load - SCROLL MONTH TO TOP instead of current date
+    // Initialize on page load
     document.addEventListener('DOMContentLoaded', function() {
         updateNavigationButtons();
+        
+        // Check if we should reload (for home screen launches)
+        checkForReload();
         
         // Scroll the current month to the very top of the viewport
         const currentMonthElement = document.getElementById(`month-${currentMonthIndex}`);

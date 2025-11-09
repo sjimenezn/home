@@ -486,6 +486,7 @@ CALENDAR_VIEW_TEMPLATE = """
 <html>
 <head>
     <title>My Crew Schedule - Calendar View</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
         .container { max-width: 1400px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; }

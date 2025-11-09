@@ -524,6 +524,35 @@ CALENDAR_VIEW_TEMPLATE = """
         .week-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin-bottom: 10px; }
         .week-day { text-align: center; font-weight: bold; padding: 8px; background: #6c757d; color: white; border-radius: 4px; }
         .hidden { display: none; }
+        
+        /* Floating Button Styles */
+        .floating-button {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+        .floating-button:hover {
+            background: #0056b3;
+            transform: scale(1.1);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+        }
+        .floating-button:active {
+            transform: scale(0.95);
+        }
     </style>
 </head>
 <body>
@@ -629,6 +658,9 @@ CALENDAR_VIEW_TEMPLATE = """
         {% endif %}
     </div>
 
+    <!-- Floating Button -->
+    <button class="floating-button" onclick="scrollToTop()" title="Scroll to Top">↑</button>
+
     <script>
     let currentMonthIndex = {{ current_month_index }};
     const totalMonths = {{ schedule_data|length if schedule_data else 0 }};
@@ -647,6 +679,14 @@ CALENDAR_VIEW_TEMPLATE = """
                 }, 100);
             }
         }
+    }
+
+    // Scroll to top function
+    function scrollToTop() {
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
     }
 
     function navigateMonth(direction) {

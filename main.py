@@ -490,12 +490,300 @@ CALENDAR_VIEW_TEMPLATE = """
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
         .container { max-width: 1400px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; }
-        .header { text-align: center; margin-bottom: 20px; }
+        .header { text-align: center; margin-top: 30px; margin-bottom: 20px; }
         .nav-buttons { text-align: center; margin: 15px 0; }
         .nav-button { background: #6c757d; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; margin: 0 5px; text-decoration: none; display: inline-block; }
         .nav-button:hover { background: #5a6268; }
         .nav-button.active { background: #28a745; }
-        .button { background: #007bff
+        .button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
+        .button:hover { background: #0056b3; }
+        .info-box { background: #e9ecef; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin: 20px 0; }
+        .calendar-day { border: 1px solid #ddd; padding: 5px; border-radius: 5px; min-height: 110px; background: white; }
+        .calendar-day-header { background: #6c757d; color: white; padding: 5px; border-radius: 3px; margin-bottom: 5px; text-align: center; font-weight: bold; font-size: 1.5em; }
+        .calendar-day.current-day { border: 3px solid #dc3545; background: #f8d7da; }
+        .calendar-day.weekend { background: #f8f9fa; }
+        .calendar-day.empty { background: #f5f5f5; border: 1px dashed #ddd; }
+        .assignment-item { background: #e7f3ff; padding: 3px; margin: 2px 0; border-radius: 3px; border-left: none; font-size: 0.8em; }
+        .assignment-flight { background: #f8f9fa; border-left: none; }
+        .assignment-ground { background: #fff3cd; border-left: none; }
+        .flight-number { font-weight: bold; color: #dc3545; font-size: 1.6em; display: inline; }
+        .departure-stand { font-weight: bold; color: #0056b3; font-size: 1.6em; display: inline; margin-left: 8px; }
+        .route { font-size: 1.4em; color: #000; font-weight: bold; margin: 3px 0; }
+        .flight-times { font-size: 1.2em; color: #000; font-weight: bold; margin-top: 3px; }
+        .status-on-time { color: #28a745; font-weight: bold; margin-left: 5px; }
+        .status-delayed { color: #dc3545; font-weight: bold; margin-left: 5px; }
+        .no-assignments { color: #6c757d; text-align: center; font-size: 0.8em; padding: 10px; }
+        .month-section { margin: 30px 0; }
+        .month-header { background: #000; color: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; text-align: center; position: relative; }
+        .month-navigation { display: flex; justify-content: center; align-items: center; gap: 20px; }
+        .chevron { background: none; border: none; color: white; font-size: 2em; cursor: pointer; padding: 0 15px; }
+        .chevron:hover { color: #ffc107; }
+        .chevron:disabled { color: #6c757d; cursor: not-allowed; }
+        .month-title { font-size: 1.5em; margin: 0 20px; }
+        .week-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin-bottom: 10px; }
+        .week-day { text-align: center; font-weight: bold; padding: 8px; background: #6c757d; color: white; border-radius: 4px; }
+        .hidden { display: none; }
+        
+        /* Floating Button Styles */
+        .floating-button {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+        .floating-button:hover {
+            background: #218838;
+            transform: scale(1.1);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+        }
+        .floating-button:active {
+            transform: scale(0.95);
+        }
+        .floating-button.loading {
+            background: #6c757d;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- CALENDAR AT THE TOP -->
+        {% if schedule_data %}
+            {% for month in schedule_data %}
+            <div class="month-section {% if loop.index0 != current_month_index %}hidden{% endif %}" id="month-{{ loop.index0 }}" data-month-index="{{ loop.index0 }}">
+                <div class="month-header">
+                    <div class="month-navigation">
+                        <button class="chevron" onclick="navigateMonth(-1)" id="prevMonth">〈</button>
+                        <div class="month-title">{{ month_names[loop.index0] }}</div>
+                        <button class="chevron" onclick="navigateMonth(1)" id="nextMonth">〉</button>
+                    </div>
+                </div>
+                
+                <div class="week-days">
+                    <div class="week-day">MON</div>
+                    <div class="week-day">TUE</div>
+                    <div class="week-day">WED</div>
+                    <div class="week-day">THU</div>
+                    <div class="week-day">FRI</div>
+                    <div class="week-day">SAT</div>
+                    <div class="week-day">SUN</div>
+                </div>
+                
+                <div class="calendar-grid">
+                    {% for day in month_calendars[loop.index0] %}
+                        {% if day %}
+                            <div class="calendar-day {% if day.date == current_date %}current-day{% endif %} {% if day.weekend %}weekend{% endif %}" id="cal-day-{{ day.date }}">
+                                <div class="calendar-day-header">
+                                    {{ day.day_number }}
+                                </div>
+                                
+                                {% if day.assignments and day.assignments|length > 0 %}
+                                    {% for assignment in day.assignments %}
+                                    <div class="assignment-item {% if assignment.is_flight %}assignment-flight{% else %}assignment-ground{% endif %}">
+                                        {% if assignment.is_flight %}
+                                            <div>
+                                                <span class="flight-number">{{ assignment.flight_number }}</span>
+                                                {% if assignment.departure_stand %}
+                                                    <span class="departure-stand">{{ assignment.departure_stand }}</span>
+                                                {% endif %}
+                                            </div>
+                                            <div class="route">
+                                                {{ assignment.origin }}-{{ assignment.destination }}
+                                            </div>
+                                            <div class="flight-times">
+                                                {{ assignment.departure_time }} - {{ assignment.arrival_time }}
+                                                {% if assignment.time_advanced %}<span class="status-on-time">On Time</span>{% endif %}
+                                                {% if assignment.time_delayed %}<span class="status-delayed">Delayed</span>{% endif %}
+                                                {% if assignment.aircraft_registration %} | {{ assignment.aircraft_registration }}{% endif %}
+                                            </div>
+                                        {% else %}
+                                            <div style="font-weight: bold; color: #000; font-size: 1.4em;">
+                                                {{ assignment.activity_code }}
+                                            </div>
+                                            <div style="font-size: 1.2em; color: #000; font-weight: bold;">
+                                                {{ assignment.start_time }} - {{ assignment.end_time }}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="no-assignments">No assignments</div>
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            <div class="calendar-day empty"></div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="error">
+                <h3>No schedule data available</h3>
+                <p>Click "Refresh Schedule" to load your schedule.</p>
+            </div>
+        {% endif %}
+
+        <!-- HEADER AND BUTTONS BELOW THE CALENDAR -->
+        <div class="header">
+            <h1>My Crew Schedule - Calendar View</h1>
+            <div class="nav-buttons">
+                <a href="/" class="nav-button">Schedule View</a>
+                <a href="/calendar" class="nav-button active">Calendar View</a>
+                <a href="/pdf" class="nav-button">PDF Download</a>
+            </div>
+            <button class="button" onclick="fetchData()" id="refreshBtn">Refresh Schedule</button>
+        </div>
+
+        {% if refresh_message %}
+        <div class="success">
+            {{ refresh_message }}
+        </div>
+        {% endif %}
+
+        {% if last_fetch %}
+        <div class="info-box">
+            <h3>Last updated: {{ last_fetch }}</h3>
+            <p>Total days: {{ total_days }} | Total assignments: {{ total_assignments }}</p>
+            <p>Current Crew ID: <strong>{{ current_crew_id }}</strong></p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Floating Button - refreshes data -->
+    <button class="floating-button" onclick="refreshFromFloatingButton()" title="Refresh Data">↻</button>
+
+    <script>
+    let currentMonthIndex = {{ current_month_index }};
+    const totalMonths = {{ schedule_data|length if schedule_data else 0 }};
+
+    // Check if page was launched from home screen and reload if needed
+    function checkForReload() {
+        // Check if we're in standalone mode (launched from home screen)
+        if (window.navigator.standalone === true) {
+            // Check if we should reload (only reload once per session)
+            if (!sessionStorage.getItem('homeScreenLaunched')) {
+                sessionStorage.setItem('homeScreenLaunched', 'true');
+                
+                // Small delay to ensure page is fully loaded, then reload
+                setTimeout(() => {
+                    window.location.reload();
+                }, 100);
+            }
+        }
+    }
+
+    // Refresh function for floating button
+    function refreshFromFloatingButton() {
+        const floatingBtn = document.querySelector('.floating-button');
+        floatingBtn.classList.add('loading');
+        floatingBtn.disabled = true;
+        
+        fetch('/fetch?refresh=true')
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    // Reload the page to show fresh data
+                    window.location.reload();
+                } else {
+                    alert('Failed: ' + (data.error || 'Unknown error'));
+                    floatingBtn.classList.remove('loading');
+                    floatingBtn.disabled = false;
+                }
+            })
+            .catch(err => {
+                alert('Error: ' + err);
+                floatingBtn.classList.remove('loading');
+                floatingBtn.disabled = false;
+            });
+    }
+
+    function navigateMonth(direction) {
+        const newIndex = currentMonthIndex + direction;
+        
+        // Check bounds
+        if (newIndex >= 0 && newIndex < totalMonths) {
+            // Hide current month
+            document.getElementById(`month-${currentMonthIndex}`).classList.add('hidden');
+            
+            // Show new month
+            document.getElementById(`month-${newIndex}`).classList.remove('hidden');
+            
+            // Update current index
+            currentMonthIndex = newIndex;
+            
+            // Update button states
+            updateNavigationButtons();
+            
+            // Scroll to top of month section
+            document.getElementById(`month-${newIndex}`).scrollIntoView({ behavior: 'smooth' });
+        }
+    }
+
+    function updateNavigationButtons() {
+        document.getElementById('prevMonth').disabled = currentMonthIndex === 0;
+        document.getElementById('nextMonth').disabled = currentMonthIndex === totalMonths - 1;
+    }
+
+    function fetchData() {
+        const button = document.getElementById('refreshBtn');
+        button.disabled = true;
+        button.textContent = 'Loading...';
+        
+        fetch('/fetch?refresh=true')
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    const url = new URL(window.location);
+                    url.searchParams.set('refresh', 'success');
+                    window.location.href = url.toString();
+                } else {
+                    alert('Failed: ' + (data.error || 'Unknown error'));
+                    button.disabled = false;
+                    button.textContent = 'Refresh Schedule';
+                }
+            })
+            .catch(err => {
+                alert('Error: ' + err);
+                button.disabled = false;
+                button.textContent = 'Refresh Schedule';
+            });
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        updateNavigationButtons();
+        
+        // Check if we should reload (for home screen launches)
+        checkForReload();
+        
+        // Scroll the current month to the very top of the viewport
+        const currentMonthElement = document.getElementById(`month-${currentMonthIndex}`);
+        if (currentMonthElement) {
+            currentMonthElement.scrollIntoView({ behavior: 'smooth' });
+        }
+    });
+    </script>
+</body>
+</html>
 """
 
 PDF_VIEW_TEMPLATE = """

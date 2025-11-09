@@ -481,7 +481,7 @@ SCHEDULE_VIEW_TEMPLATE = """
 </html>
 """
 
-Lets try again, only add the required code for it to be loaded as an outside safari, no layout change or any other change whatsoever CALENDAR_VIEW_TEMPLATE = """
+CALENDAR_VIEW_TEMPLATE = """
 <!DOCTYPE html>
 <html>
 <head>

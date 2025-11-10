@@ -142,8 +142,45 @@ class CrewAPIClient:
             }
             
             response = self.session.get(url, params=params, headers=headers, timeout=30)
-            if response.status_code == 200:
+if response.status_code == 200:
                 data = response.json()
+                
+                # DEBUG: Check what aircraft-related fields are available
+                logger.info("🔍 DEBUG - Checking for aircraft data in assignments:")
+                if data and len(data) > 0:
+                    # Check first 2 flight assignments (skip XXX flights)
+                    flight_assignments = [a for a in data if a.get('FlighAssignement', {}).get('CommercialFlightNumber') != 'XXX']
+                    for i, assignment in enumerate(flight_assignments[:2]):  # Check first 2 real flight assignments
+                        if assignment:
+                            logger.info(f"--- Assignment {i} ---")
+                            logger.info(f"All keys: {list(assignment.keys())}")
+                            
+                            # Check for any aircraft-related fields in main assignment
+                            aircraft_fields = [k for k in assignment.keys() if any(word in k.lower() for word in ['aircraft', 'registration', 'tail', 'fleet', 'equip'])]
+                            if aircraft_fields:
+                                logger.info(f"Aircraft fields in assignment: {aircraft_fields}")
+                                for field in aircraft_fields:
+                                    logger.info(f"  {field}: {assignment.get(field)}")
+                            
+                            # Also check inside FlighAssignement object
+                            flight_data = assignment.get('FlighAssignement', {})
+                            if flight_data:
+                                flight_aircraft_fields = [k for k in flight_data.keys() if any(word in k.lower() for word in ['aircraft', 'registration', 'tail', 'fleet', 'equip'])]
+                                if flight_aircraft_fields:
+                                    logger.info(f"Aircraft fields in FlighAssignement: {flight_aircraft_fields}")
+                                    for field in flight_aircraft_fields:
+                                        logger.info(f"  {field}: {flight_data.get(field)}")
+                            
+                            # Check if there are any other nested objects
+                            nested_objects = {k: v for k, v in assignment.items() if isinstance(v, dict) and k != 'FlighAssignement'}
+                            if nested_objects:
+                                logger.info(f"Other nested objects: {list(nested_objects.keys())}")
+                                for obj_name, obj_data in nested_objects.items():
+                                    obj_aircraft_fields = [k for k in obj_data.keys() if any(word in k.lower() for word in ['aircraft', 'registration', 'tail', 'fleet', 'equip'])]
+                                    if obj_aircraft_fields:
+                                        logger.info(f"Aircraft fields in {obj_name}: {obj_aircraft_fields}")
+                                        for field in obj_aircraft_fields:
+                                            logger.info(f"  {field}: {obj_data.get(field)}")
                 
                 # Debug: Check what dates we actually received
                 if data:
@@ -155,12 +192,6 @@ class CrewAPIClient:
                 
                 logger.info(f"✅ Fetched {len(data)} assignments for {year}-{month:02d}")
                 return {'year': year, 'month': month, 'assignments': data}
-                
-        except Exception as e:
-            logger.error(f"❌ Error fetching assignments: {e}")
-        return None
-
-    # ... keep the download_schedule_pdf method as is ...
     def download_schedule_pdf(self, crew_id, schedule_type="actual", month="", year=""):
         """Download schedule PDF"""
         try:

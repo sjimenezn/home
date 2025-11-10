@@ -68,8 +68,44 @@ class CrewAPIClient:
             logger.error(f"Login error: {e}")
         return False
 
+    def get_schedule_data(self, crew_id=None):
+        """Get schedule data using the old endpoint (for schedule view)"""
+        try:
+            target_crew_id = crew_id or current_crew_id
+            logger.info(f"📊 Fetching schedule data for crew: {target_crew_id}...")
+            
+            if not self._login():
+                return None
+            
+            url = f"{self.base_url}/Assignements/AssignmentsComplete"
+            params = {
+                "timeZoneOffset": -300,
+                "crewMemberUniqueId": target_crew_id
+            }
+            headers = {
+                "Authorization": self.auth_token, 
+                "Ocp-Apim-Subscription-Key": self.subscription_key,
+                "Accept": "application/json", 
+                "Origin": "https://mycrew.avianca.com", 
+                "Referer": "https://mycrew.avianca.com/",
+            }
+            
+            logger.info(f"🌐 Making API request for crew {target_crew_id}...")
+            response = self.session.get(url, params=params, headers=headers, timeout=30)
+            
+            if response.status_code == 200:
+                data = response.json()
+                logger.info(f"✅ Schedule data fetched for crew {target_crew_id}! Structure: {len(data)} months")
+                return data
+                
+            logger.error(f"❌ Failed to fetch schedule data for crew {target_crew_id}: {response.status_code}")
+            return None
+        except Exception as e:
+            logger.error(f"❌ Error fetching data for crew {crew_id}: {e}")
+            return None
+
     def get_assignments_by_user(self, crew_id=None, year=None, month=None):
-        """Get assignments for specific month"""
+        """Get assignments for specific month (for calendar view)"""
         try:
             target_crew_id = crew_id or current_crew_id
             now = datetime.now()
@@ -124,6 +160,7 @@ class CrewAPIClient:
             logger.error(f"❌ Error fetching assignments: {e}")
         return None
 
+    # ... keep the download_schedule_pdf method as is ...
     def download_schedule_pdf(self, crew_id, schedule_type="actual", month="", year=""):
         """Download schedule PDF"""
         try:

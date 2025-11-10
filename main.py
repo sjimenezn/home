@@ -81,6 +81,8 @@ class CrewAPIClient:
             last_day = (datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)) - timedelta(days=1)
             days_in_month = (last_day - first_day).days + 1
             
+            logger.info(f"📅 Requesting data for {year}-{month:02d} (Days: {days_in_month}, First: {first_day.date()}, Last: {last_day.date()})")
+            
             if not self._login():
                 return None
             
@@ -92,6 +94,9 @@ class CrewAPIClient:
                 "holding": "AV",
                 "timeZoneOffset": "+300"
             }
+            
+            logger.info(f"🌐 API Request: date={params['date']}, changeDays={params['changeDays']}")
+            
             headers = {
                 "Authorization": self.auth_token,
                 "Ocp-Apim-Subscription-Key": self.subscription_key,
@@ -103,11 +108,20 @@ class CrewAPIClient:
             response = self.session.get(url, params=params, headers=headers, timeout=30)
             if response.status_code == 200:
                 data = response.json()
-                logger.info(f"Fetched {len(data)} assignments for {year}-{month:02d}")
+                
+                # Debug: Check what dates we actually received
+                if data:
+                    dates_received = set()
+                    for assignment in data[:5]:  # Check first 5 assignments
+                        if assignment and assignment.get('StartDate'):
+                            dates_received.add(assignment['StartDate'][:10])
+                    logger.info(f"📊 Sample dates received: {sorted(dates_received)}")
+                
+                logger.info(f"✅ Fetched {len(data)} assignments for {year}-{month:02d}")
                 return {'year': year, 'month': month, 'assignments': data}
                 
         except Exception as e:
-            logger.error(f"Error fetching assignments: {e}")
+            logger.error(f"❌ Error fetching assignments: {e}")
         return None
 
     def download_schedule_pdf(self, crew_id, schedule_type="actual", month="", year=""):
@@ -260,7 +274,7 @@ def create_calendar_view_data(month_data):
         calendar_days.append(calendar_day)
     
     return calendar_days
-    
+
 # Global variables
 client = CrewAPIClient()
 schedule_data = None
@@ -272,6 +286,21 @@ crew_names = load_crew_names()
 
 def get_month_name(year, month):
     return datetime(year, month, 1).strftime('%B %Y')
+
+def get_month_name_from_data(month_data):
+    """Extract month name from the first valid day in month data"""
+    if not month_data or not isinstance(month_data, list):
+        return "Unknown Month"
+    
+    for day in month_data:
+        if day and isinstance(day, dict) and day.get('StartDate'):
+            try:
+                date_str = day['StartDate'][:10]
+                date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+                return date_obj.strftime('%B %Y')
+            except (ValueError, KeyError):
+                continue
+    return "Unknown Month"
 
 @app.route('/')
 def index():
@@ -291,6 +320,8 @@ def calendar_view():
     month = request.args.get('month', type=int, default=current_calendar_month)
     current_calendar_year, current_calendar_month = year, month
     
+    logger.info(f"🗓️ Calendar view requested: {year}-{month:02d}")
+    
     assignments_result = client.get_assignments_by_user(current_crew_id, year=year, month=month)
     if assignments_result:
         schedule_data = transform_assignments_to_calendar_data(
@@ -299,14 +330,24 @@ def calendar_view():
             assignments_result['month']
         )
         last_fetch_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # Debug: Check what we're displaying
+        if schedule_data and schedule_data[0]:
+            displayed_dates = [day['StartDate'][:7] for day in schedule_data[0] if day.get('StartDate')]
+            unique_months = set(displayed_dates)
+            logger.info(f"📅 Displaying data for months: {sorted(unique_months)}")
     
     month_name = get_month_name(year, month)
     month_calendars = [create_calendar_view_data(schedule_data[0])] if schedule_data else []
     
+    # Calculate totals for the template
     total_days = len(schedule_data[0]) if schedule_data else 0
     total_assignments = sum(len(day.get('AssignementList', [])) for day in schedule_data[0]) if schedule_data else 0
     
     refresh_message = "Data refreshed successfully!" if request.args.get('refresh') == 'success' else None
+    
+    # Get month names for display (needed by template)
+    month_names = [month_name]
     
     return render_template('calendar_view.html',
         schedule_data=schedule_data,
@@ -315,7 +356,7 @@ def calendar_view():
         total_assignments=total_assignments,
         refresh_message=refresh_message,
         current_crew_id=current_crew_id,
-        month_names=[month_name],
+        month_names=month_names,  # This was missing
         month_calendars=month_calendars,
         current_date=datetime.now().strftime('%Y-%m-%d'),
         current_month_index=0,

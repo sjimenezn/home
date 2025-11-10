@@ -1,3 +1,4 @@
+CALENDAR_VIEW_TEMPLATE = """
 <!DOCTYPE html>
 <html>
 <head>
@@ -77,18 +78,38 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        
+        /* Loading indicator */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            font-size: 1.5em;
+            color: #007bff;
+        }
     </style>
 </head>
 <body>
     <div class="container">
+        <!-- Loading Overlay -->
+        <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+            <div>Loading calendar data...</div>
+        </div>
+
         <!-- CALENDAR AT THE TOP -->
         {% if schedule_data %}
-            {% for month in schedule_data %}
-            <div class="month-section {% if loop.index0 != current_month_index %}hidden{% endif %}" id="month-{{ loop.index0 }}" data-month-index="{{ loop.index0 }}">
+            <div class="month-section" id="month-section">
                 <div class="month-header">
                     <div class="month-navigation">
                         <button class="chevron" onclick="navigateMonth(-1)" id="prevMonth">〈</button>
-                        <div class="month-title">{{ month_names[loop.index0] }}</div>
+                        <div class="month-title">{{ month_names[0] }}</div>
                         <button class="chevron" onclick="navigateMonth(1)" id="nextMonth">〉</button>
                     </div>
                 </div>
@@ -104,7 +125,7 @@
                 </div>
                 
                 <div class="calendar-grid">
-                    {% for day in month_calendars[loop.index0] %}
+                    {% for day in month_calendars[0] %}
                         {% if day %}
                             <div class="calendar-day {% if day.date == current_date %}current-day{% endif %} {% if day.weekend %}weekend{% endif %}" id="cal-day-{{ day.date }}">
                                 <div class="calendar-day-header">
@@ -150,7 +171,6 @@
                     {% endfor %}
                 </div>
             </div>
-            {% endfor %}
         {% else %}
             <div class="error">
                 <h3>No schedule data available</h3>
@@ -166,7 +186,7 @@
                 <a href="/calendar" class="nav-button active">Calendar View</a>
                 <a href="/pdf" class="nav-button">PDF Download</a>
             </div>
-            <button class="button" onclick="fetchData()" id="refreshBtn">Refresh Schedule</button>
+            <button class="button" onclick="refreshCurrentMonth()" id="refreshBtn">Refresh Schedule</button>
         </div>
 
         {% if refresh_message %}
@@ -185,11 +205,11 @@
     </div>
 
     <!-- Floating Button - refreshes data -->
-    <button class="floating-button" onclick="refreshFromFloatingButton()" title="Refresh Data">↻</button>
+    <button class="floating-button" onclick="refreshCurrentMonth()" title="Refresh Data">↻</button>
 
     <script>
-    let currentMonthIndex = {{ current_month_index }};
-    const totalMonths = {{ schedule_data|length if schedule_data else 0 }};
+    let currentYear = {{ current_calendar_year }};
+    let currentMonth = {{ current_calendar_month }};
 
     // Check if page was launched from home screen and reload if needed
     function checkForReload() {
@@ -207,81 +227,76 @@
         }
     }
 
-    // Refresh function for floating button
-    function refreshFromFloatingButton() {
+    // Navigate to previous or next month
+    function navigateMonth(direction) {
+        // Calculate new month and year
+        let newYear = currentYear;
+        let newMonth = currentMonth + direction;
+        
+        if (newMonth > 12) {
+            newMonth = 1;
+            newYear++;
+        } else if (newMonth < 1) {
+            newMonth = 12;
+            newYear--;
+        }
+        
+        // Show loading overlay
+        document.getElementById('loadingOverlay').style.display = 'flex';
+        
+        // Navigate to new month
+        const url = new URL(window.location);
+        url.searchParams.set('year', newYear);
+        url.searchParams.set('month', newMonth);
+        window.location.href = url.toString();
+    }
+
+    // Refresh current month data
+    function refreshCurrentMonth() {
+        const button = document.getElementById('refreshBtn');
         const floatingBtn = document.querySelector('.floating-button');
+        
+        button.disabled = true;
+        button.textContent = 'Loading...';
         floatingBtn.classList.add('loading');
         floatingBtn.disabled = true;
+        document.getElementById('loadingOverlay').style.display = 'flex';
         
         fetch('/fetch?refresh=true')
             .then(r => r.json())
             .then(data => {
                 if (data.success) {
                     // Reload the page to show fresh data
-                    window.location.reload();
-                } else {
-                    alert('Failed: ' + (data.error || 'Unknown error'));
-                    floatingBtn.classList.remove('loading');
-                    floatingBtn.disabled = false;
-                }
-            })
-            .catch(err => {
-                alert('Error: ' + err);
-                floatingBtn.classList.remove('loading');
-                floatingBtn.disabled = false;
-            });
-    }
-
-    function navigateMonth(direction) {
-        const newIndex = currentMonthIndex + direction;
-        
-        // Check bounds
-        if (newIndex >= 0 && newIndex < totalMonths) {
-            // Hide current month
-            document.getElementById(`month-${currentMonthIndex}`).classList.add('hidden');
-            
-            // Show new month
-            document.getElementById(`month-${newIndex}`).classList.remove('hidden');
-            
-            // Update current index
-            currentMonthIndex = newIndex;
-            
-            // Update button states
-            updateNavigationButtons();
-            
-            // Scroll to top of month section
-            document.getElementById(`month-${newIndex}`).scrollIntoView({ behavior: 'smooth' });
-        }
-    }
-
-    function updateNavigationButtons() {
-        document.getElementById('prevMonth').disabled = currentMonthIndex === 0;
-        document.getElementById('nextMonth').disabled = currentMonthIndex === totalMonths - 1;
-    }
-
-    function fetchData() {
-        const button = document.getElementById('refreshBtn');
-        button.disabled = true;
-        button.textContent = 'Loading...';
-        
-        fetch('/fetch?refresh=true')
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
                     const url = new URL(window.location);
                     url.searchParams.set('refresh', 'success');
                     window.location.href = url.toString();
                 } else {
                     alert('Failed: ' + (data.error || 'Unknown error'));
-                    button.disabled = false;
-                    button.textContent = 'Refresh Schedule';
+                    resetButtons();
                 }
             })
             .catch(err => {
                 alert('Error: ' + err);
-                button.disabled = false;
-                button.textContent = 'Refresh Schedule';
+                resetButtons();
             });
+            
+        function resetButtons() {
+            button.disabled = false;
+            button.textContent = 'Refresh Schedule';
+            floatingBtn.classList.remove('loading');
+            floatingBtn.disabled = false;
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }
+    }
+
+    // Refresh function for floating button
+    function refreshFromFloatingButton() {
+        refreshCurrentMonth();
+    }
+
+    function updateNavigationButtons() {
+        // You can add logic here to disable buttons if needed
+        // For example, disable previous button if we're at the earliest available month
     }
 
     // Initialize on page load
@@ -292,10 +307,15 @@
         checkForReload();
         
         // Scroll the current month to the very top of the viewport
-        const currentMonthElement = document.getElementById(`month-${currentMonthIndex}`);
+        const currentMonthElement = document.getElementById('month-section');
         if (currentMonthElement) {
             currentMonthElement.scrollIntoView({ behavior: 'smooth' });
         }
+        
+        // Hide loading overlay after page loads
+        setTimeout(() => {
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }, 500);
     });
     </script>
 </body>

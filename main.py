@@ -510,7 +510,7 @@ def index():
     
     refresh_message = "Data refreshed successfully!" if request.args.get('refresh') == 'success' else None
     
-    return render_template('schedule.html',
+    return render_template('schedule_view.html',  # CHANGED
         schedule_data=schedule_data,
         last_fetch=last_fetch_time,
         total_days=total_days,
@@ -573,7 +573,7 @@ def calendar_view():
     
     refresh_message = "Data refreshed successfully!" if request.args.get('refresh') == 'success' else None
     
-    return render_template('calendar.html',
+    return render_template('calendar_view.html',  # CHANGED
         schedule_data=schedule_data,
         last_fetch=last_fetch_time,
         total_days=total_days,
@@ -593,32 +593,12 @@ def pdf_view():
     pdf_message = request.args.get('pdf_message')
     pdf_success = request.args.get('pdf_success') == 'true'
     
-    return render_template('pdf.html',
+    return render_template('pdf_view.html',  # CHANGED
         current_crew_id=current_crew_id,
         pdf_message=pdf_message,
         pdf_success=pdf_success,
         crew_names=crew_names
     )
-
-@app.route('/update_crew_id')
-def update_crew_id():
-    global current_crew_id, schedule_data, last_fetch_time, current_calendar_year, current_calendar_month
-    new_crew_id = request.args.get('crew_id', '').strip()
-    
-    if new_crew_id:
-        current_crew_id = new_crew_id
-        logger.info(f"✅ Crew ID updated to: {current_crew_id}")
-        
-        # Clear cached data so it fetches fresh data for the new crew member
-        schedule_data = None
-        last_fetch_time = None
-        # Reset to current month when changing crew
-        current_calendar_year = datetime.now().year
-        current_calendar_month = datetime.now().month
-        
-        return {"success": True, "new_crew_id": current_crew_id}
-    else:
-        return {"success": False, "error": "No crew ID provided"}
 
 @app.route('/download_pdf')
 def download_pdf():

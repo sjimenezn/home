@@ -142,7 +142,7 @@ class CrewAPIClient:
             }
             
             response = self.session.get(url, params=params, headers=headers, timeout=30)
-if response.status_code == 200:
+            if response.status_code == 200:
                 data = response.json()
                 
                 # DEBUG: Check what aircraft-related fields are available
@@ -192,6 +192,10 @@ if response.status_code == 200:
                 
                 logger.info(f"✅ Fetched {len(data)} assignments for {year}-{month:02d}")
                 return {'year': year, 'month': month, 'assignments': data}
+                
+        except Exception as e:
+            logger.error(f"❌ Error fetching assignments: {e}")
+        return None
     def download_schedule_pdf(self, crew_id, schedule_type="actual", month="", year=""):
         """Download schedule PDF"""
         try:

@@ -9,7 +9,7 @@ import logging
 import requests
 import json
 from datetime import datetime, timedelta
-from flask import Flask, render_template, request, send_file
+from flask import Flask, render_template_string, request, send_file
 
 # Configuration
 DEFAULT_CREW_ID = "32385184"
@@ -17,7 +17,7 @@ DEFAULT_CREW_ID = "32385184"
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__, template_folder='templates')
+app = Flask(__name__)
 
 def load_crew_names():
     """Load crew names from name_list.txt file and handle semicolon format"""
@@ -144,11 +144,27 @@ class CrewAPIClient:
             logger.error(f"❌ Error fetching data for crew {crew_id}: {e}")
             return None
 
-    def get_assignments_by_user(self, crew_id=None, days_before=45, days_after=45):
-        """Get assignments using the working endpoint that respects crewMemberUniqueId"""
+    def get_assignments_by_user(self, crew_id=None, year=None, month=None):
+        """Get assignments for a specific month using the working endpoint"""
         try:
             target_crew_id = crew_id or current_crew_id
-            logger.info(f"📊 Fetching assignments for crew: {target_crew_id} using GetAssignementsByUser...")
+            
+            # Use current month/year if not specified
+            if year is None or month is None:
+                now = datetime.now()
+                year = now.year
+                month = now.month
+            
+            # Calculate first day of the month and number of days in month
+            first_day = datetime(year, month, 1)
+            if month == 12:
+                last_day = datetime(year + 1, 1, 1) - timedelta(days=1)
+            else:
+                last_day = datetime(year, month + 1, 1) - timedelta(days=1)
+            
+            days_in_month = (last_day - first_day).days + 1
+            
+            logger.info(f"📊 Fetching assignments for {year}-{month:02d} ({days_in_month} days) for crew: {target_crew_id}")
             
             # Always create a new session to ensure fresh data
             self.create_new_session()
@@ -159,14 +175,13 @@ class CrewAPIClient:
             if not self.login(email, password):
                 return None
             
-            # Calculate date range - start from days_before ago, get assignments for days_before + days_after days
-            start_date = (datetime.now() - timedelta(days=days_before)).strftime('%Y-%m-%dT00:00:00Z')
-            total_days = days_before + days_after
+            # Use first day of the month as start date
+            start_date = first_day.strftime('%Y-%m-%dT00:00:00Z')
             
             url = f"{self.base_url}/Assignements/GetAssignementsByUser"
             params = {
-                "date": start_date,  # 45 days ago
-                "changeDays": total_days,  # 90 days total (45 past + 45 future)
+                "date": start_date,
+                "changeDays": days_in_month,  # Number of days in the month
                 "crewMemberUniqueId": target_crew_id,
                 "holding": "AV",
                 "timeZoneOffset": "+300"
@@ -179,16 +194,19 @@ class CrewAPIClient:
                 "Referer": "https://mycrew.avianca.com/",
             }
             
-            logger.info(f"🌐 Making GetAssignementsByUser request for crew {target_crew_id}...")
-            logger.info(f"📅 Date range: {start_date[:10]} to {(datetime.now() + timedelta(days=days_after)).strftime('%Y-%m-%d')}")
+            logger.info(f"🌐 Making GetAssignementsByUser request for {year}-{month:02d}, crew {target_crew_id}...")
             response = self.session.get(url, params=params, headers=headers, timeout=30)
             
             if response.status_code == 200:
                 data = response.json()
-                logger.info(f"✅ Assignments data fetched for crew {target_crew_id}! Found {len(data)} assignments")
-                return data
+                logger.info(f"✅ Assignments data fetched for {year}-{month:02d}, crew {target_crew_id}! Found {len(data)} assignments")
+                return {
+                    'year': year,
+                    'month': month,
+                    'assignments': data
+                }
                 
-            logger.error(f"❌ Failed to fetch assignments for crew {target_crew_id}: {response.status_code}")
+            logger.error(f"❌ Failed to fetch assignments for {year}-{month:02d}, crew {target_crew_id}: {response.status_code}")
             return None
         except Exception as e:
             logger.error(f"❌ Error fetching assignments for crew {crew_id}: {e}")
@@ -290,86 +308,77 @@ class CrewAPIClient:
             logger.error(f"❌ PDF download error: {e}")
             return None
 
-def transform_assignments_to_calendar_data(assignments_data, days_before=45, days_after=45):
+def transform_assignments_to_calendar_data(assignments_data, year, month):
     """Transform the linear assignments list into calendar month structure"""
     if not assignments_data or not isinstance(assignments_data, list):
         return []
     
-    # Group assignments by month
-    months_assignments = {}
+    # Calculate first day of the month and number of days
+    first_day = datetime(year, month, 1)
+    if month == 12:
+        last_day = datetime(year + 1, 1, 1) - timedelta(days=1)
+    else:
+        last_day = datetime(year, month + 1, 1) - timedelta(days=1)
     
+    # Group assignments by day
+    days_dict = {}
     for assignment in assignments_data:
         if assignment and isinstance(assignment, dict) and assignment.get('StartDate'):
             try:
                 date_str = assignment['StartDate'][:10]  # Get YYYY-MM-DD
                 date_obj = datetime.strptime(date_str, '%Y-%m-%d')
-                month_key = date_obj.strftime('%Y-%m')  # e.g., "2025-11"
                 
-                if month_key not in months_assignments:
-                    months_assignments[month_key] = []
-                
-                months_assignments[month_key].append(assignment)
+                # Only include assignments from the target month
+                if date_obj.year == year and date_obj.month == month:
+                    if date_str not in days_dict:
+                        days_dict[date_str] = {
+                            'StartDate': assignment['StartDate'],
+                            'Dem': '',  # You might need to calculate this
+                            'AssignementList': []
+                        }
+                    days_dict[date_str]['AssignementList'].append(assignment)
             except (ValueError, KeyError):
                 continue
     
-    # Convert to the expected calendar structure
-    calendar_data = []
-    for month_key in sorted(months_assignments.keys()):
-        month_assignments = months_assignments[month_key]
-        
-        # Group assignments by day
-        days_dict = {}
-        for assignment in month_assignments:
-            date_str = assignment['StartDate'][:10]
-            if date_str not in days_dict:
-                days_dict[date_str] = {
-                    'StartDate': assignment['StartDate'],
-                    'Dem': '',  # You might need to calculate this
-                    'AssignementList': []
-                }
-            days_dict[date_str]['AssignementList'].append(assignment)
-        
-        # Convert to list format
-        month_data = list(days_dict.values())
-        calendar_data.append(month_data)
+    # Convert to list format and ensure all days of the month are included
+    month_data = []
+    current_date = first_day
+    while current_date <= last_day:
+        date_str = current_date.strftime('%Y-%m-%d')
+        if date_str in days_dict:
+            month_data.append(days_dict[date_str])
+        else:
+            # Create empty day
+            month_data.append({
+                'StartDate': date_str + 'T00:00:00Z',
+                'Dem': '',
+                'AssignementList': []
+            })
+        current_date += timedelta(days=1)
     
-    return calendar_data
+    return [month_data]  # Return as list with one month
 
 client = CrewAPIClient()
 schedule_data = None
 last_fetch_time = None
 current_crew_id = DEFAULT_CREW_ID
+current_calendar_year = datetime.now().year
+current_calendar_month = datetime.now().month
 
 # Load crew names at startup
 crew_names = load_crew_names()
 
-def get_month_name_from_data(month_data):
-    """Extract month name from the first valid day in month data"""
-    if not month_data or not isinstance(month_data, list):
-        return "Unknown Month"
-    
-    for day in month_data:
-        if day and isinstance(day, dict) and day.get('StartDate'):
-            try:
-                date_str = day['StartDate'][:10]  # Get YYYY-MM-DD
-                date_obj = datetime.strptime(date_str, '%Y-%m-%d')
-                return date_obj.strftime('%B %Y')  # e.g., "October 2025"
-            except (ValueError, KeyError):
-                continue
-    
-    return "Unknown Month"
+# ... (KEEP ALL YOUR EXISTING TEMPLATES EXACTLY AS THEY ARE - SCHEDULE_VIEW_TEMPLATE, CALENDAR_VIEW_TEMPLATE, PDF_VIEW_TEMPLATE) ...
+# I'm not including the templates here since they're very long and you already have them
+
+def get_month_name(year, month):
+    """Get month name from year and month"""
+    date_obj = datetime(year, month, 1)
+    return date_obj.strftime('%B %Y')
 
 def get_current_month_index(schedule_data, current_date):
     """Find which month index contains the current date"""
-    if not schedule_data or not isinstance(schedule_data, list):
-        return 0
-    
-    for month_index, month in enumerate(schedule_data):
-        if month and isinstance(month, list):
-            for day in month:
-                if day and isinstance(day, dict) and day.get('StartDate', '').startswith(current_date):
-                    return month_index
-    return 0  # Fallback to first month if not found
+    return 0  # Now we only have one month at a time
 
 def create_calendar_view_data(month_data, month_name):
     """Convert month data to calendar grid format"""
@@ -488,7 +497,7 @@ def index():
     
     refresh_message = "Data refreshed successfully!" if request.args.get('refresh') == 'success' else None
     
-    return render_template('schedule_view.html',
+    return render_template_string(SCHEDULE_VIEW_TEMPLATE,
         schedule_data=schedule_data,
         last_fetch=last_fetch_time,
         total_days=total_days,
@@ -501,47 +510,57 @@ def index():
 
 @app.route('/calendar')
 def calendar_view():
-    global schedule_data, last_fetch_time, current_crew_id
+    global schedule_data, last_fetch_time, current_crew_id, current_calendar_year, current_calendar_month
     
-    # 🔄 USE THE WORKING ENDPOINT: Fetch assignments using GetAssignementsByUser
-    logger.info(f"🔄 Calendar view - fetching assignments for crew: {current_crew_id}")
-    assignments_data = client.get_assignments_by_user(current_crew_id, days_before=45, days_after=45)  # 45 days past + 45 days future
+    # Get year and month from query parameters, default to current month
+    year = request.args.get('year', type=int, default=current_calendar_year)
+    month = request.args.get('month', type=int, default=current_calendar_month)
     
-    if assignments_data is not None:
+    # Update global variables
+    current_calendar_year = year
+    current_calendar_month = month
+    
+    # 🔄 USE THE WORKING ENDPOINT: Fetch assignments for specific month
+    logger.info(f"🔄 Calendar view - fetching assignments for {year}-{month:02d}, crew: {current_crew_id}")
+    assignments_result = client.get_assignments_by_user(current_crew_id, year=year, month=month)
+    
+    if assignments_result is not None:
         # Transform the assignments data into calendar format
-        schedule_data = transform_assignments_to_calendar_data(assignments_data, days_before=45, days_after=45)
+        schedule_data = transform_assignments_to_calendar_data(
+            assignments_result['assignments'], 
+            assignments_result['year'], 
+            assignments_result['month']
+        )
         last_fetch_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        logger.info(f"✅ Calendar data transformed for crew {current_crew_id}!")
+        logger.info(f"✅ Calendar data transformed for {year}-{month:02d}, crew {current_crew_id}!")
     elif schedule_data is None:
         logger.warning("⚠️ Calendar data fetch failed and no existing data available")
     
     total_days = 0
     total_assignments = 0
-    month_names = []
+    month_names = [get_month_name(year, month)]
     month_calendars = []
     current_date = datetime.now().strftime('%Y-%m-%d')
     
     if schedule_data and isinstance(schedule_data, list):
-        # Generate month names and calendar data
-        for month in schedule_data:
-            month_name = get_month_name_from_data(month)
-            month_names.append(month_name)
-            calendar_data = create_calendar_view_data(month, month_name)
+        # Generate calendar data
+        for month_data in schedule_data:
+            calendar_data = create_calendar_view_data(month_data, month_names[0])
             month_calendars.append(calendar_data)
             
-            if isinstance(month, list):
-                total_days += len(month)
-                for day in month:
+            if isinstance(month_data, list):
+                total_days += len(month_data)
+                for day in month_data:
                     if isinstance(day, dict):
                         assignments = day.get('AssignementList', [])
                         total_assignments += len(assignments)
     
-    # Find current month index
-    current_month_index = get_current_month_index(schedule_data, current_date)
+    # Find current month index (always 0 now since we only show one month)
+    current_month_index = 0
     
     refresh_message = "Data refreshed successfully!" if request.args.get('refresh') == 'success' else None
     
-    return render_template('calendar_view.html',
+    return render_template_string(CALENDAR_VIEW_TEMPLATE,
         schedule_data=schedule_data,
         last_fetch=last_fetch_time,
         total_days=total_days,
@@ -551,7 +570,9 @@ def calendar_view():
         month_names=month_names,
         month_calendars=month_calendars,
         current_date=current_date,
-        current_month_index=current_month_index
+        current_month_index=current_month_index,
+        current_calendar_year=current_calendar_year,
+        current_calendar_month=current_calendar_month
     )
 
 @app.route('/pdf')
@@ -559,7 +580,7 @@ def pdf_view():
     pdf_message = request.args.get('pdf_message')
     pdf_success = request.args.get('pdf_success') == 'true'
     
-    return render_template('pdf_view.html',
+    return render_template_string(PDF_VIEW_TEMPLATE,
         current_crew_id=current_crew_id,
         pdf_message=pdf_message,
         pdf_success=pdf_success,
@@ -568,7 +589,7 @@ def pdf_view():
 
 @app.route('/update_crew_id')
 def update_crew_id():
-    global current_crew_id, schedule_data, last_fetch_time
+    global current_crew_id, schedule_data, last_fetch_time, current_calendar_year, current_calendar_month
     new_crew_id = request.args.get('crew_id', '').strip()
     
     if new_crew_id:
@@ -578,6 +599,9 @@ def update_crew_id():
         # Clear cached data so it fetches fresh data for the new crew member
         schedule_data = None
         last_fetch_time = None
+        # Reset to current month when changing crew
+        current_calendar_year = datetime.now().year
+        current_calendar_month = datetime.now().month
         
         return {"success": True, "new_crew_id": current_crew_id}
     else:
@@ -606,12 +630,16 @@ def download_pdf():
 
 @app.route('/fetch')
 def fetch_data():
-    global schedule_data, last_fetch_time
+    global schedule_data, last_fetch_time, current_calendar_year, current_calendar_month
     try:
         logger.info("🔄 Manual data refresh requested - using GetAssignementsByUser...")
-        assignments_data = client.get_assignments_by_user(current_crew_id, days_before=45, days_after=45)
-        if assignments_data is not None:
-            schedule_data = transform_assignments_to_calendar_data(assignments_data, days_before=45, days_after=45)
+        assignments_result = client.get_assignments_by_user(current_crew_id, year=current_calendar_year, month=current_calendar_month)
+        if assignments_result is not None:
+            schedule_data = transform_assignments_to_calendar_data(
+                assignments_result['assignments'],
+                assignments_result['year'],
+                assignments_result['month']
+            )
             last_fetch_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             logger.info("✅ Data updated successfully with GetAssignementsByUser!")
             return {"success": True}

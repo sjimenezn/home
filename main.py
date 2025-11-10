@@ -641,7 +641,26 @@ def fetch_data():
     except Exception as e:
         logger.error(f"❌ Error in /fetch endpoint: {e}")
         return {"success": False, "error": str(e)}
-
+@app.route('/update_crew_id')
+def update_crew_id():
+    global current_crew_id, schedule_data, last_fetch_time, current_calendar_year, current_calendar_month
+    new_crew_id = request.args.get('crew_id', '').strip()
+    
+    if new_crew_id:
+        current_crew_id = new_crew_id
+        logger.info(f"✅ Crew ID updated to: {current_crew_id}")
+        
+        # Clear cached data so it fetches fresh data for the new crew member
+        schedule_data = None
+        last_fetch_time = None
+        # Reset to current month when changing crew
+        current_calendar_year = datetime.now().year
+        current_calendar_month = datetime.now().month
+        
+        return {"success": True, "new_crew_id": current_crew_id}
+    else:
+        return {"success": False, "error": "No crew ID provided"}
+        
 def main():
     global schedule_data, last_fetch_time
     logger.info("🚀 Starting Crew Schedule Application...")

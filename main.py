@@ -144,6 +144,54 @@ class CrewAPIClient:
             logger.error(f"❌ Error fetching data for crew {crew_id}: {e}")
             return None
 
+    def get_assignments_by_user(self, crew_id=None, days_range=30):
+        """Get assignments using the working endpoint that respects crewMemberUniqueId"""
+        try:
+            target_crew_id = crew_id or current_crew_id
+            logger.info(f"📊 Fetching assignments for crew: {target_crew_id} using GetAssignementsByUser...")
+            
+            # Always create a new session to ensure fresh data
+            self.create_new_session()
+            
+            email = os.getenv('CREW_EMAIL', 'sergio.jimenez@avianca.com')
+            password = os.getenv('CREW_PASSWORD', 'aLogout.8701')
+            
+            if not self.login(email, password):
+                return None
+            
+            # Calculate date range - start from today, get assignments for the next X days
+            start_date = datetime.now().strftime('%Y-%m-%dT00:00:00Z')
+            
+            url = f"{self.base_url}/Assignements/GetAssignementsByUser"
+            params = {
+                "date": start_date,
+                "changeDays": days_range,  # Number of days to fetch
+                "crewMemberUniqueId": target_crew_id,
+                "holding": "AV",
+                "timeZoneOffset": "+300"
+            }
+            headers = {
+                "Authorization": self.auth_token,
+                "Ocp-Apim-Subscription-Key": self.subscription_key,
+                "Accept": "application/json",
+                "Origin": "https://mycrew.avianca.com", 
+                "Referer": "https://mycrew.avianca.com/",
+            }
+            
+            logger.info(f"🌐 Making GetAssignementsByUser request for crew {target_crew_id}...")
+            response = self.session.get(url, params=params, headers=headers, timeout=30)
+            
+            if response.status_code == 200:
+                data = response.json()
+                logger.info(f"✅ Assignments data fetched for crew {target_crew_id}! Found {len(data)} assignments")
+                return data
+                
+            logger.error(f"❌ Failed to fetch assignments for crew {target_crew_id}: {response.status_code}")
+            return None
+        except Exception as e:
+            logger.error(f"❌ Error fetching assignments for crew {crew_id}: {e}")
+            return None
+
     def download_schedule_pdf(self, crew_id, schedule_type="actual", month="", year=""):
         """Download schedule PDF using multipart form data"""
         try:
@@ -240,6 +288,55 @@ class CrewAPIClient:
             logger.error(f"❌ PDF download error: {e}")
             return None
 
+# Add this new function to transform the assignments data into calendar format
+def transform_assignments_to_calendar_data(assignments_data, days_range=30):
+    """Transform the linear assignments list into calendar month structure"""
+    if not assignments_data or not isinstance(assignments_data, list):
+        return []
+    
+    # Create date range
+    start_date = datetime.now()
+    calendar_data = []
+    
+    # Group assignments by month
+    months_assignments = {}
+    
+    for assignment in assignments_data:
+        if assignment and isinstance(assignment, dict) and assignment.get('StartDate'):
+            try:
+                date_str = assignment['StartDate'][:10]  # Get YYYY-MM-DD
+                date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+                month_key = date_obj.strftime('%Y-%m')  # e.g., "2025-11"
+                
+                if month_key not in months_assignments:
+                    months_assignments[month_key] = []
+                
+                months_assignments[month_key].append(assignment)
+            except (ValueError, KeyError):
+                continue
+    
+    # Convert to the expected calendar structure
+    for month_key in sorted(months_assignments.keys()):
+        month_assignments = months_assignments[month_key]
+        
+        # Group assignments by day
+        days_dict = {}
+        for assignment in month_assignments:
+            date_str = assignment['StartDate'][:10]
+            if date_str not in days_dict:
+                days_dict[date_str] = {
+                    'StartDate': assignment['StartDate'],
+                    'Dem': '',  # You might need to calculate this
+                    'AssignementList': []
+                }
+            days_dict[date_str]['AssignementList'].append(assignment)
+        
+        # Convert to list format
+        month_data = list(days_dict.values())
+        calendar_data.append(month_data)
+    
+    return calendar_data
+
 client = CrewAPIClient()
 schedule_data = None
 last_fetch_time = None
@@ -248,6 +345,8 @@ current_crew_id = DEFAULT_CREW_ID
 # Load crew names at startup
 crew_names = load_crew_names()
 
+# ... (KEEP ALL YOUR EXISTING TEMPLATES EXACTLY AS THEY ARE - SCHEDULE_VIEW_TEMPLATE, CALENDAR_VIEW_TEMPLATE, PDF_VIEW_TEMPLATE) ...
+# I'm not including the templates here since they're very long and you already have them
 SCHEDULE_VIEW_TEMPLATE = """
 <!DOCTYPE html>
 <html>
@@ -1204,7 +1303,6 @@ PDF_VIEW_TEMPLATE = """
 </body>
 </html>
 """
-
 def get_month_name_from_data(month_data):
     """Extract month name from the first valid day in month data"""
     if not month_data or not isinstance(month_data, list):
@@ -1363,15 +1461,19 @@ def index():
 
 @app.route('/calendar')
 def calendar_view():
-    global schedule_data, last_fetch_time
+    global schedule_data, last_fetch_time, current_crew_id
     
-    # Auto-fetch data if needed
-    if schedule_data is None:
-        logger.info("🔄 Auto-fetching data for calendar view...")
-        new_data = client.get_schedule_data(current_crew_id)
-        if new_data is not None:
-            schedule_data = new_data
-            last_fetch_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    # 🔄 USE THE WORKING ENDPOINT: Fetch assignments using GetAssignementsByUser
+    logger.info(f"🔄 Calendar view - fetching assignments for crew: {current_crew_id}")
+    assignments_data = client.get_assignments_by_user(current_crew_id, days_range=60)  # Get 60 days of data
+    
+    if assignments_data is not None:
+        # Transform the assignments data into calendar format
+        schedule_data = transform_assignments_to_calendar_data(assignments_data, days_range=60)
+        last_fetch_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        logger.info(f"✅ Calendar data transformed for crew {current_crew_id}!")
+    elif schedule_data is None:
+        logger.warning("⚠️ Calendar data fetch failed and no existing data available")
     
     total_days = 0
     total_assignments = 0
@@ -1466,12 +1568,12 @@ def download_pdf():
 def fetch_data():
     global schedule_data, last_fetch_time
     try:
-        logger.info("🔄 Manual data refresh requested - creating fresh session...")
-        new_data = client.get_schedule_data(current_crew_id)
-        if new_data is not None:
-            schedule_data = new_data
+        logger.info("🔄 Manual data refresh requested - using GetAssignementsByUser...")
+        assignments_data = client.get_assignments_by_user(current_crew_id, days_range=60)
+        if assignments_data is not None:
+            schedule_data = transform_assignments_to_calendar_data(assignments_data, days_range=60)
             last_fetch_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            logger.info("✅ Data updated successfully with fresh session!")
+            logger.info("✅ Data updated successfully with GetAssignementsByUser!")
             return {"success": True}
         logger.error("❌ Data refresh failed - no data received")
         return {"success": False, "error": "Failed to fetch data"}
@@ -1479,52 +1581,6 @@ def fetch_data():
         logger.error(f"❌ Error in /fetch endpoint: {e}")
         return {"success": False, "error": str(e)}
 
-
-@app.route('/debug_test')
-def debug_test():
-    """Better test to see what data we're actually getting"""
-    test_crew_id = "26559705"
-    
-    # Get data for test crew
-    test_data = client.get_schedule_data(test_crew_id)
-    
-    # Get your data for comparison  
-    your_data = client.get_schedule_data()
-    
-    # Compare the actual content
-    if test_data == your_data:
-        return "❌ SAME DATA - API is ignoring crew ID, returning YOUR data"
-    else:
-        # Check if it's actually different
-        if test_data and your_data:
-            # Compare specific fields
-            your_first_flight = None
-            test_first_flight = None
-            
-            # Extract first flight number from each dataset
-            for month in your_data:
-                for day in month:
-                    for assignment in day.get('AssignementList', []):
-                        flight_data = assignment.get('FlighAssignement')
-                        if flight_data and flight_data.get('CommercialFlightNumber') != "XXX":
-                            your_first_flight = flight_data.get('CommercialFlightNumber')
-                            break
-            
-            for month in test_data:
-                for day in month:
-                    for assignment in day.get('AssignementList', []):
-                        flight_data = assignment.get('FlighAssignement')
-                        if flight_data and flight_data.get('CommercialFlightNumber') != "XXX":
-                            test_first_flight = flight_data.get('CommercialFlightNumber')
-                            break
-            
-            if your_first_flight == test_first_flight:
-                return f"❌ SAME FLIGHTS - Both have flight {your_first_flight}"
-            else:
-                return f"✅ DIFFERENT DATA! Your flight: {your_first_flight}, Their flight: {test_first_flight}"
-        else:
-            return "❌ One dataset is empty"
-            
 def main():
     global schedule_data, last_fetch_time
     logger.info("🚀 Starting Crew Schedule Application...")
@@ -1537,3 +1593,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    

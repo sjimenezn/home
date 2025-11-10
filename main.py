@@ -223,19 +223,19 @@ def create_calendar_view_data(month_data):
                         assignments.append({
                             'is_flight': True,
                             'flight_number': flight_data.get('CommercialFlightNumber', ''),
-                            'origin': flight_data.get('OriginAirportIATACode', '').strip() or '',
-                            'destination': flight_data.get('FinalAirportIATACode', '').strip() or '',
-                            'departure_stand': flight_data.get('DepartureStand', '').strip() or '',
+                            'origin': flight_data.get('OriginAirportIATACode', '').strip() if flight_data.get('OriginAirportIATACode') else '',
+                            'destination': flight_data.get('FinalAirportIATACode', '').strip() if flight_data.get('FinalAirportIATACode') else '',
+                            'departure_stand': flight_data.get('DepartureStand', '').strip() if flight_data.get('DepartureStand') else '',
                             'departure_time': flight_data.get('ScheduledDepartureDate', '')[11:16] if flight_data.get('ScheduledDepartureDate') else 'N/A',
                             'arrival_time': flight_data.get('ScheduledArrivalDate', '')[11:16] if flight_data.get('ScheduledArrivalDate') else 'N/A',
                             'time_advanced': flight_data.get('TimeAdvanced', False),
                             'time_delayed': flight_data.get('TimeDelayed', False),
-                            'aircraft_registration': assignment.get('AircraftRegistrationNumber', '').strip() or ''
+                            'aircraft_registration': assignment.get('AircraftRegistrationNumber', '').strip() if assignment.get('AircraftRegistrationNumber') else ''
                         })
                     else:
                         assignments.append({
                             'is_flight': False,
-                            'activity_code': assignment.get('ActivityCode', '').strip() or 'DUTY',
+                            'activity_code': assignment.get('ActivityCode', '').strip() if assignment.get('ActivityCode') else 'DUTY',
                             'start_time': assignment.get('StartDateLocal', '')[11:16] if assignment.get('StartDateLocal') else 'N/A',
                             'end_time': assignment.get('EndDateLocal', '')[11:16] if assignment.get('EndDateLocal') else 'N/A'
                         })
@@ -260,7 +260,7 @@ def create_calendar_view_data(month_data):
         calendar_days.append(calendar_day)
     
     return calendar_days
-
+    
 # Global variables
 client = CrewAPIClient()
 schedule_data = None

@@ -126,7 +126,7 @@ class CrewAPIClient:
                 last_day_of_current = (datetime(now.year + 1, 1, 1) if now.month == 12 
                                      else datetime(now.year, now.month + 1, 1)) - timedelta(days=1)
                 start_date = last_day_of_current
-                change_days = (last_day - last_day_of_current).days
+                change_days = (last_day - last_day_of_current).days + 1
                 logger.info(f"🔮 Future month detected: starting from {start_date.date()}, changeDays: {change_days}")
             else:
                 # CURRENT OR PAST MONTH: Start from first day of requested month

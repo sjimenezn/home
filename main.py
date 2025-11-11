@@ -105,77 +105,77 @@ class CrewAPIClient:
             return None
 
     def get_assignments_by_user(self, crew_id=None, year=None, month=None):
-    """Get assignments for specific month (for calendar view)"""
-    try:
-        target_crew_id = crew_id or current_crew_id
-        now = datetime.now()
-        year = year or now.year
-        month = month or now.month
-        
-        # Calculate month range
-        first_day = datetime(year, month, 1)
-        last_day = (datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)) - timedelta(days=1)
-        days_in_month = (last_day - first_day).days + 1
-        
-        # Determine if we're requesting a future month
-        current_month = datetime(now.year, now.month, 1)
-        requested_month = datetime(year, month, 1)
-        
-        if requested_month > current_month:
-            # FUTURE MONTH: Start from last day of current month
-            last_day_of_current = (datetime(now.year + 1, 1, 1) if now.month == 12 
-                                 else datetime(now.year, now.month + 1, 1)) - timedelta(days=1)
-            start_date = last_day_of_current
-            change_days = (last_day - last_day_of_current).days
-            logger.info(f"🔮 Future month detected: starting from {start_date.date()}, changeDays: {change_days}")
-        else:
-            # CURRENT OR PAST MONTH: Start from first day of requested month
-            start_date = first_day
-            change_days = days_in_month
-            logger.info(f"📅 Current/Past month: starting from {start_date.date()}, changeDays: {change_days}")
-        
-        logger.info(f"📅 Requesting data for {year}-{month:02d} (Days in month: {days_in_month}, First: {first_day.date()}, Last: {last_day.date()})")
-        
-        if not self._login():
-            return None
-        
-        url = f"{self.base_url}/Assignements/GetAssignementsByUser"
-        params = {
-            "date": start_date.strftime('%Y-%m-%dT00:00:00Z'),
-            "changeDays": change_days,
-            "crewMemberUniqueId": target_crew_id,
-            "holding": "AV",
-            "timeZoneOffset": "+300"
-        }
-        
-        logger.info(f"🌐 API Request: date={params['date']}, changeDays={params['changeDays']}")
-        
-        headers = {
-            "Authorization": self.auth_token,
-            "Ocp-Apim-Subscription-Key": self.subscription_key,
-            "Accept": "application/json",
-            "Origin": "https://mycrew.avianca.com", 
-            "Referer": "https://mycrew.avianca.com/",
-        }
-        
-        response = self.session.get(url, params=params, headers=headers, timeout=30)
-        if response.status_code == 200:
-            data = response.json()
+        """Get assignments for specific month (for calendar view)"""
+        try:
+            target_crew_id = crew_id or current_crew_id
+            now = datetime.now()
+            year = year or now.year
+            month = month or now.month
             
-            # Debug: Check what dates we actually received
-            if data:
-                dates_received = set()
-                for assignment in data[:5]:  # Check first 5 assignments
-                    if assignment and assignment.get('StartDate'):
-                        dates_received.add(assignment['StartDate'][:10])
-                logger.info(f"📊 Sample dates received: {sorted(dates_received)}")
+            # Calculate month range
+            first_day = datetime(year, month, 1)
+            last_day = (datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)) - timedelta(days=1)
+            days_in_month = (last_day - first_day).days + 1
             
-            logger.info(f"✅ Fetched {len(data)} assignments for {year}-{month:02d}")
-            return {'year': year, 'month': month, 'assignments': data}
+            # Determine if we're requesting a future month
+            current_month = datetime(now.year, now.month, 1)
+            requested_month = datetime(year, month, 1)
             
-    except Exception as e:
-        logger.error(f"❌ Error fetching assignments: {e}")
-    return None
+            if requested_month > current_month:
+                # FUTURE MONTH: Start from last day of current month
+                last_day_of_current = (datetime(now.year + 1, 1, 1) if now.month == 12 
+                                     else datetime(now.year, now.month + 1, 1)) - timedelta(days=1)
+                start_date = last_day_of_current
+                change_days = (last_day - last_day_of_current).days
+                logger.info(f"🔮 Future month detected: starting from {start_date.date()}, changeDays: {change_days}")
+            else:
+                # CURRENT OR PAST MONTH: Start from first day of requested month
+                start_date = first_day
+                change_days = days_in_month
+                logger.info(f"📅 Current/Past month: starting from {start_date.date()}, changeDays: {change_days}")
+            
+            logger.info(f"📅 Requesting data for {year}-{month:02d} (Days in month: {days_in_month}, First: {first_day.date()}, Last: {last_day.date()})")
+            
+            if not self._login():
+                return None
+            
+            url = f"{self.base_url}/Assignements/GetAssignementsByUser"
+            params = {
+                "date": start_date.strftime('%Y-%m-%dT00:00:00Z'),
+                "changeDays": change_days,
+                "crewMemberUniqueId": target_crew_id,
+                "holding": "AV",
+                "timeZoneOffset": "+300"
+            }
+            
+            logger.info(f"🌐 API Request: date={params['date']}, changeDays={params['changeDays']}")
+            
+            headers = {
+                "Authorization": self.auth_token,
+                "Ocp-Apim-Subscription-Key": self.subscription_key,
+                "Accept": "application/json",
+                "Origin": "https://mycrew.avianca.com", 
+                "Referer": "https://mycrew.avianca.com/",
+            }
+            
+            response = self.session.get(url, params=params, headers=headers, timeout=30)
+            if response.status_code == 200:
+                data = response.json()
+                
+                # Debug: Check what dates we actually received
+                if data:
+                    dates_received = set()
+                    for assignment in data[:5]:  # Check first 5 assignments
+                        if assignment and assignment.get('StartDate'):
+                            dates_received.add(assignment['StartDate'][:10])
+                    logger.info(f"📊 Sample dates received: {sorted(dates_received)}")
+                
+                logger.info(f"✅ Fetched {len(data)} assignments for {year}-{month:02d}")
+                return {'year': year, 'month': month, 'assignments': data}
+                
+        except Exception as e:
+            logger.error(f"❌ Error fetching assignments: {e}")
+        return None
     
     def download_schedule_pdf(self, crew_id, schedule_type="actual", month="", year=""):
         """Download schedule PDF"""
@@ -216,6 +216,24 @@ class CrewAPIClient:
         except Exception as e:
             logger.error(f"PDF download error: {e}")
         return None
+
+def create_empty_month_data(year, month):
+    """Create empty month structure when no data is available"""
+    first_day = datetime(year, month, 1)
+    last_day = (datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)) - timedelta(days=1)
+    
+    month_data = []
+    current_date = first_day
+    while current_date <= last_day:
+        date_str = current_date.strftime('%Y-%m-%d')
+        month_data.append({
+            'StartDate': date_str + 'T00:00:00Z',
+            'Dem': '',
+            'AssignementList': []
+        })
+        current_date += timedelta(days=1)
+    
+    return [month_data]
 
 def transform_assignments_to_calendar_data(assignments_data, year, month):
     """Transform assignments into calendar month structure"""
@@ -268,24 +286,6 @@ def transform_assignments_to_calendar_data(assignments_data, year, month):
     
     return [month_data]
 
-def create_empty_month_data(year, month):
-    """Create empty month structure when no data is available"""
-    first_day = datetime(year, month, 1)
-    last_day = (datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)) - timedelta(days=1)
-    
-    month_data = []
-    current_date = first_day
-    while current_date <= last_day:
-        date_str = current_date.strftime('%Y-%m-%d')
-        month_data.append({
-            'StartDate': date_str + 'T00:00:00Z',
-            'Dem': '',
-            'AssignementList': []
-        })
-        current_date += timedelta(days=1)
-    
-    return [month_data]
-    
 def create_calendar_view_data(month_data):
     """Convert month data to calendar grid format"""
     if not month_data or not isinstance(month_data, list):
@@ -361,15 +361,6 @@ def create_calendar_view_data(month_data):
     
     return calendar_days
 
-# Global variables
-client = CrewAPIClient()
-schedule_data = None
-last_fetch_time = None
-current_crew_id = DEFAULT_CREW_ID
-current_calendar_year = datetime.now().year
-current_calendar_month = datetime.now().month
-crew_names = load_crew_names()
-
 def get_month_name(year, month):
     return datetime(year, month, 1).strftime('%B %Y')
 
@@ -387,6 +378,15 @@ def get_month_name_from_data(month_data):
             except (ValueError, KeyError):
                 continue
     return "Unknown Month"
+
+# Global variables
+client = CrewAPIClient()
+schedule_data = None
+last_fetch_time = None
+current_crew_id = DEFAULT_CREW_ID
+current_calendar_year = datetime.now().year
+current_calendar_month = datetime.now().month
+crew_names = load_crew_names()
 
 @app.route('/')
 def index():
@@ -429,7 +429,7 @@ def index():
         total_assignments=total_assignments,
         refresh_message=refresh_message,
         current_crew_id=current_crew_id,
-        month_names=month_names,  # This was missing
+        month_names=month_names,
         current_date=current_date
     )
 

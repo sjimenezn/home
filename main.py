@@ -239,24 +239,39 @@ class CrewAPIClient:
 def transform_assignments_to_calendar_data(assignments_data, year, month):
     """Transform assignments into calendar month structure"""
     if not assignments_data or not isinstance(assignments_data, list):
-        return []
+        logger.warning(f"⚠️ No assignments data for {year}-{month:02d}")
+        # Return empty month structure
+        return create_empty_month_data(year, month)
     
     first_day = datetime(year, month, 1)
     last_day = (datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)) - timedelta(days=1)
     
     # Group assignments by day
     days_dict = {}
+    assignments_found = False
     for assignment in assignments_data:
         if assignment and assignment.get('StartDate'):
             try:
                 date_str = assignment['StartDate'][:10]
                 date_obj = datetime.strptime(date_str, '%Y-%m-%d')
                 if date_obj.year == year and date_obj.month == month:
+                    assignments_found = True
                     if date_str not in days_dict:
                         days_dict[date_str] = {'StartDate': assignment['StartDate'], 'Dem': '', 'AssignementList': []}
                     days_dict[date_str]['AssignementList'].append(assignment)
             except (ValueError, KeyError):
                 continue
+    
+    if not assignments_found:
+        logger.warning(f"⚠️ No assignments found for the requested month {year}-{month:02d}")
+        # Check what months we actually have data for
+        actual_months = set()
+        for assignment in assignments_data:
+            if assignment and assignment.get('StartDate'):
+                date_str = assignment['StartDate'][:7]  # YYYY-MM
+                actual_months.add(date_str)
+        if actual_months:
+            logger.info(f"📊 Actual months with data: {sorted(actual_months)}")
     
     # Create month data with all days
     month_data = []
@@ -272,6 +287,24 @@ def transform_assignments_to_calendar_data(assignments_data, year, month):
     
     return [month_data]
 
+def create_empty_month_data(year, month):
+    """Create empty month structure when no data is available"""
+    first_day = datetime(year, month, 1)
+    last_day = (datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)) - timedelta(days=1)
+    
+    month_data = []
+    current_date = first_day
+    while current_date <= last_day:
+        date_str = current_date.strftime('%Y-%m-%d')
+        month_data.append({
+            'StartDate': date_str + 'T00:00:00Z',
+            'Dem': '',
+            'AssignementList': []
+        })
+        current_date += timedelta(days=1)
+    
+    return [month_data]
+    
 def create_calendar_view_data(month_data):
     """Convert month data to calendar grid format"""
     if not month_data or not isinstance(month_data, list):
@@ -438,11 +471,22 @@ def calendar_view():
         )
         last_fetch_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
-        # Debug: Check what we're displaying
+        # Debug: Check what we're actually displaying
         if schedule_data and schedule_data[0]:
-            displayed_dates = [day['StartDate'][:7] for day in schedule_data[0] if day.get('StartDate')]
-            unique_months = set(displayed_dates)
-            logger.info(f"📅 Displaying data for months: {sorted(unique_months)}")
+            actual_dates = []
+            for day in schedule_data[0]:
+                if day and day.get('StartDate'):
+                    actual_dates.append(day['StartDate'][:7])  # Get YYYY-MM
+            unique_months = set(actual_dates)
+            logger.info(f"📅 ACTUAL data months: {sorted(unique_months)}")
+            logger.info(f"📅 REQUESTED month: {year}-{month:02d}")
+            
+            # Check if we got data for the requested month
+            requested_month = f"{year}-{month:02d}"
+            if requested_month not in unique_months and unique_months:
+                # We're not showing the requested month, log what we actually have
+                actual_month = sorted(unique_months)[0]
+                logger.warning(f"⚠️ No data for requested month {requested_month}, showing {actual_month} instead")
     
     month_name = get_month_name(year, month)
     month_calendars = [create_calendar_view_data(schedule_data[0])] if schedule_data else []
@@ -463,7 +507,7 @@ def calendar_view():
         total_assignments=total_assignments,
         refresh_message=refresh_message,
         current_crew_id=current_crew_id,
-        month_names=month_names,  # This was missing
+        month_names=month_names,
         month_calendars=month_calendars,
         current_date=datetime.now().strftime('%Y-%m-%d'),
         current_month_index=0,

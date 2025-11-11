@@ -105,97 +105,78 @@ class CrewAPIClient:
             return None
 
     def get_assignments_by_user(self, crew_id=None, year=None, month=None):
-        """Get assignments for specific month (for calendar view)"""
-        try:
-            target_crew_id = crew_id or current_crew_id
-            now = datetime.now()
-            year = year or now.year
-            month = month or now.month
+    """Get assignments for specific month (for calendar view)"""
+    try:
+        target_crew_id = crew_id or current_crew_id
+        now = datetime.now()
+        year = year or now.year
+        month = month or now.month
+        
+        # Calculate month range
+        first_day = datetime(year, month, 1)
+        last_day = (datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)) - timedelta(days=1)
+        days_in_month = (last_day - first_day).days + 1
+        
+        # Determine if we're requesting a future month
+        current_month = datetime(now.year, now.month, 1)
+        requested_month = datetime(year, month, 1)
+        
+        if requested_month > current_month:
+            # FUTURE MONTH: Start from last day of current month
+            last_day_of_current = (datetime(now.year + 1, 1, 1) if now.month == 12 
+                                 else datetime(now.year, now.month + 1, 1)) - timedelta(days=1)
+            start_date = last_day_of_current
+            change_days = (last_day - last_day_of_current).days
+            logger.info(f"🔮 Future month detected: starting from {start_date.date()}, changeDays: {change_days}")
+        else:
+            # CURRENT OR PAST MONTH: Start from first day of requested month
+            start_date = first_day
+            change_days = days_in_month
+            logger.info(f"📅 Current/Past month: starting from {start_date.date()}, changeDays: {change_days}")
+        
+        logger.info(f"📅 Requesting data for {year}-{month:02d} (Days in month: {days_in_month}, First: {first_day.date()}, Last: {last_day.date()})")
+        
+        if not self._login():
+            return None
+        
+        url = f"{self.base_url}/Assignements/GetAssignementsByUser"
+        params = {
+            "date": start_date.strftime('%Y-%m-%dT00:00:00Z'),
+            "changeDays": change_days,
+            "crewMemberUniqueId": target_crew_id,
+            "holding": "AV",
+            "timeZoneOffset": "+300"
+        }
+        
+        logger.info(f"🌐 API Request: date={params['date']}, changeDays={params['changeDays']}")
+        
+        headers = {
+            "Authorization": self.auth_token,
+            "Ocp-Apim-Subscription-Key": self.subscription_key,
+            "Accept": "application/json",
+            "Origin": "https://mycrew.avianca.com", 
+            "Referer": "https://mycrew.avianca.com/",
+        }
+        
+        response = self.session.get(url, params=params, headers=headers, timeout=30)
+        if response.status_code == 200:
+            data = response.json()
             
-            # Calculate month range
-            first_day = datetime(year, month, 1)
-            last_day = (datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)) - timedelta(days=1)
-            days_in_month = (last_day - first_day).days + 1
+            # Debug: Check what dates we actually received
+            if data:
+                dates_received = set()
+                for assignment in data[:5]:  # Check first 5 assignments
+                    if assignment and assignment.get('StartDate'):
+                        dates_received.add(assignment['StartDate'][:10])
+                logger.info(f"📊 Sample dates received: {sorted(dates_received)}")
             
-            logger.info(f"📅 Requesting data for {year}-{month:02d} (Days: {days_in_month}, First: {first_day.date()}, Last: {last_day.date()})")
+            logger.info(f"✅ Fetched {len(data)} assignments for {year}-{month:02d}")
+            return {'year': year, 'month': month, 'assignments': data}
             
-            if not self._login():
-                return None
-            
-            url = f"{self.base_url}/Assignements/GetAssignementsByUser"
-            params = {
-                "date": first_day.strftime('%Y-%m-%dT00:00:00Z'),
-                "changeDays": days_in_month,
-                "crewMemberUniqueId": target_crew_id,
-                "holding": "AV",
-                "timeZoneOffset": "+300"
-            }
-            
-            logger.info(f"🌐 API Request: date={params['date']}, changeDays={params['changeDays']}")
-            
-            headers = {
-                "Authorization": self.auth_token,
-                "Ocp-Apim-Subscription-Key": self.subscription_key,
-                "Accept": "application/json",
-                "Origin": "https://mycrew.avianca.com", 
-                "Referer": "https://mycrew.avianca.com/",
-            }
-            
-            response = self.session.get(url, params=params, headers=headers, timeout=30)
-            if response.status_code == 200:
-                data = response.json()
-                
-                # DEBUG: Check what aircraft-related fields are available
-                logger.info("🔍 DEBUG - Checking for aircraft data in assignments:")
-                if data and len(data) > 0:
-                    # Check first 2 flight assignments (skip XXX flights)
-                    flight_assignments = [a for a in data if a.get('FlighAssignement', {}).get('CommercialFlightNumber') != 'XXX']
-                    for i, assignment in enumerate(flight_assignments[:2]):  # Check first 2 real flight assignments
-                        if assignment:
-                            logger.info(f"--- Assignment {i} ---")
-                            logger.info(f"All keys: {list(assignment.keys())}")
-                            
-                            # Check for any aircraft-related fields in main assignment
-                            aircraft_fields = [k for k in assignment.keys() if any(word in k.lower() for word in ['aircraft', 'registration', 'tail', 'fleet', 'equip'])]
-                            if aircraft_fields:
-                                logger.info(f"Aircraft fields in assignment: {aircraft_fields}")
-                                for field in aircraft_fields:
-                                    logger.info(f"  {field}: {assignment.get(field)}")
-                            
-                            # Also check inside FlighAssignement object
-                            flight_data = assignment.get('FlighAssignement', {})
-                            if flight_data:
-                                flight_aircraft_fields = [k for k in flight_data.keys() if any(word in k.lower() for word in ['aircraft', 'registration', 'tail', 'fleet', 'equip'])]
-                                if flight_aircraft_fields:
-                                    logger.info(f"Aircraft fields in FlighAssignement: {flight_aircraft_fields}")
-                                    for field in flight_aircraft_fields:
-                                        logger.info(f"  {field}: {flight_data.get(field)}")
-                            
-                            # Check if there are any other nested objects
-                            nested_objects = {k: v for k, v in assignment.items() if isinstance(v, dict) and k != 'FlighAssignement'}
-                            if nested_objects:
-                                logger.info(f"Other nested objects: {list(nested_objects.keys())}")
-                                for obj_name, obj_data in nested_objects.items():
-                                    obj_aircraft_fields = [k for k in obj_data.keys() if any(word in k.lower() for word in ['aircraft', 'registration', 'tail', 'fleet', 'equip'])]
-                                    if obj_aircraft_fields:
-                                        logger.info(f"Aircraft fields in {obj_name}: {obj_aircraft_fields}")
-                                        for field in obj_aircraft_fields:
-                                            logger.info(f"  {field}: {obj_data.get(field)}")
-                
-                # Debug: Check what dates we actually received
-                if data:
-                    dates_received = set()
-                    for assignment in data[:5]:  # Check first 5 assignments
-                        if assignment and assignment.get('StartDate'):
-                            dates_received.add(assignment['StartDate'][:10])
-                    logger.info(f"📊 Sample dates received: {sorted(dates_received)}")
-                
-                logger.info(f"✅ Fetched {len(data)} assignments for {year}-{month:02d}")
-                return {'year': year, 'month': month, 'assignments': data}
-                
-        except Exception as e:
-            logger.error(f"❌ Error fetching assignments: {e}")
-        return None
+    except Exception as e:
+        logger.error(f"❌ Error fetching assignments: {e}")
+    return None
+    
     def download_schedule_pdf(self, crew_id, schedule_type="actual", month="", year=""):
         """Download schedule PDF"""
         try:

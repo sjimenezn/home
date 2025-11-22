@@ -442,6 +442,12 @@
             color: #ba68c8;
         }
 
+        /* Previous Flight Styling */
+        .previous-flight-number {
+            color: #b0b0b0 !important; /* Light grey */
+            font-size: 1.6em;
+        }
+
         @media (max-width: 768px) {
             body {
                 margin: 5px;
@@ -575,6 +581,13 @@
                         });
                     }, 100);
                     
+                    // Automatically load previous flight if available
+                    if (result.flight_details.PreviousFlight) {
+                        setTimeout(() => {
+                            loadPreviousFlight(result.flight_details.PreviousFlight);
+                        }, 500);
+                    }
+                    
                     setTimeout(() => {
                         loadCrewMembers();
                     }, 500);
@@ -671,9 +684,11 @@
                 statusClass = 'status-delayed';
             }
 
+            // Extract time directly from API strings without conversion
             function formatTime(dateString) {
                 if (!dateString) return 'N/A';
-                return new Date(dateString).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                // Extract HH:MM directly from the string (assumes format "YYYY-MM-DDTHH:MM:SS")
+                return dateString.slice(11, 16);
             }
 
             function formatDuration(minutes) {
@@ -715,9 +730,11 @@
 
                     ${flight.PreviousFlight ? `
                     <div class="content-section-title" onclick="loadPreviousFlight(${JSON.stringify(flight.PreviousFlight).replace(/"/g, '&quot;')})">
-                        Previous Flight - Click to Load
+                        Previous Flight
                     </div>
-                    <div id="previousFlightSection"></div>
+                    <div id="previousFlightSection">
+                        <div class="loading">Loading previous flight...</div>
+                    </div>
                     ` : '<div class="content-section-title">Previous Flight</div><div class="detail-item"><span class="detail-value">No previous flight data available</span></div>'}
 
                     <div id="crewSection"></div>
@@ -779,9 +796,11 @@
         function displayPreviousFlightDetails(flight) {
             const previousFlightSection = document.getElementById('previousFlightSection');
             
+            // Extract time directly from API strings without conversion
             function formatTime(dateString) {
                 if (!dateString) return 'N/A';
-                return new Date(dateString).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                // Extract HH:MM directly from the string (assumes format "YYYY-MM-DDTHH:MM:SS")
+                return dateString.slice(11, 16);
             }
 
             function formatDuration(minutes) {
@@ -794,10 +813,10 @@
             const html = `
                 <div class="flight-header">
                     <div class="flight-number-line">
-                        <div class="flight-number-large">
+                        <div class="previous-flight-number">
                             ${flight.Flight?.Airline || 'AV'}${flight.Flight?.CommercialFlightNumber || 'N/A'}
                         </div>
-                        <div class="tail-number">${flight.AircraftRegistrationNumber || 'N/A'}</div>
+                        <!-- Removed tail number since it's the same aircraft -->
                     </div>
                     
                     <div class="route-line">

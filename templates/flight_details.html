@@ -257,6 +257,17 @@
             border-bottom: 1px solid #444;
             padding-bottom: 4px;
             font-weight: 600;
+            cursor: pointer;
+            transition: color 0.2s ease;
+        }
+
+        .content-section-title:hover {
+            color: #ffc107;
+        }
+
+        .content-section-title.loading {
+            color: #ffc107;
+            cursor: default;
         }
 
         .detail-grid {
@@ -431,22 +442,6 @@
             color: #ba68c8;
         }
 
-        /* Raw Data Display */
-        .raw-data {
-            background: #1a1a1a;
-            border: 1px solid #444;
-            border-radius: 4px;
-            padding: 10px;
-            margin: 10px 0;
-            font-family: monospace;
-            font-size: 0.65em;
-            color: #90caf9;
-            max-height: 300px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-            word-break: break-all;
-        }
-
         @media (max-width: 768px) {
             body {
                 margin: 5px;
@@ -615,6 +610,56 @@
             }
         }
 
+        async function loadPreviousFlight(previousFlightData) {
+            if (!previousFlightData) return;
+
+            const previousFlightSection = document.getElementById('previousFlightSection');
+            const title = document.querySelector('.content-section-title[onclick]');
+            
+            // Show loading state
+            title.classList.add('loading');
+            title.textContent = 'Previous Flight - Loading...';
+
+            try {
+                // Extract flight number from previous flight data
+                const flightNumber = previousFlightData.Prv_commercialFlightNumber;
+                const airline = previousFlightData.Prv_airline || 'AV';
+                const departureDate = new Date(previousFlightData.Prv_departureDateUTC);
+                const dateString = departureDate.toISOString().split('T')[0];
+                const originAirport = previousFlightData.Prv_departureAirportIATACode;
+
+                const searchData = {
+                    airline: airline,
+                    flight_number: flightNumber,
+                    departure_date: dateString + 'T00:00:00Z',
+                    origin_airport: originAirport,
+                    operational_number: '42307372'
+                };
+
+                const response = await fetch('/api/flight_details', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(searchData)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    displayPreviousFlightDetails(result.flight_details);
+                    title.textContent = 'Previous Flight';
+                } else {
+                    showError('Failed to load previous flight: ' + (result.error || 'Unknown error'));
+                    title.textContent = 'Previous Flight - Click to retry';
+                }
+
+            } catch (error) {
+                showError('Network error loading previous flight: ' + error.message);
+                title.textContent = 'Previous Flight - Click to retry';
+            } finally {
+                title.classList.remove('loading');
+            }
+        }
+
         function displayFlightDetails(flight) {
             const container = document.getElementById('flightDetails');
             
@@ -669,54 +714,10 @@
                     </div>
 
                     ${flight.PreviousFlight ? `
-                    <div class="content-section-title">Previous Flight</div>
-                    <div class="detail-grid">
-                        <div class="detail-item">
-                            <span class="detail-label">Flight:</span>
-                            <span class="detail-value">${flight.PreviousFlight.Prv_airline || ''}${flight.PreviousFlight.Prv_commercialFlightNumber || ''}</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Route:</span>
-                            <span class="detail-value">${flight.PreviousFlight.Prv_departureAirportIATACode || 'N/A'} → ${flight.PreviousFlight.Prv_arrivalAirportIATACode || 'N/A'}</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Departure:</span>
-                            <span class="detail-value">${new Date(flight.PreviousFlight.Prv_departureDateUTC).toLocaleString()}</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Arrival:</span>
-                            <span class="detail-value">${flight.PreviousFlight.Prv_arrivalDateUTC ? new Date(flight.PreviousFlight.Prv_arrivalDateUTC).toLocaleString() : 'N/A'}</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Aircraft:</span>
-                            <span class="detail-value">${flight.PreviousFlight.Prv_aircraftRegistration || 'N/A'}</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Status:</span>
-                            <span class="detail-value">${flight.PreviousFlight.Prv_status || 'N/A'}</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Operational Number:</span>
-                            <span class="detail-value">${flight.PreviousFlight.Prv_operationalNumber || 'N/A'}</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Service Type:</span>
-                            <span class="detail-value">${flight.PreviousFlight.Prv_serviceType || 'N/A'}</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Duration:</span>
-                            <span class="detail-value">${flight.PreviousFlight.Prv_duration || 'N/A'} minutes</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Scheduled Duration:</span>
-                            <span class="detail-value">${flight.PreviousFlight.Prv_scheduledDuration || 'N/A'} minutes</span>
-                        </div>
+                    <div class="content-section-title" onclick="loadPreviousFlight(${JSON.stringify(flight.PreviousFlight).replace(/"/g, '&quot;')})">
+                        Previous Flight - Click to Load
                     </div>
-
-                    <div class="content-section-title">Previous Flight - Raw Data</div>
-                    <div class="raw-data">
-${JSON.stringify(flight.PreviousFlight, null, 2)}
-                    </div>
+                    <div id="previousFlightSection"></div>
                     ` : '<div class="content-section-title">Previous Flight</div><div class="detail-item"><span class="detail-value">No previous flight data available</span></div>'}
 
                     <div id="crewSection"></div>
@@ -773,6 +774,52 @@ ${JSON.stringify(flight.PreviousFlight, null, 2)}
             `;
 
             container.innerHTML = html;
+        }
+
+        function displayPreviousFlightDetails(flight) {
+            const previousFlightSection = document.getElementById('previousFlightSection');
+            
+            function formatTime(dateString) {
+                if (!dateString) return 'N/A';
+                return new Date(dateString).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            }
+
+            function formatDuration(minutes) {
+                if (!minutes) return '';
+                const hours = Math.floor(minutes / 60);
+                const mins = minutes % 60;
+                return `(${hours}h ${mins}m)`;
+            }
+
+            const html = `
+                <div class="flight-header">
+                    <div class="flight-number-line">
+                        <div class="flight-number-large">
+                            ${flight.Flight?.Airline || 'AV'}${flight.Flight?.CommercialFlightNumber || 'N/A'}
+                        </div>
+                        <div class="tail-number">${flight.AircraftRegistrationNumber || 'N/A'}</div>
+                    </div>
+                    
+                    <div class="route-line">
+                        ${flight.Flight?.OriginAirportIATACode || 'N/A'} → ${flight.Flight?.FinalAirportIATACode || 'N/A'}
+                    </div>
+                    
+                    <div class="time-comparison">
+                        <div class="time-line">
+                            <span class="time-label">Scheduled:</span>
+                            <span class="time-value">${formatTime(flight.Flight?.ScheduleDepartureDateUTC)} - ${formatTime(flight.Flight?.ScheduleArrivalDateUTC)}</span>
+                            <span class="duration">${formatDuration(flight.Flight?.ScheduledDuration)}</span>
+                        </div>
+                        <div class="time-line">
+                            <span class="time-label">Actual:</span>
+                            <span class="time-value">${formatTime(flight.Flight?.DepartureDateUTC)} - ${formatTime(flight.Flight?.ArrivalDateUTC)}</span>
+                            <span class="duration">${formatDuration(flight.Flight?.Duration)}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            previousFlightSection.innerHTML = html;
         }
 
         function displayCrewMembers(crewData) {

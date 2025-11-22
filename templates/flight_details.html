@@ -95,26 +95,6 @@
             background: #2a2a2a;
         }
 
-        .btn {
-            background: #555;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 4px;
-            font-size: 0.8em;
-            font-weight: 600;
-            cursor: pointer;
-        }
-
-        .btn:hover {
-            background: #666;
-        }
-
-        .btn:disabled {
-            background: #444;
-            cursor: not-allowed;
-        }
-
         .loading {
             text-align: center;
             padding: 10px;
@@ -130,7 +110,7 @@
             border: 1px solid #444;
         }
 
-        /* NEW: 2x2 grid layout */
+        /* Search form layout - simple 2x2 grid */
         .search-form-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -149,16 +129,40 @@
             background: #555;
             color: white;
             border: none;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: 600;
+            cursor: pointer;
+            height: 36px;
+            width: 60px;
+            flex-shrink: 0;
+        }
+
+        .clear-origin-btn:hover {
+            background: #666;
+        }
+
+        .btn {
+            background: #555;
+            color: white;
+            border: none;
             padding: 10px 20px;
             border-radius: 4px;
             font-size: 0.8em;
             font-weight: 600;
             cursor: pointer;
             height: 36px;
+            flex-grow: 1;
         }
 
-        .clear-origin-btn:hover {
+        .btn:hover {
             background: #666;
+        }
+
+        .btn:disabled {
+            background: #444;
+            cursor: not-allowed;
         }
 
         /* Flight Header */
@@ -444,7 +448,7 @@
 
         /* Previous Flight Styling */
         .previous-flight-number {
-            color: #b0b0b0 !important; /* Light grey */
+            color: #b0b0b0 !important;
             font-size: 1.6em;
         }
 
@@ -455,15 +459,6 @@
             
             .container {
                 padding: 10px;
-            }
-            
-            .search-form-grid {
-                grid-template-columns: 1fr;
-                grid-template-rows: auto auto auto auto;
-            }
-            
-            .search-buttons {
-                justify-content: flex-start;
             }
             
             .flight-number-line {
@@ -617,7 +612,6 @@
             }
         });
 
-        // ... rest of the JavaScript remains the same ...
         async function loadCrewMembers() {
             if (!currentFlightData) return;
 

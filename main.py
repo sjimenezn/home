@@ -145,7 +145,7 @@ class CrewAPIClient:
                 "changeDays": change_days,
                 "crewMemberUniqueId": target_crew_id,
                 "holding": "AV",
-                "timeZoneOffset": "+300"
+                "timeZoneOffset": "-300"
             }
             
             logger.info(f"🌐 API Request: date={params['date']}, changeDays={params['changeDays']}")

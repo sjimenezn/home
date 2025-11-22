@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>FLIGHT SEARCH - Crew Schedule Monitor</title>
     <style>
         * {
@@ -17,6 +17,7 @@
             background: #121212;
             color: #f0f0f0;
             font-size: 0.7em;
+            touch-action: pan-x pan-y;
         }
 
         .container {
@@ -430,6 +431,22 @@
             color: #ba68c8;
         }
 
+        /* Raw Data Display */
+        .raw-data {
+            background: #1a1a1a;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 0.65em;
+            color: #90caf9;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
         @media (max-width: 768px) {
             body {
                 margin: 5px;
@@ -666,8 +683,41 @@
                             <span class="detail-label">Departure:</span>
                             <span class="detail-value">${new Date(flight.PreviousFlight.Prv_departureDateUTC).toLocaleString()}</span>
                         </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Arrival:</span>
+                            <span class="detail-value">${flight.PreviousFlight.Prv_arrivalDateUTC ? new Date(flight.PreviousFlight.Prv_arrivalDateUTC).toLocaleString() : 'N/A'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Aircraft:</span>
+                            <span class="detail-value">${flight.PreviousFlight.Prv_aircraftRegistration || 'N/A'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Status:</span>
+                            <span class="detail-value">${flight.PreviousFlight.Prv_status || 'N/A'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Operational Number:</span>
+                            <span class="detail-value">${flight.PreviousFlight.Prv_operationalNumber || 'N/A'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Service Type:</span>
+                            <span class="detail-value">${flight.PreviousFlight.Prv_serviceType || 'N/A'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Duration:</span>
+                            <span class="detail-value">${flight.PreviousFlight.Prv_duration || 'N/A'} minutes</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Scheduled Duration:</span>
+                            <span class="detail-value">${flight.PreviousFlight.Prv_scheduledDuration || 'N/A'} minutes</span>
+                        </div>
                     </div>
-                    ` : ''}
+
+                    <div class="content-section-title">Previous Flight - Raw Data</div>
+                    <div class="raw-data">
+${JSON.stringify(flight.PreviousFlight, null, 2)}
+                    </div>
+                    ` : '<div class="content-section-title">Previous Flight</div><div class="detail-item"><span class="detail-value">No previous flight data available</span></div>'}
 
                     <div id="crewSection"></div>
 
@@ -803,6 +853,23 @@
             errorDiv.textContent = message;
             errorDiv.classList.remove('hidden');
         }
+
+        // Prevent zooming with keyboard
+        document.addEventListener('keydown', function(e) {
+            if ((e.ctrlKey && (e.key === '+' || e.key === '-' || e.key === '=')) || 
+                (e.ctrlKey && e.key === '0') ||
+                (e.metaKey && (e.key === '+' || e.key === '-' || e.key === '=')) ||
+                (e.metaKey && e.key === '0')) {
+                e.preventDefault();
+            }
+        });
+
+        // Prevent zooming with wheel
+        document.addEventListener('wheel', function(e) {
+            if (e.ctrlKey) {
+                e.preventDefault();
+            }
+        }, { passive: false });
     </script>
 </body>
 </html>

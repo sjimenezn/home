@@ -715,12 +715,12 @@
                         <div class="time-comparison">
                             <div class="time-line">
                                 <span class="time-label">Scheduled:</span>
-                                <span class="time-value">${formatTime(flight.Flight?.ScheduleDepartureDateLocal || flight.Flight?.ScheduleDepartureDate)} - ${formatTime(flight.Flight?.ScheduleArrivalDateLocal || flight.Flight?.ScheduleArrivalDate)}</span>
+                                <span class="time-value">${formatTime(flight.Flight?.ScheduleDepartureDateLOCAL)} - ${formatTime(flight.Flight?.ScheduleArrivalDateLOCAL)}</span>
                                 <span class="duration">${formatDuration(flight.Flight?.ScheduledDuration)}</span>
                             </div>
                             <div class="time-line">
                                 <span class="time-label">Actual:</span>
-                                <span class="time-value">${formatTime(flight.Flight?.DepartureDateLocal || flight.Flight?.DepartureDate)} - ${formatTime(flight.Flight?.ArrivalDateLocal || flight.Flight?.ArrivalDate)}</span>
+                                <span class="time-value">${formatTime(flight.Flight?.DepartureDateLOCAL)} - ${formatTime(flight.Flight?.ArrivalDateLOCAL)}</span>
                                 <span class="duration">${formatDuration(flight.Flight?.Duration)}</span>
                             </div>
                         </div>
@@ -826,12 +826,12 @@
                     <div class="time-comparison">
                         <div class="time-line">
                             <span class="time-label">Scheduled:</span>
-                            <span class="time-value">${formatTime(flight.Flight?.ScheduleDepartureDateLocal || flight.Flight?.ScheduleDepartureDate)} - ${formatTime(flight.Flight?.ScheduleArrivalDateLocal || flight.Flight?.ScheduleArrivalDate)}</span>
+                            <span class="time-value">${formatTime(flight.Flight?.ScheduleDepartureDateLOCAL)} - ${formatTime(flight.Flight?.ScheduleArrivalDateLOCAL)}</span>
                             <span class="duration">${formatDuration(flight.Flight?.ScheduledDuration)}</span>
                         </div>
                         <div class="time-line">
                             <span class="time-label">Actual:</span>
-                            <span class="time-value">${formatTime(flight.Flight?.DepartureDateLocal || flight.Flight?.DepartureDate)} - ${formatTime(flight.Flight?.ArrivalDateLocal || flight.Flight?.ArrivalDate)}</span>
+                            <span class="time-value">${formatTime(flight.Flight?.DepartureDateLOCAL)} - ${formatTime(flight.Flight?.ArrivalDateLOCAL)}</span>
                             <span class="duration">${formatDuration(flight.Flight?.Duration)}</span>
                         </div>
                     </div>

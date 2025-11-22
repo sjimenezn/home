@@ -68,17 +68,9 @@
             margin-bottom: 10px;
         }
 
-        .search-form {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-
         .form-group {
             display: flex;
             flex-direction: column;
-            position: relative;
         }
 
         .form-group label {
@@ -101,27 +93,6 @@
             outline: none;
             border-color: #555;
             background: #2a2a2a;
-        }
-
-        .clear-button {
-            position: absolute;
-            right: 6px;
-            top: 22px;
-            background: #555;
-            color: #f0f0f0;
-            border: none;
-            border-radius: 50%;
-            width: 16px;
-            height: 16px;
-            font-size: 0.6em;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .clear-button:hover {
-            background: #666;
         }
 
         .btn {
@@ -159,32 +130,31 @@
             border: 1px solid #444;
         }
 
-        /* NEW: Search form layout styles */
+        /* NEW: 2x2 grid layout */
         .search-form-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr auto auto;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto auto;
             gap: 10px;
-            align-items: end;
             margin-bottom: 15px;
         }
 
         .search-buttons {
             display: flex;
             gap: 10px;
-            align-items: center;
+            align-items: end;
         }
 
         .clear-origin-btn {
             background: #555;
             color: white;
             border: none;
-            padding: 10px 15px;
+            padding: 10px 20px;
             border-radius: 4px;
             font-size: 0.8em;
             font-weight: 600;
             cursor: pointer;
             height: 36px;
-            white-space: nowrap;
         }
 
         .clear-origin-btn:hover {
@@ -489,6 +459,7 @@
             
             .search-form-grid {
                 grid-template-columns: 1fr;
+                grid-template-rows: auto auto auto auto;
             }
             
             .search-buttons {
@@ -530,24 +501,27 @@
         <div class="content-section">
             <form id="flightSearchForm">
                 <div class="search-form-grid">
+                    <!-- COLUMN 1, ROW 1: Flight Number -->
                     <div class="form-group">
                         <label for="flight_number">Flight Number *</label>
                         <input type="text" id="flight_number" name="flight_number" required placeholder="e.g., 210">
                     </div>
 
+                    <!-- COLUMN 2, ROW 1: Departure Date -->
                     <div class="form-group">
                         <label for="departure_date">Departure Date *</label>
                         <input type="date" id="departure_date" name="departure_date" required>
                     </div>
 
+                    <!-- COLUMN 1, ROW 2: Origin Airport -->
                     <div class="form-group">
                         <label for="origin_airport">Origin Airport (IATA) *</label>
                         <input type="text" id="origin_airport" name="origin_airport" required value="BOG" maxlength="3">
                     </div>
 
-                    <button type="button" class="clear-origin-btn" onclick="clearOriginAirport()">Clear</button>
-
+                    <!-- COLUMN 2, ROW 2: Clear and Search Buttons -->
                     <div class="search-buttons">
+                        <button type="button" class="clear-origin-btn" onclick="clearOriginAirport()">Clear</button>
                         <button type="submit" class="btn" id="searchBtn">
                             Search Flight
                         </button>
@@ -643,6 +617,7 @@
             }
         });
 
+        // ... rest of the JavaScript remains the same ...
         async function loadCrewMembers() {
             if (!currentFlightData) return;
 

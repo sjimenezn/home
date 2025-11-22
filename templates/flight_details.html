@@ -638,12 +638,12 @@
                         <div class="time-comparison">
                             <div class="time-line">
                                 <span class="time-label">Scheduled:</span>
-                                <span class="time-value">${formatTime(flight.Flight?.ScheduleDepartureDateLOCAL)} - ${formatTime(flight.Flight?.ScheduleArrivalDateLOCAL)}</span>
+                                <span class="time-value">${formatTime(flight.Flight?.ScheduleDepartureDateUTC)} - ${formatTime(flight.Flight?.ScheduleArrivalDateUTC)}</span>
                                 <span class="duration">${formatDuration(flight.Flight?.ScheduledDuration)}</span>
                             </div>
                             <div class="time-line">
                                 <span class="time-label">Actual:</span>
-                                <span class="time-value">${formatTime(flight.Flight?.DepartureDateLOCAL)} - ${formatTime(flight.Flight?.ArrivalDateLOCAL)}</span>
+                                <span class="time-value">${formatTime(flight.Flight?.DepartureDateUTC)} - ${formatTime(flight.Flight?.ArrivalDateUTC)}</span>
                                 <span class="duration">${formatDuration(flight.Flight?.Duration)}</span>
                             </div>
                         </div>
@@ -664,7 +664,7 @@
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Departure:</span>
-                            <span class="detail-value">${new Date(flight.PreviousFlight.Prv_departureDateLOCAL || flight.PreviousFlight.Prv_departureDateUTC).toLocaleString()}</span>
+                            <span class="detail-value">${new Date(flight.PreviousFlight.Prv_departureDateUTC).toLocaleString()}</span>
                         </div>
                     </div>
                     ` : ''}

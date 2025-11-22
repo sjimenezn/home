@@ -634,11 +634,12 @@
             title.textContent = 'Previous Flight - Loading...';
 
             try {
-                // Extract flight number from previous flight data
+                // Extract flight number from previous flight data - USING LOCAL DATE
                 const flightNumber = previousFlightData.Prv_commercialFlightNumber;
                 const airline = previousFlightData.Prv_airline || 'AV';
-                const departureDate = new Date(previousFlightData.Prv_departureDateUTC);
-                const dateString = departureDate.toISOString().split('T')[0];
+                // Use LOCAL date instead of UTC date
+                const departureDateLocal = previousFlightData.Prv_departureDateLOCAL;
+                const dateString = departureDateLocal.split('T')[0]; // Extract date part from local datetime
                 const originAirport = previousFlightData.Prv_departureAirportIATACode;
 
                 const searchData = {

@@ -165,8 +165,8 @@
             border: 1px solid #444;
         }
 
-        /* New Compact Flight Header */
-        .flight-header-compact {
+        /* Flight Header */
+        .flight-header {
             margin-bottom: 20px;
             padding-bottom: 15px;
             border-bottom: 1px solid #444;
@@ -176,7 +176,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 8px;
+            margin-bottom: 12px;
         }
 
         .flight-number-large {
@@ -186,7 +186,7 @@
         }
 
         .tail-number {
-            font-size: 1.4em;
+            font-size: 2em;
             color: #4fc3f7;
             font-weight: bold;
         }
@@ -195,13 +195,17 @@
             font-size: 1.6em;
             font-weight: bold;
             color: #f0f0f0;
-            margin-bottom: 8px;
+            margin-bottom: 12px;
             text-align: center;
+        }
+
+        .time-comparison {
+            margin-bottom: 12px;
         }
 
         .time-line {
             display: flex;
-            justify-content: space-between;
+            align-items: center;
             font-size: 1.2em;
             margin-bottom: 5px;
             color: #f0f0f0;
@@ -210,16 +214,19 @@
         .time-label {
             font-weight: bold;
             color: #b8b8d0;
+            width: 80px;
+            text-align: right;
+            margin-right: 15px;
         }
 
         .time-value {
             font-weight: bold;
+            margin-right: 10px;
         }
 
         .duration {
             color: #81c784;
             font-size: 0.9em;
-            margin-left: 10px;
         }
 
         .flight-status {
@@ -229,7 +236,6 @@
             text-transform: uppercase;
             font-size: 0.8em;
             display: inline-block;
-            margin-top: 8px;
         }
 
         .status-arrived {
@@ -254,21 +260,26 @@
             gap: 15px;
         }
 
-        .detail-card {
+        .detail-section {
             background: #2a2a2a;
             padding: 15px;
             border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
             border: 1px solid #444;
         }
 
-        .detail-card h3 {
+        .detail-section h3 {
             color: #f0f0f0;
             margin-bottom: 12px;
             font-size: 1em;
             border-bottom: 1px solid #444;
             padding-bottom: 6px;
             font-weight: 600;
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 10px;
         }
 
         .detail-item {
@@ -352,11 +363,7 @@
             display: none;
         }
 
-        /* Crew Members Styles - Compact with expandable details */
-        .crew-section {
-            margin-top: 20px;
-        }
-
+        /* Crew Members Styles */
         .crew-list {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -450,9 +457,8 @@
                 gap: 8px;
             }
             
-            .time-line {
-                flex-direction: column;
-                gap: 5px;
+            .detail-grid {
+                grid-template-columns: 1fr;
             }
             
             .crew-list {
@@ -509,19 +515,6 @@
             <!-- Results Section -->
             <div id="resultsSection" class="hidden">
                 <div id="flightDetails"></div>
-                
-                <!-- Crew Members Section - Auto-loaded and compact -->
-                <div id="crewSection" class="crew-section">
-                    <div id="crewLoading" class="loading hidden">
-                        <div>Loading crew information...</div>
-                    </div>
-                    
-                    <div id="crewResults">
-                        <div id="crewMembers" class="crew-list"></div>
-                    </div>
-                    
-                    <div id="crewErrorMessage" class="error-message hidden"></div>
-                </div>
             </div>
 
             <!-- Error Message -->
@@ -553,15 +546,10 @@
             const resultsSection = document.getElementById('resultsSection');
             const errorMessage = document.getElementById('errorMessage');
             const flightDetails = document.getElementById('flightDetails');
-            const crewSection = document.getElementById('crewSection');
-            const crewResults = document.getElementById('crewResults');
-            const crewErrorMessage = document.getElementById('crewErrorMessage');
 
             // Reset UI
             errorMessage.classList.add('hidden');
             resultsSection.classList.add('hidden');
-            crewResults.classList.add('hidden');
-            crewErrorMessage.classList.add('hidden');
             loading.classList.remove('hidden');
             searchBtn.disabled = true;
             searchBtn.textContent = 'Searching...';
@@ -617,19 +605,8 @@
         // Crew Members functionality - Auto-called
         async function loadCrewMembers() {
             if (!currentFlightData) {
-                showCrewError('No flight data available.');
                 return;
             }
-
-            const crewLoading = document.getElementById('crewLoading');
-            const crewResults = document.getElementById('crewResults');
-            const crewErrorMessage = document.getElementById('crewErrorMessage');
-            const crewMembers = document.getElementById('crewMembers');
-
-            // Reset UI
-            crewErrorMessage.classList.add('hidden');
-            crewResults.classList.add('hidden');
-            crewLoading.classList.remove('hidden');
 
             try {
                 const response = await fetch('/api/flight_crew', {
@@ -644,15 +621,10 @@
 
                 if (result.success) {
                     displayCrewMembers(result.crew_data);
-                    crewResults.classList.remove('hidden');
-                } else {
-                    showCrewError(result.error || 'Failed to fetch crew data');
                 }
 
             } catch (error) {
-                showCrewError('Network error: ' + error.message);
-            } finally {
-                crewLoading.classList.add('hidden');
+                console.error('Error loading crew members:', error);
             }
         }
 
@@ -676,7 +648,7 @@
 
             // Format duration
             function formatDuration(minutes) {
-                if (!minutes) return 'N/A';
+                if (!minutes) return '';
                 const hours = Math.floor(minutes / 60);
                 const mins = minutes % 60;
                 return `(${hours}h ${mins}m)`;
@@ -684,8 +656,8 @@
 
             const html = `
                 <div class="flight-details">
-                    <!-- Compact Flight Header -->
-                    <div class="flight-header-compact">
+                    <!-- Flight Header -->
+                    <div class="flight-header">
                         <div class="flight-number-line">
                             <div class="flight-number-large" id="flightNumberTop">
                                 ${flight.Flight?.Airline || 'AV'}${flight.Flight?.CommercialFlightNumber || 'N/A'}
@@ -697,16 +669,13 @@
                             ${flight.Flight?.OriginAirportIATACode || 'N/A'} → ${flight.Flight?.FinalAirportIATACode || 'N/A'}
                         </div>
                         
-                        <div class="time-line">
-                            <div>
+                        <div class="time-comparison">
+                            <div class="time-line">
                                 <span class="time-label">Scheduled:</span>
                                 <span class="time-value">${formatTime(flight.Flight?.ScheduleDepartureDateLOCAL)} - ${formatTime(flight.Flight?.ScheduleArrivalDateLOCAL)}</span>
                                 <span class="duration">${formatDuration(flight.Flight?.ScheduledDuration)}</span>
                             </div>
-                        </div>
-                        
-                        <div class="time-line">
-                            <div>
+                            <div class="time-line">
                                 <span class="time-label">Actual:</span>
                                 <span class="time-value">${formatTime(flight.Flight?.DepartureDateLOCAL)} - ${formatTime(flight.Flight?.ArrivalDateLOCAL)}</span>
                                 <span class="duration">${formatDuration(flight.Flight?.Duration)}</span>
@@ -716,46 +685,69 @@
                         <div class="flight-status ${statusClass}">${statusText}</div>
                     </div>
 
-                    <!-- Single Column Layout for All Other Details -->
+                    <!-- Single Column Layout for All Details -->
                     <div class="details-single-column">
+                        <!-- Previous Flight -->
+                        ${flight.PreviousFlight ? `
+                        <div class="detail-section">
+                            <h3>Previous Flight</h3>
+                            <div class="detail-grid">
+                                <div class="detail-item">
+                                    <span class="detail-label">Flight:</span>
+                                    <span class="detail-value">${flight.PreviousFlight.Prv_airline || ''}${flight.PreviousFlight.Prv_commercialFlightNumber || ''}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">Route:</span>
+                                    <span class="detail-value">${flight.PreviousFlight.Prv_departureAirportIATACode || 'N/A'} → ${flight.PreviousFlight.Prv_arrivalAirportIATACode || 'N/A'}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">Departure:</span>
+                                    <span class="detail-value">${new Date(flight.PreviousFlight.Prv_departureDateLOCAL || flight.PreviousFlight.Prv_departureDateUTC).toLocaleString()}</span>
+                                </div>
+                            </div>
+                        </div>
+                        ` : ''}
+
                         <!-- Crew Members will be inserted here by JavaScript -->
                         
-                        <!-- Additional Flight Information -->
-                        <div class="detail-card">
+                        <!-- Flight Details -->
+                        <div class="detail-section">
                             <h3>Flight Details</h3>
-                            <div class="detail-item">
-                                <span class="detail-label">Operational Number:</span>
-                                <span class="detail-value">${flight.Flight?.OperationalNumber || 'N/A'}</span>
-                            </div>
-                            <div class="detail-item">
-                                <span class="detail-label">Service Type:</span>
-                                <span class="detail-value">${flight.Flight?.Service_type || 'N/A'}</span>
-                            </div>
-                            <div class="detail-item">
-                                <span class="detail-label">Fleet Type:</span>
-                                <span class="detail-value">${flight.Fleet || 'N/A'}</span>
-                            </div>
-                            <div class="detail-item">
-                                <span class="detail-label">Departure Gate:</span>
-                                <span class="detail-value">${flight.DepartureGate || 'N/A'} ${flight.DepartureTerminal ? `(T${flight.DepartureTerminal})` : ''}</span>
-                            </div>
-                            <div class="detail-item">
-                                <span class="detail-label">Arrival Gate:</span>
-                                <span class="detail-value">${flight.ArrivalGate || 'N/A'} ${flight.ArrivalTerminal ? `(T${flight.ArrivalTerminal})` : ''}</span>
-                            </div>
-                            <div class="detail-item">
-                                <span class="detail-label">Time Advanced:</span>
-                                <span class="detail-value">${flight.Flight?.TimeAdvanced ? 'Yes' : 'No'}</span>
-                            </div>
-                            <div class="detail-item">
-                                <span class="detail-label">Time Delayed:</span>
-                                <span class="detail-value">${flight.Flight?.TimeDelayed ? 'Yes' : 'No'}</span>
+                            <div class="detail-grid">
+                                <div class="detail-item">
+                                    <span class="detail-label">Operational Number:</span>
+                                    <span class="detail-value">${flight.Flight?.OperationalNumber || 'N/A'}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">Service Type:</span>
+                                    <span class="detail-value">${flight.Flight?.Service_type || 'N/A'}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">Fleet Type:</span>
+                                    <span class="detail-value">${flight.Fleet || 'N/A'}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">Departure Gate:</span>
+                                    <span class="detail-value">${flight.DepartureGate || 'N/A'} ${flight.DepartureTerminal ? `(T${flight.DepartureTerminal})` : ''}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">Arrival Gate:</span>
+                                    <span class="detail-value">${flight.ArrivalGate || 'N/A'} ${flight.ArrivalTerminal ? `(T${flight.ArrivalTerminal})` : ''}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">Time Advanced:</span>
+                                    <span class="detail-value">${flight.Flight?.TimeAdvanced ? 'Yes' : 'No'}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">Time Delayed:</span>
+                                    <span class="detail-value">${flight.Flight?.TimeDelayed ? 'Yes' : 'No'}</span>
+                                </div>
                             </div>
                         </div>
 
                         <!-- MELs (Minimum Equipment List) -->
                         ${flight.MELs && flight.MELs.length > 0 ? `
-                        <div class="detail-card">
+                        <div class="detail-section">
                             <h3>Equipment Issues (MELs)</h3>
                             <ul class="mel-list">
                                 ${flight.MELs.map(mel => `
@@ -766,25 +758,6 @@
                                     </li>
                                 `).join('')}
                             </ul>
-                        </div>
-                        ` : ''}
-
-                        <!-- Previous Flight -->
-                        ${flight.PreviousFlight ? `
-                        <div class="detail-card">
-                            <h3>Previous Flight</h3>
-                            <div class="detail-item">
-                                <span class="detail-label">Flight:</span>
-                                <span class="detail-value">${flight.PreviousFlight.Prv_airline || ''}${flight.PreviousFlight.Prv_commercialFlightNumber || ''}</span>
-                            </div>
-                            <div class="detail-item">
-                                <span class="detail-label">Route:</span>
-                                <span class="detail-value">${flight.PreviousFlight.Prv_departureAirportIATACode || 'N/A'} → ${flight.PreviousFlight.Prv_arrivalAirportIATACode || 'N/A'}</span>
-                            </div>
-                            <div class="detail-item">
-                                <span class="detail-label">Departure:</span>
-                                <span class="detail-value">${new Date(flight.PreviousFlight.Prv_departureDateLOCAL || flight.PreviousFlight.Prv_departureDateUTC).toLocaleString()}</span>
-                            </div>
                         </div>
                         ` : ''}
 
@@ -800,86 +773,81 @@
         }
 
         function displayCrewMembers(crewData) {
+            if (!crewData.MembersTeamFlight || crewData.MembersTeamFlight.length === 0) {
+                return;
+            }
+
             const crewContainer = document.createElement('div');
-            crewContainer.className = 'detail-card';
+            crewContainer.className = 'detail-section';
             crewContainer.innerHTML = '<h3>Crew Members</h3>';
             
             const crewList = document.createElement('div');
             crewList.className = 'crew-list';
             
-            if (!crewData.MembersTeamFlight || crewData.MembersTeamFlight.length === 0) {
-                crewList.innerHTML = '<div class="error-message">No crew members found for this flight.</div>';
-            } else {
-                const crewMembers = crewData.MembersTeamFlight;
-                
-                const html = crewMembers.map((member, index) => {
-                    const position = member.Position || 'Unknown';
-                    const profile = member.Profile || {};
-                    
-                    // Determine card class based on position
-                    let cardClass = 'crew-member-compact crew-card';
-                    if (position.includes('CP')) cardClass += ' captain';
-                    else if (position.includes('FO')) cardClass += ' first-officer';
-                    else if (position.includes('FA')) cardClass += ' fa';
-                    else if (position.includes('DH')) cardClass += ' dh';
-                    
-                    // Format fleet/qualifications
-                    const fleet = profile.Qualifications ? profile.Qualifications.join(', ') : (profile.RawQualifications || 'N/A');
-                    
-                    return `
-                        <div class="${cardClass}" onclick="toggleCrewDetails(${index})">
-                            <div class="crew-name">${member.Names || ''} ${member.LastName || ''}</div>
-                            <div class="crew-position">${position}</div>
-                            <div class="crew-details-expanded" id="crew-details-${index}" style="display: none;">
-                                <div class="crew-detail-item">
-                                    <span>Crew ID:</span>
-                                    <span>${member.CrewMemberUniqueId || 'N/A'}</span>
-                                </div>
-                                <div class="crew-detail-item">
-                                    <span>Base:</span>
-                                    <span>${profile.Base || 'N/A'}</span>
-                                </div>
-                                <div class="crew-detail-item">
-                                    <span>Fleet:</span>
-                                    <span>${fleet}</span>
-                                </div>
-                                <div class="crew-detail-item">
-                                    <span>Seniority:</span>
-                                    <span>${profile.Superiority || 'N/A'}</span>
-                                </div>
-                                ${member.FlightRole ? `<div class="crew-role">${member.FlightRole}</div>` : ''}
-                                ${profile.TelephoneNumber ? `
-                                <div class="crew-detail-item">
-                                    <span>Phone:</span>
-                                    <span>${profile.TelephoneNumber}</span>
-                                </div>
-                                ` : ''}
-                                ${profile.CorporateEmail ? `
-                                <div class="crew-email">${profile.CorporateEmail}</div>
-                                ` : ''}
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-
-                crewList.innerHTML = html;
-                
-                // Also show messenger permissions if available
-                if (crewData.MessengerPermissions !== undefined) {
-                    const messengerInfo = document.createElement('div');
-                    messengerInfo.className = 'success-message';
-                    messengerInfo.style.marginTop = '12px';
-                    messengerInfo.innerHTML = `<strong>Messenger Permissions:</strong> ${crewData.MessengerPermissions ? 'Enabled' : 'Disabled'}`;
-                    crewList.appendChild(messengerInfo);
-                }
-            }
+            const crewMembers = crewData.MembersTeamFlight;
             
+            const html = crewMembers.map((member, index) => {
+                const position = member.Position || 'Unknown';
+                const profile = member.Profile || {};
+                
+                // Determine card class based on position
+                let cardClass = 'crew-member-compact crew-card';
+                if (position.includes('CP')) cardClass += ' captain';
+                else if (position.includes('FO')) cardClass += ' first-officer';
+                else if (position.includes('FA')) cardClass += ' fa';
+                else if (position.includes('DH')) cardClass += ' dh';
+                
+                // Format fleet/qualifications
+                const fleet = profile.Qualifications ? profile.Qualifications.join(', ') : (profile.RawQualifications || 'N/A');
+                
+                return `
+                    <div class="${cardClass}" onclick="toggleCrewDetails(${index})">
+                        <div class="crew-name">${member.Names || ''} ${member.LastName || ''}</div>
+                        <div class="crew-position">${position}</div>
+                        <div class="crew-details-expanded" id="crew-details-${index}" style="display: none;">
+                            <div class="crew-detail-item">
+                                <span>Crew ID:</span>
+                                <span>${member.CrewMemberUniqueId || 'N/A'}</span>
+                            </div>
+                            <div class="crew-detail-item">
+                                <span>Base:</span>
+                                <span>${profile.Base || 'N/A'}</span>
+                            </div>
+                            <div class="crew-detail-item">
+                                <span>Fleet:</span>
+                                <span>${fleet}</span>
+                            </div>
+                            <div class="crew-detail-item">
+                                <span>Seniority:</span>
+                                <span>${profile.Superiority || 'N/A'}</span>
+                            </div>
+                            ${member.FlightRole ? `<div class="crew-role">${member.FlightRole}</div>` : ''}
+                            ${profile.TelephoneNumber ? `
+                            <div class="crew-detail-item">
+                                <span>Phone:</span>
+                                <span>${profile.TelephoneNumber}</span>
+                            </div>
+                            ` : ''}
+                            ${profile.CorporateEmail ? `
+                            <div class="crew-email">${profile.CorporateEmail}</div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            crewList.innerHTML = html;
             crewContainer.appendChild(crewList);
             
-            // Insert crew section right after the flight header
-            const flightDetails = document.querySelector('.flight-details .details-single-column');
-            if (flightDetails) {
-                flightDetails.insertBefore(crewContainer, flightDetails.firstChild);
+            // Insert crew section right after the previous flight section
+            const detailsContainer = document.querySelector('.flight-details .details-single-column');
+            if (detailsContainer) {
+                const previousFlightSection = detailsContainer.querySelector('.detail-section:first-child');
+                if (previousFlightSection) {
+                    detailsContainer.insertBefore(crewContainer, previousFlightSection.nextSibling);
+                } else {
+                    detailsContainer.insertBefore(crewContainer, detailsContainer.firstChild);
+                }
             }
         }
 
@@ -895,12 +863,6 @@
                 details.style.display = 'none';
                 crewMember.classList.remove('expanded');
             }
-        }
-
-        function showCrewError(message) {
-            const errorDiv = document.getElementById('crewErrorMessage');
-            errorDiv.textContent = message;
-            errorDiv.classList.remove('hidden');
         }
 
         function showError(message) {

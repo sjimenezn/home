@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-My Crew Schedule Monitor - Optimized Version with Flight Details
+My Crew Schedule Monitor - Optimized Version with Flight Details and Crew Members
 """
 
 import os
@@ -226,6 +226,57 @@ class CrewAPIClient:
                 
         except Exception as e:
             logger.error(f"❌ Error fetching flight details: {e}")
+            return None
+
+    def get_flight_crew_members(self, airline, flight_number, departure_date, origin_airport, operational_number):
+        """
+        Get crew members for a specific flight
+        
+        Parameters:
+        - airline: e.g., "AV"
+        - flight_number: e.g., "0211"
+        - departure_date: e.g., "2025-10-01T15:24:00Z"
+        - origin_airport: e.g., "JFK"
+        - operational_number: e.g., "42307373"
+        """
+        try:
+            if not self._login():
+                return None
+            
+            # Construct the URL for crew members
+            url = f"{self.base_url}/FlightDetails/FlightMembersTeam/{airline}/{flight_number}/{departure_date}/{origin_airport}/{operational_number}"
+            
+            headers = {
+                "Authorization": self.auth_token,
+                "Ocp-Apim-Subscription-Key": self.subscription_key,
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "Origin": "https://mycrew.avianca.com",
+                "Referer": "https://mycrew.avianca.com/",
+            }
+            
+            # Request body as shown in your example
+            body = {
+                "commercialFlightNumber": flight_number,
+                "departureflightDate": departure_date,
+                "holding": airline,
+                "originAirportIATACode": operational_number
+            }
+            
+            logger.info(f"👥 Fetching crew members for: {airline}{flight_number} on {departure_date}")
+            
+            response = self.session.post(url, json=body, headers=headers, timeout=30)
+            
+            if response.status_code == 200:
+                crew_data = response.json()
+                logger.info(f"✅ Crew members fetched successfully for {airline}{flight_number}")
+                return crew_data
+            else:
+                logger.error(f"❌ Failed to fetch crew members: {response.status_code} - {response.text}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"❌ Error fetching crew members: {e}")
             return None
 
     def get_flight_details_from_assignment(self, assignment):
@@ -631,6 +682,51 @@ def get_flight_details_api():
             
     except Exception as e:
         logger.error(f"Error in flight details API: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/flight_crew', methods=['POST'])
+def get_flight_crew_api():
+    """API endpoint to get crew members for a flight"""
+    try:
+        data = request.get_json()
+        
+        # Required parameters
+        airline = data.get('airline', 'AV')
+        flight_number = data.get('flight_number')
+        departure_date = data.get('departure_date')
+        origin_airport = data.get('origin_airport')
+        operational_number = data.get('operational_number')
+        
+        if not all([flight_number, departure_date, origin_airport, operational_number]):
+            return jsonify({
+                'success': False,
+                'error': 'Missing required parameters: flight_number, departure_date, origin_airport, operational_number'
+            }), 400
+        
+        crew_data = client.get_flight_crew_members(
+            airline=airline,
+            flight_number=flight_number,
+            departure_date=departure_date,
+            origin_airport=origin_airport,
+            operational_number=operational_number
+        )
+        
+        if crew_data:
+            return jsonify({
+                'success': True,
+                'crew_data': crew_data
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to fetch crew data'
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Error in flight crew API: {e}")
         return jsonify({
             'success': False,
             'error': str(e)

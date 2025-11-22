@@ -684,10 +684,10 @@
                 statusClass = 'status-delayed';
             }
 
-            // Extract time directly from API strings without conversion
+            // Extract time from local time strings instead of UTC
             function formatTime(dateString) {
                 if (!dateString) return 'N/A';
-                // Extract HH:MM directly from the string (assumes format "YYYY-MM-DDTHH:MM:SS")
+                // Extract HH:MM directly from the local time string
                 return dateString.slice(11, 16);
             }
 
@@ -715,12 +715,12 @@
                         <div class="time-comparison">
                             <div class="time-line">
                                 <span class="time-label">Scheduled:</span>
-                                <span class="time-value">${formatTime(flight.Flight?.ScheduleDepartureDateUTC)} - ${formatTime(flight.Flight?.ScheduleArrivalDateUTC)}</span>
+                                <span class="time-value">${formatTime(flight.Flight?.ScheduleDepartureDateLocal || flight.Flight?.ScheduleDepartureDate)} - ${formatTime(flight.Flight?.ScheduleArrivalDateLocal || flight.Flight?.ScheduleArrivalDate)}</span>
                                 <span class="duration">${formatDuration(flight.Flight?.ScheduledDuration)}</span>
                             </div>
                             <div class="time-line">
                                 <span class="time-label">Actual:</span>
-                                <span class="time-value">${formatTime(flight.Flight?.DepartureDateUTC)} - ${formatTime(flight.Flight?.ArrivalDateUTC)}</span>
+                                <span class="time-value">${formatTime(flight.Flight?.DepartureDateLocal || flight.Flight?.DepartureDate)} - ${formatTime(flight.Flight?.ArrivalDateLocal || flight.Flight?.ArrivalDate)}</span>
                                 <span class="duration">${formatDuration(flight.Flight?.Duration)}</span>
                             </div>
                         </div>
@@ -796,10 +796,10 @@
         function displayPreviousFlightDetails(flight) {
             const previousFlightSection = document.getElementById('previousFlightSection');
             
-            // Extract time directly from API strings without conversion
+            // Extract time from local time strings instead of UTC
             function formatTime(dateString) {
                 if (!dateString) return 'N/A';
-                // Extract HH:MM directly from the string (assumes format "YYYY-MM-DDTHH:MM:SS")
+                // Extract HH:MM directly from the local time string
                 return dateString.slice(11, 16);
             }
 
@@ -826,12 +826,12 @@
                     <div class="time-comparison">
                         <div class="time-line">
                             <span class="time-label">Scheduled:</span>
-                            <span class="time-value">${formatTime(flight.Flight?.ScheduleDepartureDateUTC)} - ${formatTime(flight.Flight?.ScheduleArrivalDateUTC)}</span>
+                            <span class="time-value">${formatTime(flight.Flight?.ScheduleDepartureDateLocal || flight.Flight?.ScheduleDepartureDate)} - ${formatTime(flight.Flight?.ScheduleArrivalDateLocal || flight.Flight?.ScheduleArrivalDate)}</span>
                             <span class="duration">${formatDuration(flight.Flight?.ScheduledDuration)}</span>
                         </div>
                         <div class="time-line">
                             <span class="time-label">Actual:</span>
-                            <span class="time-value">${formatTime(flight.Flight?.DepartureDateUTC)} - ${formatTime(flight.Flight?.ArrivalDateUTC)}</span>
+                            <span class="time-value">${formatTime(flight.Flight?.DepartureDateLocal || flight.Flight?.DepartureDate)} - ${formatTime(flight.Flight?.ArrivalDateLocal || flight.Flight?.ArrivalDate)}</span>
                             <span class="duration">${formatDuration(flight.Flight?.Duration)}</span>
                         </div>
                     </div>

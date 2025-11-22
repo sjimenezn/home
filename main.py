@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-My Crew Schedule Monitor - Optimized Version
+My Crew Schedule Monitor - Optimized Version with Flight Details
 """
 
 import os
@@ -8,7 +8,7 @@ import time
 import logging
 import requests
 from datetime import datetime, timedelta
-from flask import Flask, render_template, request, send_file
+from flask import Flask, render_template, request, send_file, jsonify
 
 DEFAULT_CREW_ID = "32385184"
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -176,6 +176,91 @@ class CrewAPIClient:
         except Exception as e:
             logger.error(f"❌ Error fetching assignments: {e}")
         return None
+
+    def get_flight_details(self, airline, flight_number, departure_date, origin_airport, operational_number):
+        """
+        Get detailed flight information using the FlightDetails endpoint
+        
+        Parameters:
+        - airline: e.g., "AV"
+        - flight_number: e.g., "210"
+        - departure_date: e.g., "2025-10-01T06:57:00Z"
+        - origin_airport: e.g., "BOG"
+        - operational_number: e.g., "42307372"
+        """
+        try:
+            if not self._login():
+                return None
+            
+            # Construct the URL as shown in your example
+            url = f"{self.base_url}/FlightDetails/{airline}/{flight_number}/{departure_date}/{origin_airport}/{operational_number}"
+            
+            headers = {
+                "Authorization": self.auth_token,
+                "Ocp-Apim-Subscription-Key": self.subscription_key,
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "Origin": "https://mycrew.avianca.com",
+                "Referer": "https://mycrew.avianca.com/",
+            }
+            
+            # Request body as shown in your example
+            body = {
+                "holding": airline,
+                "commercialFlightNumber": flight_number,
+                "departureflightDate": departure_date,
+                "originAirportIATACode": origin_airport
+            }
+            
+            logger.info(f"🛫 Fetching flight details: {airline}{flight_number} on {departure_date}")
+            
+            response = self.session.post(url, json=body, headers=headers, timeout=30)
+            
+            if response.status_code == 200:
+                flight_data = response.json()
+                logger.info(f"✅ Flight details fetched successfully for {airline}{flight_number}")
+                return flight_data
+            else:
+                logger.error(f"❌ Failed to fetch flight details: {response.status_code} - {response.text}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"❌ Error fetching flight details: {e}")
+            return None
+
+    def get_flight_details_from_assignment(self, assignment):
+        """
+        Extract flight details from an assignment and fetch detailed flight info
+        
+        Parameters:
+        - assignment: A flight assignment dictionary from schedule data
+        """
+        try:
+            flight_assignment = assignment.get('FlighAssignement', {})
+            
+            # Extract required parameters from assignment
+            airline = flight_assignment.get('Airline', 'AV')
+            flight_number = flight_assignment.get('CommercialFlightNumber', '')
+            operational_number = flight_assignment.get('OperationalNumber', '')
+            departure_date_utc = flight_assignment.get('ScheduledDepartureDate', '')
+            origin_airport = flight_assignment.get('OriginAirportIATACode', '')
+            
+            # Validate required fields
+            if not all([flight_number, operational_number, departure_date_utc, origin_airport]):
+                logger.warning(f"⚠️ Missing required flight data in assignment: {flight_assignment}")
+                return None
+            
+            return self.get_flight_details(
+                airline=airline,
+                flight_number=flight_number,
+                departure_date=departure_date_utc,
+                origin_airport=origin_airport,
+                operational_number=operational_number
+            )
+            
+        except Exception as e:
+            logger.error(f"❌ Error extracting flight details from assignment: {e}")
+            return None
     
     def download_schedule_pdf(self, crew_id, schedule_type="actual", month="", year=""):
         """Download schedule PDF"""
@@ -330,7 +415,8 @@ def create_calendar_view_data(month_data):
                             'arrival_time': flight_data.get('ScheduledArrivalDate', '')[11:16] if flight_data.get('ScheduledArrivalDate') else 'N/A',
                             'time_advanced': flight_data.get('TimeAdvanced', False),
                             'time_delayed': flight_data.get('TimeDelayed', False),
-                            'aircraft_registration': assignment.get('AircraftRegistrationNumber', '').strip() if assignment.get('AircraftRegistrationNumber') else ''
+                            'aircraft_registration': assignment.get('AircraftRegistrationNumber', '').strip() if assignment.get('AircraftRegistrationNumber') else '',
+                            'operational_number': flight_data.get('OperationalNumber', '')  # Added for flight details
                         })
                     else:
                         assignments.append({
@@ -495,6 +581,93 @@ def calendar_view():
         current_calendar_year=current_calendar_year,
         current_calendar_month=current_calendar_month
     )
+
+# NEW: Flight Details Endpoints
+@app.route('/flight_details')
+def flight_details_page():
+    """Page to search for flight details"""
+    return render_template('flight_details.html',
+        current_crew_id=current_crew_id,
+        crew_names=crew_names
+    )
+
+@app.route('/api/flight_details', methods=['POST'])
+def get_flight_details_api():
+    """API endpoint to get flight details"""
+    try:
+        data = request.get_json()
+        
+        # Required parameters
+        airline = data.get('airline', 'AV')
+        flight_number = data.get('flight_number')
+        departure_date = data.get('departure_date')
+        origin_airport = data.get('origin_airport')
+        operational_number = data.get('operational_number')
+        
+        if not all([flight_number, departure_date, origin_airport, operational_number]):
+            return jsonify({
+                'success': False,
+                'error': 'Missing required parameters: flight_number, departure_date, origin_airport, operational_number'
+            }), 400
+        
+        flight_details = client.get_flight_details(
+            airline=airline,
+            flight_number=flight_number,
+            departure_date=departure_date,
+            origin_airport=origin_airport,
+            operational_number=operational_number
+        )
+        
+        if flight_details:
+            return jsonify({
+                'success': True,
+                'flight_details': flight_details
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to fetch flight details'
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Error in flight details API: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/flight_details_from_assignment', methods=['POST'])
+def get_flight_details_from_assignment_api():
+    """API endpoint to get flight details from assignment data"""
+    try:
+        data = request.get_json()
+        assignment = data.get('assignment')
+        
+        if not assignment:
+            return jsonify({
+                'success': False,
+                'error': 'No assignment data provided'
+            }), 400
+        
+        flight_details = client.get_flight_details_from_assignment(assignment)
+        
+        if flight_details:
+            return jsonify({
+                'success': True,
+                'flight_details': flight_details
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to fetch flight details from assignment'
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Error in flight details from assignment API: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 @app.route('/pdf')
 def pdf_view():

@@ -133,8 +133,6 @@
             font-size: 0.8em;
             font-weight: 600;
             cursor: pointer;
-            grid-column: 1 / -1;
-            margin-top: 5px;
         }
 
         .btn:hover {
@@ -159,6 +157,38 @@
             padding: 15px;
             margin-top: 10px;
             border: 1px solid #444;
+        }
+
+        /* NEW: Search form layout styles */
+        .search-form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr auto auto;
+            gap: 10px;
+            align-items: end;
+            margin-bottom: 15px;
+        }
+
+        .search-buttons {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .clear-origin-btn {
+            background: #555;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: 600;
+            cursor: pointer;
+            height: 36px;
+            white-space: nowrap;
+        }
+
+        .clear-origin-btn:hover {
+            background: #666;
         }
 
         /* Flight Header */
@@ -457,8 +487,12 @@
                 padding: 10px;
             }
             
-            .search-form {
+            .search-form-grid {
                 grid-template-columns: 1fr;
+            }
+            
+            .search-buttons {
+                justify-content: flex-start;
             }
             
             .flight-number-line {
@@ -494,26 +528,31 @@
         </div>
 
         <div class="content-section">
-            <form id="flightSearchForm" class="search-form">
-                <div class="form-group">
-                    <label for="flight_number">Flight Number *</label>
-                    <input type="text" id="flight_number" name="flight_number" required placeholder="e.g., 210">
-                </div>
+            <form id="flightSearchForm">
+                <div class="search-form-grid">
+                    <div class="form-group">
+                        <label for="flight_number">Flight Number *</label>
+                        <input type="text" id="flight_number" name="flight_number" required placeholder="e.g., 210">
+                    </div>
 
-                <div class="form-group">
-                    <label for="departure_date">Departure Date *</label>
-                    <input type="date" id="departure_date" name="departure_date" required>
-                </div>
+                    <div class="form-group">
+                        <label for="departure_date">Departure Date *</label>
+                        <input type="date" id="departure_date" name="departure_date" required>
+                    </div>
 
-                <div class="form-group">
-                    <label for="origin_airport">Origin Airport (IATA) *</label>
-                    <input type="text" id="origin_airport" name="origin_airport" required value="BOG" maxlength="3">
-                    <button type="button" class="clear-button" onclick="clearOriginAirport()">×</button>
-                </div>
+                    <div class="form-group">
+                        <label for="origin_airport">Origin Airport (IATA) *</label>
+                        <input type="text" id="origin_airport" name="origin_airport" required value="BOG" maxlength="3">
+                    </div>
 
-                <button type="submit" class="btn" id="searchBtn">
-                    Search Flight
-                </button>
+                    <button type="button" class="clear-origin-btn" onclick="clearOriginAirport()">Clear</button>
+
+                    <div class="search-buttons">
+                        <button type="submit" class="btn" id="searchBtn">
+                            Search Flight
+                        </button>
+                    </div>
+                </div>
             </form>
 
             <div id="loading" class="loading hidden">

@@ -318,6 +318,132 @@
             display: none;
         }
 
+        /* Crew Members Styles */
+        .crew-section {
+            margin-top: 30px;
+        }
+
+        .crew-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .crew-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid #3498db;
+        }
+
+        .crew-card.captain {
+            border-left-color: #e74c3c;
+            background: #fff5f5;
+        }
+
+        .crew-card.first-officer {
+            border-left-color: #f39c12;
+            background: #fffbf0;
+        }
+
+        .crew-card.fa {
+            border-left-color: #27ae60;
+            background: #f0fff4;
+        }
+
+        .crew-card.dh {
+            border-left-color: #9b59b6;
+            background: #f8f5ff;
+        }
+
+        .crew-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .crew-name {
+            font-weight: bold;
+            color: #2c3e50;
+            font-size: 1.1em;
+        }
+
+        .crew-position {
+            background: #34495e;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+
+        .crew-details {
+            font-size: 0.9em;
+            color: #7f8c8d;
+        }
+
+        .crew-detail-item {
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .crew-contact {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #ecf0f1;
+        }
+
+        .crew-email {
+            color: #3498db;
+            font-size: 0.85em;
+            word-break: break-all;
+        }
+
+        .crew-fleet {
+            background: #ecf0f1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            margin-left: 5px;
+        }
+
+        .view-crew-btn {
+            background: #9b59b6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: bold;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .view-crew-btn:hover {
+            background: #8e44ad;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .view-crew-btn:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .crew-role {
+            font-style: italic;
+            color: #7f8c8d;
+            font-size: 0.85em;
+            margin-top: 5px;
+        }
+
         @media (max-width: 768px) {
             .search-form {
                 grid-template-columns: 1fr;
@@ -331,6 +457,10 @@
                 flex-direction: column;
                 gap: 15px;
                 text-align: center;
+            }
+            
+            .crew-grid {
+                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -398,6 +528,27 @@
             <div id="resultsSection" class="hidden">
                 <h2>📊 Flight Details</h2>
                 <div id="flightDetails"></div>
+                
+                <!-- Crew Members Section - Only show after flight details are loaded -->
+                <div id="crewSection" class="crew-section">
+                    <h2>👥 Crew Members</h2>
+                    <p>View the crew assigned to this flight</p>
+                    
+                    <button type="button" class="view-crew-btn" id="viewCrewBtn" onclick="loadCrewMembers()">
+                        👥 View Crew Members
+                    </button>
+                    
+                    <div id="crewLoading" class="loading hidden">
+                        <div>🔄 Fetching crew information...</div>
+                    </div>
+                    
+                    <div id="crewResults" class="hidden">
+                        <h3>Crew Composition</h3>
+                        <div id="crewMembers" class="crew-grid"></div>
+                    </div>
+                    
+                    <div id="crewErrorMessage" class="error-message hidden"></div>
+                </div>
             </div>
 
             <!-- Error Message -->
@@ -409,6 +560,9 @@
         // Set default departure date to today
         document.getElementById('departure_date').value = new Date().toISOString().slice(0, 16);
 
+        // Store current flight data globally
+        let currentFlightData = null;
+
         // Form submission handler
         document.getElementById('flightSearchForm').addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -419,16 +573,21 @@
             const resultsSection = document.getElementById('resultsSection');
             const errorMessage = document.getElementById('errorMessage');
             const flightDetails = document.getElementById('flightDetails');
+            const crewSection = document.getElementById('crewSection');
+            const crewResults = document.getElementById('crewResults');
+            const crewErrorMessage = document.getElementById('crewErrorMessage');
 
             // Reset UI
             errorMessage.classList.add('hidden');
             resultsSection.classList.add('hidden');
+            crewResults.classList.add('hidden');
+            crewErrorMessage.classList.add('hidden');
             loading.classList.remove('hidden');
             searchBtn.disabled = true;
             searchBtn.textContent = 'Searching...';
 
             try {
-                const flightData = {
+                currentFlightData = {
                     airline: formData.get('airline'),
                     flight_number: formData.get('flight_number'),
                     departure_date: new Date(formData.get('departure_date')).toISOString().replace('.000', ''),
@@ -441,7 +600,7 @@
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(flightData)
+                    body: JSON.stringify(currentFlightData)
                 });
 
                 const result = await response.json();
@@ -461,6 +620,53 @@
                 searchBtn.textContent = '🛫 Search Flight Details';
             }
         });
+
+        // Crew Members functionality
+        async function loadCrewMembers() {
+            if (!currentFlightData) {
+                showCrewError('No flight data available. Please search for a flight first.');
+                return;
+            }
+
+            const viewCrewBtn = document.getElementById('viewCrewBtn');
+            const crewLoading = document.getElementById('crewLoading');
+            const crewResults = document.getElementById('crewResults');
+            const crewErrorMessage = document.getElementById('crewErrorMessage');
+            const crewMembers = document.getElementById('crewMembers');
+
+            // Reset UI
+            crewErrorMessage.classList.add('hidden');
+            crewResults.classList.add('hidden');
+            crewLoading.classList.remove('hidden');
+            viewCrewBtn.disabled = true;
+            viewCrewBtn.textContent = 'Loading Crew...';
+
+            try {
+                const response = await fetch('/api/flight_crew', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(currentFlightData)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    displayCrewMembers(result.crew_data);
+                    crewResults.classList.remove('hidden');
+                } else {
+                    showCrewError(result.error || 'Failed to fetch crew data');
+                }
+
+            } catch (error) {
+                showCrewError('Network error: ' + error.message);
+            } finally {
+                crewLoading.classList.add('hidden');
+                viewCrewBtn.disabled = false;
+                viewCrewBtn.textContent = '👥 View Crew Members';
+            }
+        }
 
         function displayFlightDetails(flight) {
             const container = document.getElementById('flightDetails');
@@ -628,6 +834,91 @@
             `;
 
             container.innerHTML = html;
+        }
+
+        function displayCrewMembers(crewData) {
+            const container = document.getElementById('crewMembers');
+            
+            if (!crewData.MembersTeamFlight || crewData.MembersTeamFlight.length === 0) {
+                container.innerHTML = '<div class="error-message">No crew members found for this flight.</div>';
+                return;
+            }
+
+            const crewMembers = crewData.MembersTeamFlight;
+            
+            const html = crewMembers.map(member => {
+                const position = member.Position || 'Unknown';
+                const profile = member.Profile || {};
+                
+                // Determine card class based on position
+                let cardClass = 'crew-card';
+                if (position.includes('CP')) cardClass += ' captain';
+                else if (position.includes('FO')) cardClass += ' first-officer';
+                else if (position.includes('FA')) cardClass += ' fa';
+                else if (position.includes('DH')) cardClass += ' dh';
+                
+                // Format fleet/qualifications
+                const fleet = profile.Qualifications ? profile.Qualifications.join(', ') : (profile.RawQualifications || 'N/A');
+                
+                return `
+                    <div class="${cardClass}">
+                        <div class="crew-header">
+                            <div class="crew-name">${member.Names || ''} ${member.LastName || ''}</div>
+                            <div class="crew-position">${position}</div>
+                        </div>
+                        
+                        ${member.FlightRole ? `<div class="crew-role">${member.FlightRole}</div>` : ''}
+                        
+                        <div class="crew-details">
+                            <div class="crew-detail-item">
+                                <span>Crew ID:</span>
+                                <span>${member.CrewMemberUniqueId || 'N/A'}</span>
+                            </div>
+                            <div class="crew-detail-item">
+                                <span>Base:</span>
+                                <span>${profile.Base || 'N/A'}</span>
+                            </div>
+                            <div class="crew-detail-item">
+                                <span>Fleet:</span>
+                                <span>${fleet}</span>
+                            </div>
+                            <div class="crew-detail-item">
+                                <span>Seniority:</span>
+                                <span>${profile.Superiority || 'N/A'}</span>
+                            </div>
+                            ${profile.TelephoneNumber ? `
+                            <div class="crew-detail-item">
+                                <span>Phone:</span>
+                                <span>${profile.TelephoneNumber}</span>
+                            </div>
+                            ` : ''}
+                        </div>
+                        
+                        ${profile.CorporateEmail ? `
+                        <div class="crew-contact">
+                            <div class="crew-email">📧 ${profile.CorporateEmail}</div>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = html;
+            
+            // Also show messenger permissions if available
+            if (crewData.MessengerPermissions !== undefined) {
+                const messengerInfo = document.createElement('div');
+                messengerInfo.className = 'success-message';
+                messengerInfo.style.marginTop = '15px';
+                messengerInfo.innerHTML = `<strong>Messenger Permissions:</strong> ${crewData.MessengerPermissions ? 'Enabled' : 'Disabled'}`;
+                container.parentNode.insertBefore(messengerInfo, container);
+            }
+        }
+
+        function showCrewError(message) {
+            const errorDiv = document.getElementById('crewErrorMessage');
+            errorDiv.textContent = message;
+            errorDiv.classList.remove('hidden');
         }
 
         function showError(message) {

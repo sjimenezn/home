@@ -165,19 +165,61 @@
             border: 1px solid #444;
         }
 
-        .flight-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            padding-bottom: 12px;
+        /* New Compact Flight Header */
+        .flight-header-compact {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
             border-bottom: 1px solid #444;
         }
 
-        .flight-number {
-            font-size: 1.6em;
-            font-weight: 600;
+        .flight-number-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .flight-number-large {
+            font-size: 2em;
+            font-weight: bold;
             color: #ffc107;
+        }
+
+        .tail-number {
+            font-size: 1.4em;
+            color: #4fc3f7;
+            font-weight: bold;
+        }
+
+        .route-line {
+            font-size: 1.6em;
+            font-weight: bold;
+            color: #f0f0f0;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .time-line {
+            display: flex;
+            justify-content: space-between;
+            font-size: 1.2em;
+            margin-bottom: 5px;
+            color: #f0f0f0;
+        }
+
+        .time-label {
+            font-weight: bold;
+            color: #b8b8d0;
+        }
+
+        .time-value {
+            font-weight: bold;
+        }
+
+        .duration {
+            color: #81c784;
+            font-size: 0.9em;
+            margin-left: 10px;
         }
 
         .flight-status {
@@ -186,6 +228,8 @@
             font-weight: 600;
             text-transform: uppercase;
             font-size: 0.8em;
+            display: inline-block;
+            margin-top: 8px;
         }
 
         .status-arrived {
@@ -203,11 +247,11 @@
             color: white;
         }
 
-        .details-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        /* Single column layout for all content */
+        .details-single-column {
+            display: flex;
+            flex-direction: column;
             gap: 15px;
-            margin-bottom: 15px;
         }
 
         .detail-card {
@@ -245,41 +289,6 @@
             color: #f0f0f0;
             text-align: right;
             font-size: 0.85em;
-        }
-
-        .time-comparison {
-            display: flex;
-            gap: 12px;
-            margin-top: 8px;
-        }
-
-        .time-item {
-            flex: 1;
-            text-align: center;
-            padding: 8px;
-            border-radius: 6px;
-            background: #1e1e1e;
-            border: 1px solid #444;
-        }
-
-        .time-label {
-            font-size: 0.8em;
-            color: #b8b8d0;
-            margin-bottom: 4px;
-        }
-
-        .time-value {
-            font-weight: 600;
-            color: #f0f0f0;
-            font-size: 0.85em;
-        }
-
-        .time-advanced {
-            color: #81c784;
-        }
-
-        .time-delayed {
-            color: #e57373;
         }
 
         .mel-list {
@@ -435,14 +444,15 @@
                 grid-template-columns: 1fr;
             }
             
-            .details-grid {
-                grid-template-columns: 1fr;
+            .flight-number-line {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
             }
             
-            .flight-header {
+            .time-line {
                 flex-direction: column;
-                gap: 12px;
-                text-align: center;
+                gap: 5px;
             }
             
             .crew-list {
@@ -578,6 +588,15 @@
                 if (result.success) {
                     displayFlightDetails(result.flight_details);
                     resultsSection.classList.remove('hidden');
+                    
+                    // Scroll to flight number at the top
+                    setTimeout(() => {
+                        document.getElementById('flightNumberTop').scrollIntoView({ 
+                            behavior: 'smooth', 
+                            block: 'start' 
+                        });
+                    }, 100);
+                    
                     // Auto-load crew members
                     setTimeout(() => {
                         loadCrewMembers();
@@ -649,10 +668,10 @@
                 statusClass = 'status-delayed';
             }
 
-            // Format dates
-            function formatDate(dateString) {
+            // Format time for display (extract time part only)
+            function formatTime(dateString) {
                 if (!dateString) return 'N/A';
-                return new Date(dateString).toLocaleString();
+                return new Date(dateString).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
             }
 
             // Format duration
@@ -660,28 +679,50 @@
                 if (!minutes) return 'N/A';
                 const hours = Math.floor(minutes / 60);
                 const mins = minutes % 60;
-                return `${hours}h ${mins}m`;
+                return `(${hours}h ${mins}m)`;
             }
 
             const html = `
                 <div class="flight-details">
-                    <div class="flight-header">
-                        <div class="flight-number">${flight.Flight?.Airline || 'AV'}${flight.Flight?.CommercialFlightNumber || 'N/A'}</div>
+                    <!-- Compact Flight Header -->
+                    <div class="flight-header-compact">
+                        <div class="flight-number-line">
+                            <div class="flight-number-large" id="flightNumberTop">
+                                ${flight.Flight?.Airline || 'AV'}${flight.Flight?.CommercialFlightNumber || 'N/A'}
+                            </div>
+                            <div class="tail-number">${flight.AircraftRegistrationNumber || 'N/A'}</div>
+                        </div>
+                        
+                        <div class="route-line">
+                            ${flight.Flight?.OriginAirportIATACode || 'N/A'} → ${flight.Flight?.FinalAirportIATACode || 'N/A'}
+                        </div>
+                        
+                        <div class="time-line">
+                            <div>
+                                <span class="time-label">Scheduled:</span>
+                                <span class="time-value">${formatTime(flight.Flight?.ScheduleDepartureDateLOCAL)} - ${formatTime(flight.Flight?.ScheduleArrivalDateLOCAL)}</span>
+                                <span class="duration">${formatDuration(flight.Flight?.ScheduledDuration)}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="time-line">
+                            <div>
+                                <span class="time-label">Actual:</span>
+                                <span class="time-value">${formatTime(flight.Flight?.DepartureDateLOCAL)} - ${formatTime(flight.Flight?.ArrivalDateLOCAL)}</span>
+                                <span class="duration">${formatDuration(flight.Flight?.Duration)}</span>
+                            </div>
+                        </div>
+                        
                         <div class="flight-status ${statusClass}">${statusText}</div>
                     </div>
 
-                    <div class="details-grid">
-                        <!-- Route Information -->
+                    <!-- Single Column Layout for All Other Details -->
+                    <div class="details-single-column">
+                        <!-- Crew Members will be inserted here by JavaScript -->
+                        
+                        <!-- Additional Flight Information -->
                         <div class="detail-card">
-                            <h3>Route Information</h3>
-                            <div class="detail-item">
-                                <span class="detail-label">Origin:</span>
-                                <span class="detail-value">${flight.Flight?.OriginAirportIATACode || 'N/A'}</span>
-                            </div>
-                            <div class="detail-item">
-                                <span class="detail-label">Destination:</span>
-                                <span class="detail-value">${flight.Flight?.FinalAirportIATACode || 'N/A'}</span>
-                            </div>
+                            <h3>Flight Details</h3>
                             <div class="detail-item">
                                 <span class="detail-label">Operational Number:</span>
                                 <span class="detail-value">${flight.Flight?.OperationalNumber || 'N/A'}</span>
@@ -689,15 +730,6 @@
                             <div class="detail-item">
                                 <span class="detail-label">Service Type:</span>
                                 <span class="detail-value">${flight.Flight?.Service_type || 'N/A'}</span>
-                            </div>
-                        </div>
-
-                        <!-- Aircraft Information -->
-                        <div class="detail-card">
-                            <h3>Aircraft Information</h3>
-                            <div class="detail-item">
-                                <span class="detail-label">Registration:</span>
-                                <span class="detail-value">${flight.AircraftRegistrationNumber || 'N/A'}</span>
                             </div>
                             <div class="detail-item">
                                 <span class="detail-label">Fleet Type:</span>
@@ -711,93 +743,55 @@
                                 <span class="detail-label">Arrival Gate:</span>
                                 <span class="detail-value">${flight.ArrivalGate || 'N/A'} ${flight.ArrivalTerminal ? `(T${flight.ArrivalTerminal})` : ''}</span>
                             </div>
-                        </div>
-
-                        <!-- Schedule Information -->
-                        <div class="detail-card">
-                            <h3>Schedule Times</h3>
-                            <div class="detail-item">
-                                <span class="detail-label">Scheduled Departure (UTC):</span>
-                                <span class="detail-value">${formatDate(flight.Flight?.ScheduleDepartureDateUTC)}</span>
-                            </div>
-                            <div class="detail-item">
-                                <span class="detail-label">Actual Departure (UTC):</span>
-                                <span class="detail-value">${formatDate(flight.Flight?.DepartureDateUTC)}</span>
-                            </div>
-                            <div class="detail-item">
-                                <span class="detail-label">Scheduled Arrival (UTC):</span>
-                                <span class="detail-value">${formatDate(flight.Flight?.ScheduleArrivalDateUTC)}</span>
-                            </div>
-                            <div class="detail-item">
-                                <span class="detail-label">Actual Arrival (UTC):</span>
-                                <span class="detail-value">${formatDate(flight.Flight?.ArrivalDateUTC)}</span>
-                            </div>
-                        </div>
-
-                        <!-- Flight Performance -->
-                        <div class="detail-card">
-                            <h3>Flight Performance</h3>
-                            <div class="detail-item">
-                                <span class="detail-label">Actual Duration:</span>
-                                <span class="detail-value">${formatDuration(flight.Flight?.Duration)}</span>
-                            </div>
-                            <div class="detail-item">
-                                <span class="detail-label">Scheduled Duration:</span>
-                                <span class="detail-value">${formatDuration(flight.Flight?.ScheduledDuration)}</span>
-                            </div>
                             <div class="detail-item">
                                 <span class="detail-label">Time Advanced:</span>
-                                <span class="detail-value ${flight.Flight?.TimeAdvanced ? 'time-advanced' : ''}">
-                                    ${flight.Flight?.TimeAdvanced ? 'Yes' : 'No'}
-                                </span>
+                                <span class="detail-value">${flight.Flight?.TimeAdvanced ? 'Yes' : 'No'}</span>
                             </div>
                             <div class="detail-item">
                                 <span class="detail-label">Time Delayed:</span>
-                                <span class="detail-value ${flight.Flight?.TimeDelayed ? 'time-delayed' : ''}">
-                                    ${flight.Flight?.TimeDelayed ? 'Yes' : 'No'}
-                                </span>
+                                <span class="detail-value">${flight.Flight?.TimeDelayed ? 'Yes' : 'No'}</span>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- MELs (Minimum Equipment List) -->
-                    ${flight.MELs && flight.MELs.length > 0 ? `
-                    <div class="detail-card">
-                        <h3>Equipment Issues (MELs)</h3>
-                        <ul class="mel-list">
-                            ${flight.MELs.map(mel => `
-                                <li class="mel-item">
-                                    <div class="mel-code">${mel.MELCode || 'N/A'}</div>
-                                    <div class="mel-desc">${mel.MELDesc || 'No description'}</div>
-                                    ${mel.MELComment ? `<div class="mel-desc">Comment: ${mel.MELComment}</div>` : ''}
-                                </li>
-                            `).join('')}
-                        </ul>
-                    </div>
-                    ` : ''}
+                        <!-- MELs (Minimum Equipment List) -->
+                        ${flight.MELs && flight.MELs.length > 0 ? `
+                        <div class="detail-card">
+                            <h3>Equipment Issues (MELs)</h3>
+                            <ul class="mel-list">
+                                ${flight.MELs.map(mel => `
+                                    <li class="mel-item">
+                                        <div class="mel-code">${mel.MELCode || 'N/A'}</div>
+                                        <div class="mel-desc">${mel.MELDesc || 'No description'}</div>
+                                        ${mel.MELComment ? `<div class="mel-desc">Comment: ${mel.MELComment}</div>` : ''}
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                        ` : ''}
 
-                    <!-- Previous Flight -->
-                    ${flight.PreviousFlight ? `
-                    <div class="detail-card">
-                        <h3>Previous Flight</h3>
-                        <div class="detail-item">
-                            <span class="detail-label">Flight:</span>
-                            <span class="detail-value">${flight.PreviousFlight.Prv_airline || ''}${flight.PreviousFlight.Prv_commercialFlightNumber || ''}</span>
+                        <!-- Previous Flight -->
+                        ${flight.PreviousFlight ? `
+                        <div class="detail-card">
+                            <h3>Previous Flight</h3>
+                            <div class="detail-item">
+                                <span class="detail-label">Flight:</span>
+                                <span class="detail-value">${flight.PreviousFlight.Prv_airline || ''}${flight.PreviousFlight.Prv_commercialFlightNumber || ''}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Route:</span>
+                                <span class="detail-value">${flight.PreviousFlight.Prv_departureAirportIATACode || 'N/A'} → ${flight.PreviousFlight.Prv_arrivalAirportIATACode || 'N/A'}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Departure:</span>
+                                <span class="detail-value">${new Date(flight.PreviousFlight.Prv_departureDateLOCAL || flight.PreviousFlight.Prv_departureDateUTC).toLocaleString()}</span>
+                            </div>
                         </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Route:</span>
-                            <span class="detail-value">${flight.PreviousFlight.Prv_departureAirportIATACode || 'N/A'} → ${flight.PreviousFlight.Prv_arrivalAirportIATACode || 'N/A'}</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Departure:</span>
-                            <span class="detail-value">${formatDate(flight.PreviousFlight.Prv_departureDateUTC)}</span>
-                        </div>
-                    </div>
-                    ` : ''}
+                        ` : ''}
 
-                    <!-- Last Updated -->
-                    <div class="success-message">
-                        <strong>Last Updated:</strong> ${formatDate(flight.LastModified)}
+                        <!-- Last Updated -->
+                        <div class="success-message">
+                            <strong>Last Updated:</strong> ${new Date(flight.LastModified).toLocaleString()}
+                        </div>
                     </div>
                 </div>
             `;
@@ -806,74 +800,86 @@
         }
 
         function displayCrewMembers(crewData) {
-            const container = document.getElementById('crewMembers');
+            const crewContainer = document.createElement('div');
+            crewContainer.className = 'detail-card';
+            crewContainer.innerHTML = '<h3>Crew Members</h3>';
+            
+            const crewList = document.createElement('div');
+            crewList.className = 'crew-list';
             
             if (!crewData.MembersTeamFlight || crewData.MembersTeamFlight.length === 0) {
-                container.innerHTML = '<div class="error-message">No crew members found for this flight.</div>';
-                return;
-            }
-
-            const crewMembers = crewData.MembersTeamFlight;
-            
-            const html = crewMembers.map((member, index) => {
-                const position = member.Position || 'Unknown';
-                const profile = member.Profile || {};
+                crewList.innerHTML = '<div class="error-message">No crew members found for this flight.</div>';
+            } else {
+                const crewMembers = crewData.MembersTeamFlight;
                 
-                // Determine card class based on position
-                let cardClass = 'crew-member-compact crew-card';
-                if (position.includes('CP')) cardClass += ' captain';
-                else if (position.includes('FO')) cardClass += ' first-officer';
-                else if (position.includes('FA')) cardClass += ' fa';
-                else if (position.includes('DH')) cardClass += ' dh';
-                
-                // Format fleet/qualifications
-                const fleet = profile.Qualifications ? profile.Qualifications.join(', ') : (profile.RawQualifications || 'N/A');
-                
-                return `
-                    <div class="${cardClass}" onclick="toggleCrewDetails(${index})">
-                        <div class="crew-name">${member.Names || ''} ${member.LastName || ''}</div>
-                        <div class="crew-position">${position}</div>
-                        <div class="crew-details-expanded" id="crew-details-${index}" style="display: none;">
-                            <div class="crew-detail-item">
-                                <span>Crew ID:</span>
-                                <span>${member.CrewMemberUniqueId || 'N/A'}</span>
+                const html = crewMembers.map((member, index) => {
+                    const position = member.Position || 'Unknown';
+                    const profile = member.Profile || {};
+                    
+                    // Determine card class based on position
+                    let cardClass = 'crew-member-compact crew-card';
+                    if (position.includes('CP')) cardClass += ' captain';
+                    else if (position.includes('FO')) cardClass += ' first-officer';
+                    else if (position.includes('FA')) cardClass += ' fa';
+                    else if (position.includes('DH')) cardClass += ' dh';
+                    
+                    // Format fleet/qualifications
+                    const fleet = profile.Qualifications ? profile.Qualifications.join(', ') : (profile.RawQualifications || 'N/A');
+                    
+                    return `
+                        <div class="${cardClass}" onclick="toggleCrewDetails(${index})">
+                            <div class="crew-name">${member.Names || ''} ${member.LastName || ''}</div>
+                            <div class="crew-position">${position}</div>
+                            <div class="crew-details-expanded" id="crew-details-${index}" style="display: none;">
+                                <div class="crew-detail-item">
+                                    <span>Crew ID:</span>
+                                    <span>${member.CrewMemberUniqueId || 'N/A'}</span>
+                                </div>
+                                <div class="crew-detail-item">
+                                    <span>Base:</span>
+                                    <span>${profile.Base || 'N/A'}</span>
+                                </div>
+                                <div class="crew-detail-item">
+                                    <span>Fleet:</span>
+                                    <span>${fleet}</span>
+                                </div>
+                                <div class="crew-detail-item">
+                                    <span>Seniority:</span>
+                                    <span>${profile.Superiority || 'N/A'}</span>
+                                </div>
+                                ${member.FlightRole ? `<div class="crew-role">${member.FlightRole}</div>` : ''}
+                                ${profile.TelephoneNumber ? `
+                                <div class="crew-detail-item">
+                                    <span>Phone:</span>
+                                    <span>${profile.TelephoneNumber}</span>
+                                </div>
+                                ` : ''}
+                                ${profile.CorporateEmail ? `
+                                <div class="crew-email">${profile.CorporateEmail}</div>
+                                ` : ''}
                             </div>
-                            <div class="crew-detail-item">
-                                <span>Base:</span>
-                                <span>${profile.Base || 'N/A'}</span>
-                            </div>
-                            <div class="crew-detail-item">
-                                <span>Fleet:</span>
-                                <span>${fleet}</span>
-                            </div>
-                            <div class="crew-detail-item">
-                                <span>Seniority:</span>
-                                <span>${profile.Superiority || 'N/A'}</span>
-                            </div>
-                            ${member.FlightRole ? `<div class="crew-role">${member.FlightRole}</div>` : ''}
-                            ${profile.TelephoneNumber ? `
-                            <div class="crew-detail-item">
-                                <span>Phone:</span>
-                                <span>${profile.TelephoneNumber}</span>
-                            </div>
-                            ` : ''}
-                            ${profile.CorporateEmail ? `
-                            <div class="crew-email">${profile.CorporateEmail}</div>
-                            ` : ''}
                         </div>
-                    </div>
-                `;
-            }).join('');
+                    `;
+                }).join('');
 
-            container.innerHTML = html;
+                crewList.innerHTML = html;
+                
+                // Also show messenger permissions if available
+                if (crewData.MessengerPermissions !== undefined) {
+                    const messengerInfo = document.createElement('div');
+                    messengerInfo.className = 'success-message';
+                    messengerInfo.style.marginTop = '12px';
+                    messengerInfo.innerHTML = `<strong>Messenger Permissions:</strong> ${crewData.MessengerPermissions ? 'Enabled' : 'Disabled'}`;
+                    crewList.appendChild(messengerInfo);
+                }
+            }
             
-            // Also show messenger permissions if available
-            if (crewData.MessengerPermissions !== undefined) {
-                const messengerInfo = document.createElement('div');
-                messengerInfo.className = 'success-message';
-                messengerInfo.style.marginTop = '12px';
-                messengerInfo.innerHTML = `<strong>Messenger Permissions:</strong> ${crewData.MessengerPermissions ? 'Enabled' : 'Disabled'}`;
-                container.parentNode.insertBefore(messengerInfo, container);
+            crewContainer.appendChild(crewList);
+            
+            // Insert crew section right after the flight header
+            const flightDetails = document.querySelector('.flight-details .details-single-column');
+            if (flightDetails) {
+                flightDetails.insertBefore(crewContainer, flightDetails.firstChild);
             }
         }
 

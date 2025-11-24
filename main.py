@@ -7,16 +7,13 @@ import os
 import time
 import logging
 import requests
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from flask import Flask, render_template, request, send_file, jsonify
 
 DEFAULT_CREW_ID = "32385184"
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 app = Flask(__name__)
-
-# Timezone configuration for UTC-5
-UTC_MINUS_5 = timezone(timedelta(hours=-5))
 
 def load_crew_names():
     """Load crew names from name_list.txt"""
@@ -111,23 +108,37 @@ class CrewAPIClient:
         """Get assignments for specific month (for calendar view)"""
         try:
             target_crew_id = crew_id or current_crew_id
-            now = datetime.now(UTC_MINUS_5)
+            now = datetime.now()
             year = year or now.year
             month = month or now.month
             
-            # Calculate month range in UTC-5
-            first_day = datetime(year, month, 1, tzinfo=UTC_MINUS_5)
-            last_day = (datetime(year + 1, 1, 1, tzinfo=UTC_MINUS_5) if month == 12 
-                       else datetime(year, month + 1, 1, tzinfo=UTC_MINUS_5)) - timedelta(days=1)
+            # Calculate month range
+            first_day = datetime(year, month, 1)
+            last_day = (datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)) - timedelta(days=1)
             days_in_month = (last_day - first_day).days + 1
             
-            logger.info(f"📅 Requesting calendar data for {year}-{month:02d} (Days: {days_in_month}, First: {first_day.date()}, Last: {last_day.date()})")
+            # ADDED: Add +1 to the calculated number of days
+            change_days = days_in_month + 1
             
-            # FIX: Request one extra day to ensure we get the last day of the month
-            start_date = first_day
-            change_days = days_in_month + 1  # Request one extra day
+            # Determine if we're requesting a future month
+            current_month = datetime(now.year, now.month, 1)
+            requested_month = datetime(year, month, 1)
             
-            logger.info(f"📅 Requesting {change_days} days starting from {start_date.date()}")
+            if requested_month > current_month:
+                # FUTURE MONTH: Start from last day of current month
+                last_day_of_current = (datetime(now.year + 1, 1, 1) if now.month == 12 
+                                     else datetime(now.year, now.month + 1, 1)) - timedelta(days=1)
+                start_date = last_day_of_current
+                change_days = (last_day - last_day_of_current).days + 1
+                logger.info(f"🔮 Future month detected: starting from {start_date.date()}, changeDays: {change_days}")
+            else:
+                # CURRENT OR PAST MONTH: Start from first day of requested month
+                start_date = first_day
+                # ADDED: Add +1 to change_days for current/past months as well
+                change_days = days_in_month + 1
+                logger.info(f"📅 Current/Past month: starting from {start_date.date()}, changeDays: {change_days}")
+            
+            logger.info(f"📅 Requesting data for {year}-{month:02d} (Days in month: {days_in_month}, First: {first_day.date()}, Last: {last_day.date()})")
             
             if not self._login():
                 return None
@@ -155,31 +166,13 @@ class CrewAPIClient:
             if response.status_code == 200:
                 data = response.json()
                 
-                # ENHANCED DEBUG: Check what dates we actually received
+                # Debug: Check what dates we actually received
                 if data:
-                    dates_received = []
-                    for assignment in data:
+                    dates_received = set()
+                    for assignment in data[:5]:  # Check first 5 assignments
                         if assignment and assignment.get('StartDate'):
-                            date_str = assignment['StartDate'][:10]
-                            dates_received.append(date_str)
-                    
-                    unique_dates = sorted(set(dates_received))
-                    logger.info(f"📊 API returned {len(data)} assignments for {len(unique_dates)} unique dates")
-                    if unique_dates:
-                        logger.info(f"📊 Date range from API: {unique_dates[0]} to {unique_dates[-1]}")
-                        
-                        # Check if we have the first and last day of the requested month
-                        first_day_str = first_day.strftime('%Y-%m-%d')
-                        last_day_str = last_day.strftime('%Y-%m-%d')
-                        
-                        has_first_day = first_day_str in unique_dates
-                        has_last_day = last_day_str in unique_dates
-                        
-                        logger.info(f"🔍 First day ({first_day_str}) in API data: {'YES' if has_first_day else 'NO'}")
-                        logger.info(f"🔍 Last day ({last_day_str}) in API data: {'YES' if has_last_day else 'NO'}")
-                        
-                        if not has_last_day:
-                            logger.warning(f"⚠️ API did not return data for the last day of the month: {last_day_str}")
+                            dates_received.add(assignment['StartDate'][:10])
+                    logger.info(f"📊 Sample dates received: {sorted(dates_received)}")
                 
                 logger.info(f"✅ Fetched {len(data)} assignments for {year}-{month:02d}")
                 return {'year': year, 'month': month, 'assignments': data}
@@ -366,9 +359,8 @@ class CrewAPIClient:
 
 def create_empty_month_data(year, month):
     """Create empty month structure when no data is available"""
-    first_day = datetime(year, month, 1, tzinfo=UTC_MINUS_5)
-    last_day = (datetime(year + 1, 1, 1, tzinfo=UTC_MINUS_5) if month == 12 
-               else datetime(year, month + 1, 1, tzinfo=UTC_MINUS_5)) - timedelta(days=1)
+    first_day = datetime(year, month, 1)
+    last_day = (datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)) - timedelta(days=1)
     
     month_data = []
     current_date = first_day
@@ -384,57 +376,30 @@ def create_empty_month_data(year, month):
     return [month_data]
 
 def transform_assignments_to_calendar_data(assignments_data, year, month):
-    """Transform assignments into calendar month structure with UTC-5 timezone handling"""
+    """Transform assignments into calendar month structure"""
     if not assignments_data or not isinstance(assignments_data, list):
         logger.warning(f"⚠️ No assignments data for {year}-{month:02d}")
         # Return empty month structure
         return create_empty_month_data(year, month)
     
-    first_day = datetime(year, month, 1, tzinfo=UTC_MINUS_5)
-    last_day = (datetime(year + 1, 1, 1, tzinfo=UTC_MINUS_5) if month == 12 
-               else datetime(year, month + 1, 1, tzinfo=UTC_MINUS_5)) - timedelta(days=1)
+    first_day = datetime(year, month, 1)
+    last_day = (datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)) - timedelta(days=1)
     
-    logger.info(f"📅 Processing month range: {first_day.date()} to {last_day.date()}")
-    
-    # Group assignments by day with UTC-5 timezone consideration
+    # Group assignments by day
     days_dict = {}
     assignments_found = False
-    
     for assignment in assignments_data:
         if assignment and assignment.get('StartDate'):
             try:
-                # Parse the assignment date string and create a UTC-5 datetime
                 date_str = assignment['StartDate'][:10]
-                assignment_date_naive = datetime.strptime(date_str, '%Y-%m-%d')
-                assignment_date = assignment_date_naive.replace(tzinfo=UTC_MINUS_5)
-                
-                # DEBUG: Log assignment dates to see what we're getting
-                if assignment_date.day in [1, last_day.day]:  # Log first and last day assignments
-                    logger.info(f"🔍 Assignment date: {assignment_date.date()} (raw: {date_str})")
-                
-                # Check if assignment falls within the requested month in UTC-5
-                # Use date() comparison to ignore time components
-                if first_day.date() <= assignment_date.date() <= last_day.date():
+                date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+                if date_obj.year == year and date_obj.month == month:
                     assignments_found = True
-                    date_key = assignment_date.strftime('%Y-%m-%d')
-                    if date_key not in days_dict:
-                        days_dict[date_key] = {
-                            'StartDate': assignment['StartDate'], 
-                            'Dem': '', 
-                            'AssignementList': []
-                        }
-                    days_dict[date_key]['AssignementList'].append(assignment)
-                    
-            except (ValueError, KeyError) as e:
-                logger.warning(f"⚠️ Error processing assignment date: {e}")
+                    if date_str not in days_dict:
+                        days_dict[date_str] = {'StartDate': assignment['StartDate'], 'Dem': '', 'AssignementList': []}
+                    days_dict[date_str]['AssignementList'].append(assignment)
+            except (ValueError, KeyError):
                 continue
-    
-    # DEBUG: Log which dates we found assignments for
-    found_dates = sorted(days_dict.keys())
-    if found_dates:
-        logger.info(f"📊 Found assignments for {len(found_dates)} dates: from {found_dates[0]} to {found_dates[-1]}")
-    else:
-        logger.info("📊 No assignments found for any dates in the month")
     
     if not assignments_found:
         logger.warning(f"⚠️ No assignments found for the requested month {year}-{month:02d}")
@@ -447,11 +412,9 @@ def transform_assignments_to_calendar_data(assignments_data, year, month):
         if actual_months:
             logger.info(f"📊 Actual months with data: {sorted(actual_months)}")
     
-    # Create month data with all days in UTC-5 - FIXED: Ensure we include the last day
+    # Create month data with all days
     month_data = []
     current_date = first_day
-    day_count = 0
-    
     while current_date <= last_day:
         date_str = current_date.strftime('%Y-%m-%d')
         month_data.append(days_dict.get(date_str, {
@@ -460,16 +423,6 @@ def transform_assignments_to_calendar_data(assignments_data, year, month):
             'AssignementList': []
         }))
         current_date += timedelta(days=1)
-        day_count += 1
-    
-    logger.info(f"📅 Created calendar data for {year}-{month:02d}: {day_count} days (should be {(last_day - first_day).days + 1})")
-    
-    # DEBUG: Check if we have the last day
-    if month_data:
-        last_day_data = month_data[-1]
-        last_date_str = last_day.strftime('%Y-%m-%d')
-        has_assignments = len(last_day_data.get('AssignementList', [])) > 0
-        logger.info(f"🔍 Last day ({last_date_str}) in calendar: {'HAS assignments' if has_assignments else 'NO assignments'}")
     
     return [month_data]
 
@@ -478,13 +431,12 @@ def create_calendar_view_data(month_data):
     if not month_data or not isinstance(month_data, list):
         return []
     
-    # Find first day of month in UTC-5
+    # Find first day of month
     first_day = None
     for day in month_data:
         if day and day.get('StartDate'):
             try:
-                date_str = day['StartDate'][:10]
-                first_day = datetime.strptime(date_str, '%Y-%m-%d').replace(day=1, tzinfo=UTC_MINUS_5)
+                first_day = datetime.strptime(day['StartDate'][:10], '%Y-%m-%d').replace(day=1)
                 break
             except (ValueError, KeyError):
                 continue
@@ -492,7 +444,7 @@ def create_calendar_view_data(month_data):
     if not first_day:
         return []
     
-    # Create calendar grid (6 weeks) starting from Monday
+    # Create calendar grid (6 weeks)
     calendar_start = first_day - timedelta(days=first_day.weekday())
     calendar_days = []
     
@@ -551,7 +503,7 @@ def create_calendar_view_data(month_data):
     return calendar_days
 
 def get_month_name(year, month):
-    return datetime(year, month, 1, tzinfo=UTC_MINUS_5).strftime('%B %Y')
+    return datetime(year, month, 1).strftime('%B %Y')
 
 def get_month_name_from_data(month_data):
     """Extract month name from the first valid day in month data"""
@@ -562,7 +514,7 @@ def get_month_name_from_data(month_data):
         if day and isinstance(day, dict) and day.get('StartDate'):
             try:
                 date_str = day['StartDate'][:10]
-                date_obj = datetime.strptime(date_str, '%Y-%m-%d').replace(tzinfo=UTC_MINUS_5)
+                date_obj = datetime.strptime(date_str, '%Y-%m-%d')
                 return date_obj.strftime('%B %Y')
             except (ValueError, KeyError):
                 continue
@@ -573,8 +525,8 @@ client = CrewAPIClient()
 schedule_data = None
 last_fetch_time = None
 current_crew_id = DEFAULT_CREW_ID
-current_calendar_year = datetime.now(UTC_MINUS_5).year
-current_calendar_month = datetime.now(UTC_MINUS_5).month
+current_calendar_year = datetime.now().year
+current_calendar_month = datetime.now().month
 crew_names = load_crew_names()
 
 @app.route('/')
@@ -586,7 +538,7 @@ def index():
     new_data = client.get_schedule_data(current_crew_id)
     if new_data is not None:
         schedule_data = new_data
-        last_fetch_time = datetime.now(UTC_MINUS_5).strftime("%Y-%m-%d %H:%M:%S")
+        last_fetch_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         logger.info("✅ Auto-fetch completed successfully!")
     # If fetch fails, keep existing data but log warning
     elif schedule_data is None:
@@ -595,7 +547,7 @@ def index():
     total_days = 0
     total_assignments = 0
     month_names = []
-    current_date = datetime.now(UTC_MINUS_5).strftime('%Y-%m-%d')
+    current_date = datetime.now().strftime('%Y-%m-%d')
     
     if schedule_data and isinstance(schedule_data, list):
         # Generate month names for display
@@ -639,22 +591,23 @@ def calendar_view():
             assignments_result['year'], 
             assignments_result['month']
         )
-        last_fetch_time = datetime.now(UTC_MINUS_5).strftime("%Y-%m-%d %H:%M:%S")
+        last_fetch_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
         # Debug: Check what we're actually displaying
         if schedule_data and schedule_data[0]:
             actual_dates = []
             for day in schedule_data[0]:
                 if day and day.get('StartDate'):
-                    actual_dates.append(day['StartDate'][:10])  # Get YYYY-MM-DD
-            unique_dates = sorted(set(actual_dates))
-            logger.info(f"📅 ACTUAL data dates: {len(unique_dates)} days from {unique_dates[0]} to {unique_dates[-1]}")
+                    actual_dates.append(day['StartDate'][:7])  # Get YYYY-MM
+            unique_months = set(actual_dates)
+            logger.info(f"📅 ACTUAL data months: {sorted(unique_months)}")
             logger.info(f"📅 REQUESTED month: {year}-{month:02d}")
             
             # Check if we got data for the requested month
             requested_month = f"{year}-{month:02d}"
-            actual_month = unique_dates[0][:7] if unique_dates else "No data"
-            if requested_month != actual_month and unique_dates:
+            if requested_month not in unique_months and unique_months:
+                # We're not showing the requested month, log what we actually have
+                actual_month = sorted(unique_months)[0]
                 logger.warning(f"⚠️ No data for requested month {requested_month}, showing {actual_month} instead")
     
     month_name = get_month_name(year, month)
@@ -678,7 +631,7 @@ def calendar_view():
         current_crew_id=current_crew_id,
         month_names=month_names,
         month_calendars=month_calendars,
-        current_date=datetime.now(UTC_MINUS_5).strftime('%Y-%m-%d'),
+        current_date=datetime.now().strftime('%Y-%m-%d'),
         current_month_index=0,
         current_calendar_year=current_calendar_year,
         current_calendar_month=current_calendar_month
@@ -835,8 +788,8 @@ def update_crew_id():
         current_crew_id = new_crew_id
         schedule_data = None
         last_fetch_time = None
-        current_calendar_year = datetime.now(UTC_MINUS_5).year
-        current_calendar_month = datetime.now(UTC_MINUS_5).month
+        current_calendar_year = datetime.now().year
+        current_calendar_month = datetime.now().month
         return {"success": True, "new_crew_id": current_crew_id}
     return {"success": False, "error": "No crew ID provided"}
 
@@ -864,7 +817,7 @@ def fetch_data():
                 assignments_result['year'],
                 assignments_result['month']
             )
-            last_fetch_time = datetime.now(UTC_MINUS_5).strftime("%Y-%m-%d %H:%M:%S")
+            last_fetch_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             return {"success": True}
     except Exception as e:
         logger.error(f"Error in /fetch: {e}")

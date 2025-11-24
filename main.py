@@ -117,9 +117,6 @@ class CrewAPIClient:
             last_day = (datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)) - timedelta(days=1)
             days_in_month = (last_day - first_day).days + 1
             
-            # ADDED: Add +1 to the calculated number of days
-            change_days = days_in_month + 1
-            
             # Determine if we're requesting a future month
             current_month = datetime(now.year, now.month, 1)
             requested_month = datetime(year, month, 1)
@@ -129,14 +126,28 @@ class CrewAPIClient:
                 last_day_of_current = (datetime(now.year + 1, 1, 1) if now.month == 12 
                                      else datetime(now.year, now.month + 1, 1)) - timedelta(days=1)
                 start_date = last_day_of_current
-                change_days = (last_day - last_day_of_current).days + 1
-                logger.info(f"🔮 Future month detected: starting from {start_date.date()}, changeDays: {change_days}")
+                
+                # FIXED: Apply December logic for future months too
+                if month == 12:
+                    # For December future months, request the exact month length
+                    change_days = (last_day - last_day_of_current).days + 1
+                    # Ensure we don't exceed December's actual days
+                    change_days = min(change_days, days_in_month)
+                    logger.info(f"🔮 Future December detected: requesting {change_days} days")
+                else:
+                    # For other future months, add +1 day
+                    change_days = (last_day - last_day_of_current).days + 1 + 1
+                    logger.info(f"🔮 Future month detected: starting from {start_date.date()}, changeDays: {change_days}")
             else:
                 # CURRENT OR PAST MONTH: Start from first day of requested month
                 start_date = first_day
-                # ADDED: Add +1 to change_days for current/past months as well
-                change_days = days_in_month + 1
-                logger.info(f"📅 Current/Past month: starting from {start_date.date()}, changeDays: {change_days}")
+                # Apply December fix for past/current months
+                if month == 12:
+                    change_days = days_in_month  # December has 31 days, don't add extra
+                    logger.info(f"🎄 December detected: requesting exact month length ({change_days} days)")
+                else:
+                    change_days = days_in_month + 1
+                    logger.info(f"📅 Regular month: requesting {change_days} days (month: {days_in_month} + 1)")
             
             logger.info(f"📅 Requesting data for {year}-{month:02d} (Days in month: {days_in_month}, First: {first_day.date()}, Last: {last_day.date()})")
             

@@ -121,6 +121,8 @@ class CrewAPIClient:
                        else datetime(year, month + 1, 1, tzinfo=UTC_MINUS_5)) - timedelta(days=1)
             days_in_month = (last_day - first_day).days + 1
             
+            logger.info(f"📅 Requesting calendar data for {year}-{month:02d} (Days: {days_in_month}, First: {first_day.date()}, Last: {last_day.date()})")
+            
             # Determine if we're requesting a future month
             current_month = datetime(now.year, now.month, 1, tzinfo=UTC_MINUS_5)
             requested_month = datetime(year, month, 1, tzinfo=UTC_MINUS_5)
@@ -137,8 +139,6 @@ class CrewAPIClient:
                 start_date = first_day
                 change_days = days_in_month
                 logger.info(f"📅 Current/Past month: starting from {start_date.date()}, changeDays: {change_days}")
-            
-            logger.info(f"📅 Requesting data for {year}-{month:02d} (Days in month: {days_in_month}, First: {first_day.date()}, Last: {last_day.date()})")
             
             if not self._login():
                 return None
@@ -166,13 +166,31 @@ class CrewAPIClient:
             if response.status_code == 200:
                 data = response.json()
                 
-                # Debug: Check what dates we actually received
+                # ENHANCED DEBUG: Check what dates we actually received
                 if data:
-                    dates_received = set()
-                    for assignment in data[:5]:  # Check first 5 assignments
+                    dates_received = []
+                    for assignment in data:
                         if assignment and assignment.get('StartDate'):
-                            dates_received.add(assignment['StartDate'][:10])
-                    logger.info(f"📊 Sample dates received: {sorted(dates_received)}")
+                            date_str = assignment['StartDate'][:10]
+                            dates_received.append(date_str)
+                    
+                    unique_dates = sorted(set(dates_received))
+                    logger.info(f"📊 API returned {len(data)} assignments for {len(unique_dates)} unique dates")
+                    if unique_dates:
+                        logger.info(f"📊 Date range from API: {unique_dates[0]} to {unique_dates[-1]}")
+                        
+                        # Check if we have the first and last day of the requested month
+                        first_day_str = first_day.strftime('%Y-%m-%d')
+                        last_day_str = last_day.strftime('%Y-%m-%d')
+                        
+                        has_first_day = first_day_str in unique_dates
+                        has_last_day = last_day_str in unique_dates
+                        
+                        logger.info(f"🔍 First day ({first_day_str}) in API data: {'YES' if has_first_day else 'NO'}")
+                        logger.info(f"🔍 Last day ({last_day_str}) in API data: {'YES' if has_last_day else 'NO'}")
+                        
+                        if not has_last_day:
+                            logger.warning(f"⚠️ API did not return data for the last day of the month: {last_day_str}")
                 
                 logger.info(f"✅ Fetched {len(data)} assignments for {year}-{month:02d}")
                 return {'year': year, 'month': month, 'assignments': data}
@@ -387,6 +405,8 @@ def transform_assignments_to_calendar_data(assignments_data, year, month):
     last_day = (datetime(year + 1, 1, 1, tzinfo=UTC_MINUS_5) if month == 12 
                else datetime(year, month + 1, 1, tzinfo=UTC_MINUS_5)) - timedelta(days=1)
     
+    logger.info(f"📅 Processing month range: {first_day.date()} to {last_day.date()}")
+    
     # Group assignments by day with UTC-5 timezone consideration
     days_dict = {}
     assignments_found = False
@@ -394,12 +414,18 @@ def transform_assignments_to_calendar_data(assignments_data, year, month):
     for assignment in assignments_data:
         if assignment and assignment.get('StartDate'):
             try:
-                # Parse the assignment date and convert to UTC-5 for comparison
+                # Parse the assignment date string and create a UTC-5 datetime
                 date_str = assignment['StartDate'][:10]
-                assignment_date = datetime.strptime(date_str, '%Y-%m-%d').replace(tzinfo=UTC_MINUS_5)
+                assignment_date_naive = datetime.strptime(date_str, '%Y-%m-%d')
+                assignment_date = assignment_date_naive.replace(tzinfo=UTC_MINUS_5)
+                
+                # DEBUG: Log assignment dates to see what we're getting
+                if assignment_date.day in [1, last_day.day]:  # Log first and last day assignments
+                    logger.info(f"🔍 Assignment date: {assignment_date.date()} (raw: {date_str})")
                 
                 # Check if assignment falls within the requested month in UTC-5
-                if first_day <= assignment_date <= last_day:
+                # Use date() comparison to ignore time components
+                if first_day.date() <= assignment_date.date() <= last_day.date():
                     assignments_found = True
                     date_key = assignment_date.strftime('%Y-%m-%d')
                     if date_key not in days_dict:
@@ -414,6 +440,13 @@ def transform_assignments_to_calendar_data(assignments_data, year, month):
                 logger.warning(f"⚠️ Error processing assignment date: {e}")
                 continue
     
+    # DEBUG: Log which dates we found assignments for
+    found_dates = sorted(days_dict.keys())
+    if found_dates:
+        logger.info(f"📊 Found assignments for {len(found_dates)} dates: from {found_dates[0]} to {found_dates[-1]}")
+    else:
+        logger.info("📊 No assignments found for any dates in the month")
+    
     if not assignments_found:
         logger.warning(f"⚠️ No assignments found for the requested month {year}-{month:02d}")
         # Check what months we actually have data for
@@ -425,9 +458,11 @@ def transform_assignments_to_calendar_data(assignments_data, year, month):
         if actual_months:
             logger.info(f"📊 Actual months with data: {sorted(actual_months)}")
     
-    # Create month data with all days in UTC-5
+    # Create month data with all days in UTC-5 - FIXED: Ensure we include the last day
     month_data = []
     current_date = first_day
+    day_count = 0
+    
     while current_date <= last_day:
         date_str = current_date.strftime('%Y-%m-%d')
         month_data.append(days_dict.get(date_str, {
@@ -436,8 +471,17 @@ def transform_assignments_to_calendar_data(assignments_data, year, month):
             'AssignementList': []
         }))
         current_date += timedelta(days=1)
+        day_count += 1
     
-    logger.info(f"📅 Created calendar data for {year}-{month:02d}: {len(month_data)} days")
+    logger.info(f"📅 Created calendar data for {year}-{month:02d}: {day_count} days (should be {(last_day - first_day).days + 1})")
+    
+    # DEBUG: Check if we have the last day
+    if month_data:
+        last_day_data = month_data[-1]
+        last_date_str = last_day.strftime('%Y-%m-%d')
+        has_assignments = len(last_day_data.get('AssignementList', [])) > 0
+        logger.info(f"🔍 Last day ({last_date_str}) in calendar: {'HAS assignments' if has_assignments else 'NO assignments'}")
+    
     return [month_data]
 
 def create_calendar_view_data(month_data):

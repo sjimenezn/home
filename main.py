@@ -127,17 +127,10 @@ class CrewAPIClient:
                                      else datetime(now.year, now.month + 1, 1)) - timedelta(days=1)
                 start_date = last_day_of_current
                 
-                # FIXED: Apply December logic for future months too
-                if month == 12:
-                    # For December future months, request the exact month length
-                    change_days = (last_day - last_day_of_current).days + 1
-                    # Ensure we don't exceed December's actual days
-                    change_days = min(change_days, days_in_month)
-                    logger.info(f"🔮 Future December detected: requesting {change_days} days")
-                else:
-                    # For other future months, add +1 day
-                    change_days = (last_day - last_day_of_current).days + 1 + 1
-                    logger.info(f"🔮 Future month detected: starting from {start_date.date()}, changeDays: {change_days}")
+                # FIXED: Request calculated days +5 for future months
+                base_days = (last_day - last_day_of_current).days + 1
+                change_days = base_days + 5
+                logger.info(f"🔮 Future month detected: starting from {start_date.date()}, baseDays: {base_days}, changeDays: {change_days}")
             else:
                 # CURRENT OR PAST MONTH: Start from first day of requested month
                 start_date = first_day

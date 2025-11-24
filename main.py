@@ -123,22 +123,11 @@ class CrewAPIClient:
             
             logger.info(f"📅 Requesting calendar data for {year}-{month:02d} (Days: {days_in_month}, First: {first_day.date()}, Last: {last_day.date()})")
             
-            # Determine if we're requesting a future month
-            current_month = datetime(now.year, now.month, 1, tzinfo=UTC_MINUS_5)
-            requested_month = datetime(year, month, 1, tzinfo=UTC_MINUS_5)
+            # FIX: Always request from first day to ensure we get the full month
+            start_date = first_day
+            change_days = days_in_month
             
-            if requested_month > current_month:
-                # FUTURE MONTH: Start from last day of current month
-                last_day_of_current = (datetime(now.year + 1, 1, 1, tzinfo=UTC_MINUS_5) if now.month == 12 
-                                     else datetime(now.year, now.month + 1, 1, tzinfo=UTC_MINUS_5)) - timedelta(days=1)
-                start_date = last_day_of_current
-                change_days = (last_day - last_day_of_current).days + 1
-                logger.info(f"🔮 Future month detected: starting from {start_date.date()}, changeDays: {change_days}")
-            else:
-                # CURRENT OR PAST MONTH: Start from first day of requested month
-                start_date = first_day
-                change_days = days_in_month
-                logger.info(f"📅 Current/Past month: starting from {start_date.date()}, changeDays: {change_days}")
+            logger.info(f"📅 Requesting full month: starting from {start_date.date()}, changeDays: {change_days}")
             
             if not self._login():
                 return None

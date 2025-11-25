@@ -15,10 +15,11 @@
         .input-group { margin-bottom: 15px; }
         .input-group label { display: block; margin-bottom: 5px; font-weight: 600; }
         .crew-input, .date-input { width: 100%; padding: 12px; font-size: 16px; background: #1e1e1e; border: 1px solid #555; border-radius: 5px; color: #fff; }
-        .flex-group { display: flex; gap: 10px; }
-        .button { padding: 12px; border: none; border-radius: 5px; font-size: 16px; }
-        .clear-btn { background: #4a4a4a; color: #f0f0f0; height: 45px; }
-        .search-btn { background: #555; color: #fff; }
+        .short-input { width: 80px; text-align: center; } /* Short origin input */
+        .button-row { display: flex; gap: 10px; align-items: flex-end; } /* Aligns with input bottom */
+        .button { padding: 12px; border: none; border-radius: 5px; font-size: 16px; height: 45px; }
+        .clear-btn { background: #4a4a4a; color: #f0f0f0; flex-shrink: 0; }
+        .search-btn { background: #555; color: #fff; flex-grow: 1; }
         .loading, .error-message, .success-message { text-align: center; padding: 10px; margin: 10px 0; border-radius: 4px; }
         .loading { color: #ffc107; }
         .error-message { background: #5a3a3a; color: #f8d7da; }
@@ -65,26 +66,27 @@
 
         <div>
             <form id="flightSearchForm">
-                <div class="input-group flex-group">
-                    <div style="flex: 1;">
-                        <label>Flight Number *</label>
-                        <input type="text" id="flight_number" class="crew-input" required placeholder="210">
-                    </div>
-                    <div style="flex: 1;">
-                        <label>Date *</label>
-                        <input type="date" id="departure_date" class="date-input" required>
+                <div class="input-group">
+                    <div style="display: flex; gap: 10px;">
+                        <div style="flex: 1;">
+                            <label>Flight Number *</label>
+                            <input type="text" id="flight_number" class="crew-input" required placeholder="210">
+                        </div>
+                        <div style="flex: 1;">
+                            <label>Date *</label>
+                            <input type="date" id="departure_date" class="date-input" required>
+                        </div>
                     </div>
                 </div>
 
-                <div class="input-group flex-group">
-                    <div style="flex: 1;">
-                        <label>Origin *</label>
-                        <input type="text" id="origin_airport" class="crew-input" required value="BOG" maxlength="3">
+                <div class="input-group">
+                    <label>Origin *</label>
+                    <div class="button-row">
+                        <input type="text" id="origin_airport" class="crew-input short-input" required value="BOG" maxlength="3">
+                        <button type="button" class="button clear-btn" onclick="clearOriginAirport()">Clear</button>
+                        <button type="submit" class="button search-btn" id="searchBtn">Search</button>
                     </div>
-                    <button type="button" class="button clear-btn" onclick="clearOriginAirport()">Clear</button>
                 </div>
-
-                <button type="submit" class="button search-btn" style="width: 100%;">Search Flight</button>
             </form>
 
             <div id="loading" class="loading hidden">Loading...</div>
@@ -119,7 +121,7 @@
 
         document.getElementById('flightSearchForm').addEventListener('submit', async function(e) {
             e.preventDefault();
-            const searchBtn = document.querySelector('.search-btn');
+            const searchBtn = document.getElementById('searchBtn');
             const loading = document.getElementById('loading');
             const resultsSection = document.getElementById('resultsSection');
             const errorMessage = document.getElementById('errorMessage');
@@ -164,21 +166,21 @@
                         }
                         loading.classList.add('hidden');
                         searchBtn.disabled = false;
-                        searchBtn.textContent = 'Search Flight';
+                        searchBtn.textContent = 'Search';
                     }, 1500);
                     
                 } else {
                     showError(result.error || 'Failed to fetch flight details');
                     loading.classList.add('hidden');
                     searchBtn.disabled = false;
-                    searchBtn.textContent = 'Search Flight';
+                    searchBtn.textContent = 'Search';
                 }
 
             } catch (error) {
                 showError('Network error: ' + error.message);
                 loading.classList.add('hidden');
                 searchBtn.disabled = false;
-                searchBtn.textContent = 'Search Flight';
+                searchBtn.textContent = 'Search';
             }
         });
 

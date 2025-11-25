@@ -615,25 +615,13 @@
             const resultsSection = document.getElementById('resultsSection');
             const errorMessage = document.getElementById('errorMessage');
 
-            // Reset all states
             errorMessage.classList.add('hidden');
+            resultsSection.classList.add('hidden');
             loading.classList.remove('hidden');
             searchBtn.disabled = true;
             searchBtn.textContent = 'Searching...';
 
             try {
-                // Always use results section for manual searches
-                if (!resultsSection.classList.contains('hidden')) {
-                    // If results section is already visible, clear the existing content
-                    const flightDetails = document.getElementById('flightDetails');
-                    if (flightDetails) {
-                        flightDetails.innerHTML = '<div class="loading">Loading flight details...</div>';
-                    }
-                } else {
-                    resultsSection.classList.remove('hidden');
-                }
-
-                // RESET currentFlightData with fresh form data
                 currentFlightData = {
                     airline: 'AV',
                     flight_number: formData.get('flight_number'),
@@ -652,15 +640,13 @@
 
                 if (result.success) {
                     displayFlightDetails(result.flight_details);
+                    resultsSection.classList.remove('hidden');
                     
                     setTimeout(() => {
-                        const flightNumberTop = document.getElementById('flightNumberTop');
-                        if (flightNumberTop) {
-                            flightNumberTop.scrollIntoView({ 
-                                behavior: 'smooth', 
-                                block: 'start' 
-                            });
-                        }
+                        document.getElementById('flightNumberTop').scrollIntoView({ 
+                            behavior: 'smooth', 
+                            block: 'start' 
+                        });
                     }, 100);
                     
                     // Automatically load previous flight if available
@@ -673,9 +659,16 @@
                     setTimeout(() => {
                         loadCrewMembers();
                     }, 500);
+                    
+                    // Clear loading state after everything is initiated
+                    setTimeout(() => {
+                        loading.classList.add('hidden');
+                        searchBtn.disabled = false;
+                        searchBtn.textContent = 'Search Flight';
+                    }, 1000);
+                    
                 } else {
                     showError(result.error || 'Failed to fetch flight details');
-                    // Ensure loading is hidden on error
                     loading.classList.add('hidden');
                     searchBtn.disabled = false;
                     searchBtn.textContent = 'Search Flight';
@@ -683,12 +676,10 @@
 
             } catch (error) {
                 showError('Network error: ' + error.message);
-                // Ensure loading is hidden on error
                 loading.classList.add('hidden');
                 searchBtn.disabled = false;
                 searchBtn.textContent = 'Search Flight';
             }
-            // Note: We don't have finally here because we handle loading state in success/error cases
         });
 
         async function loadCrewMembers() {
@@ -712,15 +703,6 @@
                 }
             } catch (error) {
                 console.error('Error loading crew members:', error);
-            } finally {
-                // Always clear loading state after crew load attempt
-                const loading = document.getElementById('loading');
-                const searchBtn = document.getElementById('searchBtn');
-                if (loading) loading.classList.add('hidden');
-                if (searchBtn) {
-                    searchBtn.disabled = false;
-                    searchBtn.textContent = 'Search Flight';
-                }
             }
         }
 
@@ -901,15 +883,6 @@
             `;
 
             container.innerHTML = html;
-            
-            // Clear loading state after displaying flight details
-            const loading = document.getElementById('loading');
-            const searchBtn = document.getElementById('searchBtn');
-            if (loading) loading.classList.add('hidden');
-            if (searchBtn) {
-                searchBtn.disabled = false;
-                searchBtn.textContent = 'Search Flight';
-            }
         }
 
         function displayPreviousFlightDetails(flight) {

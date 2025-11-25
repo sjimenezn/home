@@ -540,60 +540,17 @@ def calendar_view():
 
 @app.route('/flight_details')
 def flight_details_page():
-    # Check if flight parameters are provided in URL
-    flight_number = request.args.get('flight_number')
-    local_date = request.args.get('local_date')
-    origin_airport = request.args.get('origin_airport')
-    
-    flight_details = None
-    crew_data = None
-    auto_fetch = False
-    
-    # If flight parameters are provided, automatically fetch the data
-    if flight_number and local_date and origin_airport:
-        auto_fetch = True
-        logger.info(f"🛫 Auto-fetching flight details: {flight_number} on {local_date} from {origin_airport}")
-        
-        # Convert local date to UTC datetime format for API
-        try:
-            local_datetime = datetime.strptime(local_date, '%Y-%m-%d')
-            # Assume departure time around 06:00 AM local time for the API call
-            departure_date_utc = local_datetime.strftime('%Y-%m-%dT06:00:00Z')
-            
-            # For operational_number, we'll use a default or try to extract from assignment data
-            operational_number = "00000000"  # Default value
-            
-            # Fetch flight details immediately
-            flight_details = client.get_flight_details(
-                airline='AV',
-                flight_number=flight_number,
-                departure_date=departure_date_utc,
-                origin_airport=origin_airport,
-                operational_number=operational_number
-            )
-            
-            if flight_details:
-                # Also fetch crew data immediately
-                crew_data = client.get_flight_crew_members(
-                    airline='AV',
-                    flight_number=flight_number,
-                    departure_date=departure_date_utc,
-                    origin_airport=origin_airport,
-                    operational_number=operational_number
-                )
-                
-        except Exception as e:
-            logger.error(f"❌ Error auto-fetching flight data: {e}")
-    
+    # Simply render the template without auto-fetching
+    # Let the client-side JavaScript handle all data fetching
     return render_template('flight_details.html',
         current_crew_id=current_crew_id,
         crew_names=crew_names,
-        flight_details=flight_details,
-        crew_data=crew_data,
-        auto_fetch=auto_fetch,
-        flight_number=flight_number,
-        local_date=local_date,
-        origin_airport=origin_airport
+        flight_details=None,  # Don't auto-fetch
+        crew_data=None,       # Don't auto-fetch
+        auto_fetch=False,     # Always false
+        flight_number=None,
+        local_date=None,
+        origin_airport=None
     )
 
 @app.route('/api/flight_details', methods=['POST'])

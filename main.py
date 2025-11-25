@@ -563,6 +563,7 @@ def flight_details_page():
             # For operational_number, we'll use a default or try to extract from assignment data
             operational_number = "00000000"  # Default value
             
+            # Fetch flight details immediately
             flight_details = client.get_flight_details(
                 airline='AV',
                 flight_number=flight_number,
@@ -572,7 +573,7 @@ def flight_details_page():
             )
             
             if flight_details:
-                # Also fetch crew data
+                # Also fetch crew data immediately
                 crew_data = client.get_flight_crew_members(
                     airline='AV',
                     flight_number=flight_number,

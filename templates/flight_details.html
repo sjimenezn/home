@@ -494,8 +494,7 @@
         </div>
 
         <div class="content-section">
-            <!-- Only show search form if we're not auto-displaying flight data -->
-            {% if not auto_fetch %}
+            <!-- ALWAYS show search form -->
             <form id="flightSearchForm">
                 <div class="search-form-grid">
                     <!-- COLUMN 1, ROW 1: Flight Number -->
@@ -525,30 +524,37 @@
                     </div>
                 </div>
             </form>
-            {% endif %}
 
             <div id="loading" class="loading hidden">
                 <div>Fetching flight details...</div>
             </div>
 
             <!-- Auto-display flight data if available -->
-            {% if auto_fetch %}
-                {% if flight_details %}
-                    <div id="flightDetails">
-                        <!-- Flight details will be displayed here by JavaScript -->
-                    </div>
-                    <script>
-                        // Immediately display the flight data that was fetched server-side
+            {% if auto_fetch and flight_details %}
+                <div id="flightDetails">
+                    <!-- Flight details will be displayed here by JavaScript -->
+                </div>
+                <script>
+                    // Immediately display the flight data that was fetched server-side
+                    document.addEventListener('DOMContentLoaded', function() {
                         displayFlightDetails({{ flight_details | tojson }});
                         {% if crew_data %}
                         displayCrewMembers({{ crew_data | tojson }});
                         {% endif %}
-                    </script>
-                {% else %}
-                    <div class="error-message">
-                        Failed to fetch flight details for {{ flight_number }} on {{ local_date }} from {{ origin_airport }}
-                    </div>
-                {% endif %}
+                        
+                        // Auto-scroll to flight details
+                        setTimeout(() => {
+                            const flightDetails = document.getElementById('flightDetails');
+                            if (flightDetails) {
+                                flightDetails.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            }
+                        }, 100);
+                    });
+                </script>
+            {% elif auto_fetch and not flight_details %}
+                <div class="error-message">
+                    Failed to fetch flight details for {{ flight_number }} on {{ local_date }} from {{ origin_airport }}
+                </div>
             {% else %}
                 <!-- Manual search results section -->
                 <div id="resultsSection" class="hidden">
@@ -564,14 +570,24 @@
         document.getElementById('departure_date').value = new Date().toISOString().slice(0, 10);
         let currentFlightData = null;
 
+        // Auto-fill form if URL parameters are present
+        const urlParams = new URLSearchParams(window.location.search);
+        const flightNumber = urlParams.get('flight_number');
+        const localDate = urlParams.get('local_date');
+        const originAirport = urlParams.get('origin_airport');
+        
+        if (flightNumber && localDate && originAirport) {
+            document.getElementById('flight_number').value = flightNumber;
+            document.getElementById('departure_date').value = localDate;
+            document.getElementById('origin_airport').value = originAirport;
+        }
+
         function clearOriginAirport() {
             const originInput = document.getElementById('origin_airport');
             originInput.value = '';
             originInput.focus();
         }
 
-        // Only add event listener if we're in manual search mode
-        {% if not auto_fetch %}
         document.getElementById('flightSearchForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
@@ -637,7 +653,6 @@
                 searchBtn.textContent = 'Search Flight';
             }
         });
-        {% endif %}
 
         async function loadCrewMembers() {
             if (!currentFlightData) return;

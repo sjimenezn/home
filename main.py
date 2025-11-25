@@ -15,6 +15,10 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
+def get_utc_minus_5():
+    """Get current datetime in UTC-5 timezone"""
+    return datetime.utcnow() - timedelta(hours=5)
+
 def load_crew_names():
     """Load crew names from name_list.txt"""
     try:
@@ -108,7 +112,7 @@ class CrewAPIClient:
         """Get assignments for specific month (for calendar view)"""
         try:
             target_crew_id = crew_id or current_crew_id
-            now = datetime.now()
+            now = get_utc_minus_5()  # Use UTC-5 time
             year = year or now.year
             month = month or now.month
             
@@ -331,8 +335,8 @@ class CrewAPIClient:
             url = f"{self.base_url}/MonthlyAssignements/{endpoint}"
             
             boundary = "----WebKitFormBoundary" + str(int(time.time() * 1000))
-            current_month = month or str(datetime.now().month)
-            current_year = year or str(datetime.now().year)
+            current_month = month or str(get_utc_minus_5().month)
+            current_year = year or str(get_utc_minus_5().year)
             
             form_data = "\r\n".join([
                 f"--{boundary}", 'Content-Disposition: form-data; name="Holding"', '', 'AV',
@@ -352,7 +356,7 @@ class CrewAPIClient:
             
             response = self.session.post(url, data=form_data, headers=headers, timeout=30)
             if response.status_code == 200 and 'pdf' in response.headers.get('content-type', '').lower():
-                filename = f"{schedule_type}_schedule_{crew_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+                filename = f"{schedule_type}_schedule_{crew_id}_{get_utc_minus_5().strftime('%Y%m%d_%H%M%S')}.pdf"
                 with open(filename, 'wb') as f:
                     f.write(response.content)
                 return filename
@@ -529,8 +533,8 @@ client = CrewAPIClient()
 schedule_data = None
 last_fetch_time = None
 current_crew_id = DEFAULT_CREW_ID
-current_calendar_year = datetime.now().year
-current_calendar_month = datetime.now().month
+current_calendar_year = get_utc_minus_5().year
+current_calendar_month = get_utc_minus_5().month
 crew_names = load_crew_names()
 
 @app.route('/')
@@ -542,7 +546,7 @@ def index():
     new_data = client.get_schedule_data(current_crew_id)
     if new_data is not None:
         schedule_data = new_data
-        last_fetch_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        last_fetch_time = get_utc_minus_5().strftime("%Y-%m-%d %H:%M:%S")
         logger.info("✅ Auto-fetch completed successfully!")
     # If fetch fails, keep existing data but log warning
     elif schedule_data is None:
@@ -551,7 +555,7 @@ def index():
     total_days = 0
     total_assignments = 0
     month_names = []
-    current_date = datetime.now().strftime('%Y-%m-%d')
+    current_date = get_utc_minus_5().strftime('%Y-%m-%d')
     
     if schedule_data and isinstance(schedule_data, list):
         # Generate month names for display
@@ -595,7 +599,7 @@ def calendar_view():
             assignments_result['year'], 
             assignments_result['month']
         )
-        last_fetch_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        last_fetch_time = get_utc_minus_5().strftime("%Y-%m-%d %H:%M:%S")
         
         # Debug: Check what we're actually displaying
         if schedule_data and schedule_data[0]:
@@ -635,7 +639,7 @@ def calendar_view():
         current_crew_id=current_crew_id,
         month_names=month_names,
         month_calendars=month_calendars,
-        current_date=datetime.now().strftime('%Y-%m-%d'),
+        current_date=get_utc_minus_5().strftime('%Y-%m-%d'),
         current_month_index=0,
         current_calendar_year=current_calendar_year,
         current_calendar_month=current_calendar_month
@@ -792,8 +796,8 @@ def update_crew_id():
         current_crew_id = new_crew_id
         schedule_data = None
         last_fetch_time = None
-        current_calendar_year = datetime.now().year
-        current_calendar_month = datetime.now().month
+        current_calendar_year = get_utc_minus_5().year
+        current_calendar_month = get_utc_minus_5().month
         return {"success": True, "new_crew_id": current_crew_id}
     return {"success": False, "error": "No crew ID provided"}
 
@@ -821,7 +825,7 @@ def fetch_data():
                 assignments_result['year'],
                 assignments_result['month']
             )
-            last_fetch_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            last_fetch_time = get_utc_minus_5().strftime("%Y-%m-%d %H:%M:%S")
             return {"success": True}
     except Exception as e:
         logger.error(f"Error in /fetch: {e}")

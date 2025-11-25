@@ -622,6 +622,7 @@
             searchBtn.textContent = 'Searching...';
 
             try {
+                // RESET currentFlightData with fresh form data - this is the key fix
                 currentFlightData = {
                     airline: 'AV',
                     flight_number: formData.get('flight_number'),
@@ -643,11 +644,26 @@
                     resultsSection.classList.remove('hidden');
                     
                     setTimeout(() => {
-                        document.getElementById('flightNumberTop').scrollIntoView({ 
-                            behavior: 'smooth', 
-                            block: 'start' 
-                        });
+                        const flightNumberTop = document.getElementById('flightNumberTop');
+                        if (flightNumberTop) {
+                            flightNumberTop.scrollIntoView({ 
+                                behavior: 'smooth', 
+                                block: 'start' 
+                            });
+                        }
                     }, 100);
+                    
+                    // Clear any existing previous flight data
+                    const previousFlightSection = document.getElementById('previousFlightSection');
+                    if (previousFlightSection) {
+                        previousFlightSection.innerHTML = '<div class="loading">Loading previous flight...</div>';
+                    }
+                    
+                    // Clear any existing crew data
+                    const crewSection = document.getElementById('crewSection');
+                    if (crewSection) {
+                        crewSection.innerHTML = '';
+                    }
                     
                     // Automatically load previous flight if available
                     if (result.flight_details.PreviousFlight) {

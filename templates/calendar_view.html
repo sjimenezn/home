@@ -1,325 +1,972 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>My Crew Schedule - Calendar View</title>
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FLIGHT SEARCH - Crew Schedule Monitor</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background: #121212; color: #f0f0f0; }
-        .container { max-width: 1400px; margin: 0 auto; background: #2a2a2a; padding: 20px; border-radius: 10px; border: 1px solid #444; }
-        .header { text-align: center; margin-top: 30px; margin-bottom: 20px; }
-        .nav-buttons { text-align: center; margin: 15px 0; }
-        .nav-button { background: #3a3a3a; color: #f0f0f0; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; margin: 0 5px; text-decoration: none; display: inline-block; }
-        .nav-button:hover { background: #4a4a4a; }
-        .nav-button.active { background: #f0f0f0; color: #121212; }
-        .button { background: #555; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
-        .button:hover { background: #666; }
-        .info-box { background: #3a3a3a; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center; }
-        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin: 20px 0; }
-        .calendar-day { border: 1px solid #444; padding: 5px; border-radius: 5px; min-height: 110px; background: #1e1e1e; }
-        .calendar-day-header { background: #555; color: white; padding: 5px; border-radius: 3px; margin-bottom: 5px; text-align: center; font-weight: bold; font-size: 1.5em; }
-        .calendar-day.current-day { border: 3px solid #ffc107; background: #3a3a3a; }
-        .calendar-day.weekend { background: #2a2a2a; }
-        .calendar-day.empty { background: #1a1a1a; border: 1px dashed #444; }
-        .assignment-item { background: #3a3a3a; padding: 3px; margin: 2px 0; border-radius: 3px; border-left: none; font-size: 0.8em; }
-        .assignment-flight { background: #2a2a2a; border-left: none; }
-        .assignment-ground { background: #3a3a2a; border-left: none; }
-        .flight-number { font-weight: bold; color: #ffc107; font-size: 1.6em; display: inline; }
-        .departure-stand { font-weight: bold; color: #4fc3f7; font-size: 1.6em; display: inline; margin-left: 8px; }
-        .route { font-size: 1.4em; color: #f0f0f0; font-weight: bold; margin: 3px 0; }
-        .flight-times { font-size: 1.2em; color: #f0f0f0; font-weight: bold; margin-top: 3px; }
-        .status-on-time { color: #81c784; font-weight: bold; margin-left: 5px; }
-        .status-delayed { color: #e57373; font-weight: bold; margin-left: 5px; }
-        .no-assignments { color: #888; text-align: center; font-size: 0.8em; padding: 10px; }
-        .month-section { margin: 30px 0; }
-        .month-header { background: #333; color: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; text-align: center; position: relative; }
-        .month-navigation { display: flex; justify-content: center; align-items: center; gap: 20px; }
-        .chevron { background: none; border: none; color: white; font-size: 2em; cursor: pointer; padding: 0 15px; }
-        .chevron:hover { color: #ffc107; }
-        .chevron:disabled { color: #666; cursor: not-allowed; }
-        .month-title { font-size: 1.5em; margin: 0 20px; }
-        .week-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin-bottom: 10px; }
-        .week-day { text-align: center; font-weight: bold; padding: 8px; background: #555; color: white; border-radius: 4px; }
-        .hidden { display: none; }
-        
-        /* Floating Button Styles */
-        .floating-button {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 60px;
-            height: 60px;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 10px;
+            background: #121212;
+            color: #f0f0f0;
+            font-size: 0.7em;
+            touch-action: pan-x pan-y;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: #2a2a2a;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #444;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .nav-buttons {
+            text-align: center;
+            margin: 10px 0;
+        }
+
+        .nav-button {
+            background: #3a3a3a;
+            color: #f0f0f0;
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 0 3px;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 0.8em;
+        }
+
+        .nav-button:hover {
+            background: #4a4a4a;
+        }
+
+        .nav-button.active {
+            background: #f0f0f0;
+            color: #121212;
+        }
+
+        .content-section {
+            background: #2a2a2a;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: #f0f0f0;
+            font-size: 0.8em;
+        }
+
+        .form-group input {
+            padding: 8px;
+            border: 1px solid #444;
+            border-radius: 4px;
+            font-size: 0.8em;
+            background: #1e1e1e;
+            color: #f0f0f0;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #555;
+            background: #2a2a2a;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 10px;
+            color: #ffc107;
+            font-size: 0.8em;
+        }
+
+        .flight-details {
+            background: #1e1e1e;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 10px;
+            border: 1px solid #444;
+        }
+
+        /* Search form layout - simple 2x2 grid */
+        .search-form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto auto;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .search-buttons {
+            display: flex;
+            gap: 10px;
+            align-items: end;
+        }
+
+        .clear-origin-btn {
             background: #555;
             color: white;
             border: none;
-            border-radius: 50%;
-            font-size: 24px;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: 600;
             cursor: pointer;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-            z-index: 1000;
+            height: 36px;
+            width: 60px;
+            flex-shrink: 0;
+        }
+
+        .clear-origin-btn:hover {
+            background: #666;
+        }
+
+        .btn {
+            background: #555;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: 600;
+            cursor: pointer;
+            height: 36px;
+            flex-grow: 1;
+        }
+
+        .btn:hover {
+            background: #666;
+        }
+
+        .btn:disabled {
+            background: #444;
+            cursor: not-allowed;
+        }
+
+        /* Flight Header */
+        .flight-header {
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #444;
+        }
+
+        .flight-number-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .flight-number-large {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #ffc107;
+        }
+
+        .tail-number {
+            font-size: 1.8em;
+            color: #4fc3f7;
+            font-weight: bold;
+        }
+
+        .route-line {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #f0f0f0;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .time-comparison {
+            margin-bottom: 8px;
+        }
+
+        .time-line {
             display: flex;
             align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
-        }
-        .floating-button:hover {
-            background: #666;
-            transform: scale(1.1);
-            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
-        }
-        .floating-button:active {
-            transform: scale(0.95);
-        }
-        .floating-button.loading {
-            background: #666;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        /* Loading indicator */
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(18, 18, 18, 0.8);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 9999;
-            font-size: 1.5em;
+            font-size: 1em;
+            margin-bottom: 3px;
             color: #f0f0f0;
         }
-        
-        /* Success and Error messages */
-        .success { background: #2e4b2e; color: #d4edda; padding: 15px; border-radius: 5px; margin: 15px 0; font-weight: 600; text-align: center; }
-        .error { background: #5a3a3a; color: #f8d7da; padding: 15px; border-radius: 5px; margin: 15px 0; font-weight: 600; text-align: center; }
+
+        .time-label {
+            font-weight: bold;
+            color: #b8b8d0;
+            width: 70px;
+            text-align: right;
+            margin-right: 10px;
+        }
+
+        .time-value {
+            font-weight: bold;
+            margin-right: 8px;
+        }
+
+        .duration {
+            color: #81c784;
+            font-size: 0.8em;
+        }
+
+        .flight-status {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.7em;
+            display: inline-block;
+        }
+
+        .status-arrived {
+            background: #2e7d32;
+            color: white;
+        }
+
+        .status-scheduled {
+            background: #1976d2;
+            color: white;
+        }
+
+        .status-delayed {
+            background: #d32f2f;
+            color: white;
+        }
+
+        /* Content sections without cards */
+        .content-section-title {
+            color: #f0f0f0;
+            margin: 15px 0 8px 0;
+            font-size: 0.9em;
+            border-bottom: 1px solid #444;
+            padding-bottom: 4px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: color 0.2s ease;
+        }
+
+        .content-section-title:hover {
+            color: #ffc107;
+        }
+
+        .content-section-title.loading {
+            color: #ffc107;
+            cursor: default;
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            padding: 4px 0;
+            border-bottom: 1px solid #333;
+        }
+
+        .detail-label {
+            font-weight: 600;
+            color: #b8b8d0;
+            font-size: 0.75em;
+        }
+
+        .detail-value {
+            color: #f0f0f0;
+            text-align: right;
+            font-size: 0.75em;
+        }
+
+        .mel-list {
+            list-style: none;
+            margin-bottom: 10px;
+        }
+
+        .mel-item {
+            background: #5a3a3a;
+            border: 1px solid #7a3a3a;
+            border-radius: 3px;
+            padding: 8px;
+            margin-bottom: 6px;
+        }
+
+        .mel-code {
+            font-weight: 600;
+            color: #ffab91;
+            font-size: 0.75em;
+        }
+
+        .mel-desc {
+            color: #ffab91;
+            font-size: 0.7em;
+        }
+
+        .error-message {
+            background: #5a3a3a;
+            color: #f8d7da;
+            padding: 8px;
+            border-radius: 4px;
+            margin: 10px 0;
+            border: 1px solid #7a3a3a;
+            font-size: 0.75em;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .success-message {
+            background: #2e4b2e;
+            color: #d4edda;
+            padding: 8px;
+            border-radius: 4px;
+            margin: 10px 0;
+            border: 1px solid #3a5a3a;
+            font-size: 0.75em;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .crew-info {
+            background: #3a3a3a;
+            padding: 8px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            text-align: center;
+            border: 1px solid #444;
+            font-size: 0.75em;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* Crew Members */
+        .crew-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 6px;
+            margin: 8px 0;
+        }
+
+        .crew-member-compact {
+            background: #2a2a2a;
+            border-radius: 4px;
+            padding: 6px;
+            border: 1px solid #444;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.7em;
+        }
+
+        .crew-member-compact:hover {
+            background: #333;
+        }
+
+        .crew-member-compact.expanded {
+            background: #3a3a3a;
+        }
+
+        .crew-name {
+            font-weight: 600;
+            color: #f0f0f0;
+            font-size: 0.8em;
+            margin-bottom: 2px;
+        }
+
+        .crew-position {
+            color: #ffc107;
+            font-size: 0.7em;
+            font-weight: 600;
+        }
+
+        .crew-details-expanded {
+            margin-top: 6px;
+            padding-top: 6px;
+            border-top: 1px solid #444;
+            font-size: 0.65em;
+            color: #b8b8d0;
+        }
+
+        .crew-detail-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2px;
+        }
+
+        .crew-email {
+            color: #90caf9;
+            word-break: break-all;
+            margin-top: 4px;
+            font-size: 0.6em;
+        }
+
+        .crew-role {
+            font-style: italic;
+            color: #b8b8d0;
+            margin-top: 2px;
+            font-size: 0.65em;
+        }
+
+        .crew-card.captain .crew-position {
+            color: #e57373;
+        }
+
+        .crew-card.first-officer .crew-position {
+            color: #ffb74d;
+        }
+
+        .crew-card.fa .crew-position {
+            color: #81c784;
+        }
+
+        .crew-card.dh .crew-position {
+            color: #ba68c8;
+        }
+
+        /* Previous Flight Styling */
+        .previous-flight-number {
+            color: #b0b0b0 !important;
+            font-size: 1.6em;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                margin: 5px;
+            }
+            
+            .container {
+                padding: 10px;
+            }
+            
+            .flight-number-line {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 5px;
+            }
+            
+            .detail-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .crew-list {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- Loading Overlay -->
-        <div class="loading-overlay" id="loadingOverlay" style="display: none;">
-            <div>Loading calendar data...</div>
+        <div class="header">
+            <h1>FLIGHT SEARCH</h1>
+            <div class="crew-info">
+                <strong>Current Crew ID:</strong> {{ current_crew_id }}
+            </div>
         </div>
 
-        <!-- CALENDAR AT THE TOP -->
-        {% if schedule_data %}
-            <div class="month-section" id="month-section">
-                <div class="month-header">
-                    <div class="month-navigation">
-                        <button class="chevron" onclick="navigateMonth(-1)" id="prevMonth">〈</button>
-                        <div class="month-title">{{ month_names[0] }}</div>
-                        <button class="chevron" onclick="navigateMonth(1)" id="nextMonth">〉</button>
+        <div class="nav-buttons">
+            <a href="/" class="nav-button">Schedule View</a>
+            <a href="/calendar" class="nav-button">Calendar View</a>
+            <a href="/pdf" class="nav-button">PDF Download</a>
+            <a href="/flight_details" class="nav-button active">Flight Search</a>
+        </div>
+
+        <div class="content-section">
+            <form id="flightSearchForm">
+                <div class="search-form-grid">
+                    <!-- COLUMN 1, ROW 1: Flight Number -->
+                    <div class="form-group">
+                        <label for="flight_number">Flight Number *</label>
+                        <input type="text" id="flight_number" name="flight_number" required placeholder="e.g., 210">
+                    </div>
+
+                    <!-- COLUMN 2, ROW 1: Departure Date -->
+                    <div class="form-group">
+                        <label for="departure_date">Departure Date *</label>
+                        <input type="date" id="departure_date" name="departure_date" required>
+                    </div>
+
+                    <!-- COLUMN 1, ROW 2: Origin Airport -->
+                    <div class="form-group">
+                        <label for="origin_airport">Origin Airport (IATA) *</label>
+                        <input type="text" id="origin_airport" name="origin_airport" required value="BOG" maxlength="3">
+                    </div>
+
+                    <!-- COLUMN 2, ROW 2: Clear and Search Buttons -->
+                    <div class="search-buttons">
+                        <button type="button" class="clear-origin-btn" onclick="clearOriginAirport()">Clear</button>
+                        <button type="submit" class="btn" id="searchBtn">
+                            Search Flight
+                        </button>
                     </div>
                 </div>
-                
-                <div class="week-days">
-                    <div class="week-day">MON</div>
-                    <div class="week-day">TUE</div>
-                    <div class="week-day">WED</div>
-                    <div class="week-day">THU</div>
-                    <div class="week-day">FRI</div>
-                    <div class="week-day">SAT</div>
-                    <div class="week-day">SUN</div>
-                </div>
-                
-                <div class="calendar-grid">
-                    {% for day in month_calendars[0] %}
-                        {% if day %}
-                            <div class="calendar-day {% if day.date == current_date %}current-day{% endif %} {% if day.weekend %}weekend{% endif %}" id="cal-day-{{ day.date }}">
-                                <div class="calendar-day-header">
-                                    {{ day.day_number }}
-                                </div>
-                                
-                                {% if day.assignments and day.assignments|length > 0 %}
-                                    {% for assignment in day.assignments %}
-                                    <div class="assignment-item {% if assignment.is_flight %}assignment-flight{% else %}assignment-ground{% endif %}">
-                                        {% if assignment.is_flight %}
-                                            <div>
-                                                <span class="flight-number">{{ assignment.flight_number }}</span>
-                                                {% if assignment.departure_stand %}
-                                                    <span class="departure-stand">{{ assignment.departure_stand }}</span>
-                                                {% endif %}
-                                            </div>
-                                            <div class="route">
-                                                {{ assignment.origin }}-{{ assignment.destination }}
-                                            </div>
-                                            <div class="flight-times">
-                                                {{ assignment.departure_time }} - {{ assignment.arrival_time }}
-                                                {% if assignment.time_advanced %}<span class="status-on-time">On Time</span>{% endif %}
-                                                {% if assignment.time_delayed %}<span class="status-delayed">Delayed</span>{% endif %}
-                                                {% if assignment.aircraft_registration %} | {{ assignment.aircraft_registration }}{% endif %}
-                                            </div>
-                                        {% else %}
-                                            <div style="font-weight: bold; color: #f0f0f0; font-size: 1.4em;">
-                                                {{ assignment.activity_code }}
-                                            </div>
-                                            <div style="font-size: 1.2em; color: #f0f0f0; font-weight: bold;">
-                                                {{ assignment.start_time }} - {{ assignment.end_time }}
-                                            </div>
-                                        {% endif %}
-                                    </div>
-                                    {% endfor %}
-                                {% else %}
-                                    <div class="no-assignments">No assignments</div>
-                                {% endif %}
-                            </div>
-                        {% else %}
-                            <div class="calendar-day empty"></div>
-                        {% endif %}
-                    {% endfor %}
-                </div>
-            </div>
-        {% else %}
-            <div class="error">
-                <h3>No schedule data available</h3>
-                <p>Click "Refresh Schedule" to load your schedule.</p>
-            </div>
-        {% endif %}
+            </form>
 
-        <!-- HEADER AND BUTTONS BELOW THE CALENDAR -->
-        <div class="header">
-            <h1>My Crew Schedule - Calendar View</h1>
-            <div class="nav-buttons">
-                <a href="/" class="nav-button">Schedule View</a>
-                <a href="/calendar" class="nav-button active">Calendar View</a>
-                <a href="/pdf" class="nav-button">PDF Download</a>
+            <div id="loading" class="loading hidden">
+                <div>Fetching flight details...</div>
             </div>
-            <button class="button" onclick="refreshCurrentMonth()" id="refreshBtn">Refresh Schedule</button>
-        </div>
 
-        {% if refresh_message %}
-        <div class="success">
-            {{ refresh_message }}
-        </div>
-        {% endif %}
+            <div id="resultsSection" class="hidden">
+                <div id="flightDetails"></div>
+            </div>
 
-        {% if last_fetch %}
-        <div class="info-box">
-            <h3>Last updated: {{ last_fetch }}</h3>
-            <p>Total days: {{ total_days }} | Total assignments: {{ total_assignments }}</p>
-            <p>Current Crew ID: <strong>{{ current_crew_id }}</strong></p>
+            <div id="errorMessage" class="error-message hidden"></div>
+
+            <!-- Auto-fetch section for when parameters are provided via URL -->
+            <div id="autoFetchSection"></div>
         </div>
-        {% endif %}
     </div>
 
-    <!-- Floating Button - refreshes data -->
-    <button class="floating-button" onclick="refreshCurrentMonth()" title="Refresh Data">↻</button>
-
     <script>
-    let currentYear = {{ current_calendar_year }};
-    let currentMonth = {{ current_calendar_month }};
+        document.getElementById('departure_date').value = new Date().toISOString().slice(0, 10);
+        let currentFlightData = null;
 
-    // Check if page was launched from home screen and reload if needed
-    function checkForReload() {
-        // Check if we're in standalone mode (launched from home screen)
-        if (window.navigator.standalone === true) {
-            // Check if we should reload (only reload once per session)
-            if (!sessionStorage.getItem('homeScreenLaunched')) {
-                sessionStorage.setItem('homeScreenLaunched', 'true');
-                
-                // Small delay to ensure page is fully loaded, then reload
-                setTimeout(() => {
-                    window.location.reload();
-                }, 100);
+        // Check if URL parameters are present for auto-fetch
+        const urlParams = new URLSearchParams(window.location.search);
+        const flightNumber = urlParams.get('flight_number');
+        const localDate = urlParams.get('local_date');
+        const originAirport = urlParams.get('origin_airport');
+
+        // Auto-fetch if parameters are present
+        if (flightNumber && localDate && originAirport) {
+            // Fill the form with the parameters
+            document.getElementById('flight_number').value = flightNumber;
+            document.getElementById('departure_date').value = localDate;
+            document.getElementById('origin_airport').value = originAirport;
+            
+            // Auto-submit the form
+            setTimeout(() => {
+                document.getElementById('flightSearchForm').dispatchEvent(new Event('submit'));
+            }, 500);
+        }
+
+        function clearOriginAirport() {
+            const originInput = document.getElementById('origin_airport');
+            originInput.value = '';
+            originInput.focus();
+        }
+
+        document.getElementById('flightSearchForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const searchBtn = document.getElementById('searchBtn');
+            const loading = document.getElementById('loading');
+            const resultsSection = document.getElementById('resultsSection');
+            const errorMessage = document.getElementById('errorMessage');
+
+            errorMessage.classList.add('hidden');
+            resultsSection.classList.add('hidden');
+            loading.classList.remove('hidden');
+            searchBtn.disabled = true;
+            searchBtn.textContent = 'Searching...';
+
+            try {
+                currentFlightData = {
+                    airline: 'AV',
+                    flight_number: formData.get('flight_number'),
+                    departure_date: formData.get('departure_date') + 'T00:00:00Z',
+                    origin_airport: formData.get('origin_airport').toUpperCase(),
+                    operational_number: '42307372'
+                };
+
+                const response = await fetch('/api/flight_details', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(currentFlightData)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    displayFlightDetails(result.flight_details);
+                    resultsSection.classList.remove('hidden');
+                    
+                    setTimeout(() => {
+                        document.getElementById('flightNumberTop').scrollIntoView({ 
+                            behavior: 'smooth', 
+                            block: 'start' 
+                        });
+                    }, 100);
+                    
+                    // Automatically load previous flight if available
+                    if (result.flight_details.PreviousFlight) {
+                        setTimeout(() => {
+                            loadPreviousFlight(result.flight_details.PreviousFlight);
+                        }, 500);
+                    }
+                    
+                    setTimeout(() => {
+                        loadCrewMembers();
+                    }, 500);
+                } else {
+                    showError(result.error || 'Failed to fetch flight details');
+                }
+
+            } catch (error) {
+                showError('Network error: ' + error.message);
+            } finally {
+                loading.classList.add('hidden');
+                searchBtn.disabled = false;
+                searchBtn.textContent = 'Search Flight';
+            }
+        });
+
+        async function loadCrewMembers() {
+            if (!currentFlightData) return;
+
+            try {
+                const response = await fetch('/api/flight_crew', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(currentFlightData)
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    displayCrewMembers(result.crew_data);
+                }
+            } catch (error) {
+                console.error('Error loading crew members:', error);
             }
         }
-    }
 
-    // Navigate to previous or next month
-    function navigateMonth(direction) {
-        // Calculate new month and year
-        let newYear = currentYear;
-        let newMonth = currentMonth + direction;
-        
-        if (newMonth > 12) {
-            newMonth = 1;
-            newYear++;
-        } else if (newMonth < 1) {
-            newMonth = 12;
-            newYear--;
-        }
-        
-        // Show loading overlay
-        document.getElementById('loadingOverlay').style.display = 'flex';
-        
-        // Navigate to new month
-        const url = new URL(window.location);
-        url.searchParams.set('year', newYear);
-        url.searchParams.set('month', newMonth);
-        window.location.href = url.toString();
-    }
+        async function loadPreviousFlight(previousFlightData) {
+            if (!previousFlightData) return;
 
-    // Refresh current month data
-    function refreshCurrentMonth() {
-        const button = document.getElementById('refreshBtn');
-        const floatingBtn = document.querySelector('.floating-button');
-        
-        button.disabled = true;
-        button.textContent = 'Loading...';
-        floatingBtn.classList.add('loading');
-        floatingBtn.disabled = true;
-        document.getElementById('loadingOverlay').style.display = 'flex';
-        
-        fetch('/fetch?refresh=true')
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    // Reload the page to show fresh data
-                    const url = new URL(window.location);
-                    url.searchParams.set('refresh', 'success');
-                    window.location.href = url.toString();
-                } else {
-                    alert('Failed: ' + (data.error || 'Unknown error'));
-                    resetButtons();
-                }
-            })
-            .catch(err => {
-                alert('Error: ' + err);
-                resetButtons();
-            });
+            const previousFlightSection = document.getElementById('previousFlightSection');
+            const title = document.querySelector('.content-section-title[onclick]');
             
-        function resetButtons() {
-            button.disabled = false;
-            button.textContent = 'Refresh Schedule';
-            floatingBtn.classList.remove('loading');
-            floatingBtn.disabled = false;
-            document.getElementById('loadingOverlay').style.display = 'none';
+            // Show loading state
+            title.classList.add('loading');
+            title.textContent = 'Previous Flight - Loading...';
+
+            try {
+                // Extract flight number from previous flight data - USING LOCAL DATE
+                const flightNumber = previousFlightData.Prv_commercialFlightNumber;
+                const airline = previousFlightData.Prv_airline || 'AV';
+                // Use LOCAL date instead of UTC date
+                const departureDateLocal = previousFlightData.Prv_departureDateLOCAL;
+                const dateString = departureDateLocal.split('T')[0]; // Extract date part from local datetime
+                const originAirport = previousFlightData.Prv_departureAirportIATACode;
+
+                const searchData = {
+                    airline: airline,
+                    flight_number: flightNumber,
+                    departure_date: dateString + 'T00:00:00Z',
+                    origin_airport: originAirport,
+                    operational_number: '42307372'
+                };
+
+                const response = await fetch('/api/flight_details', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(searchData)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    displayPreviousFlightDetails(result.flight_details);
+                    title.textContent = 'Previous Flight';
+                } else {
+                    showError('Failed to load previous flight: ' + (result.error || 'Unknown error'));
+                    title.textContent = 'Previous Flight - Click to retry';
+                }
+
+            } catch (error) {
+                showError('Network error loading previous flight: ' + error.message);
+                title.textContent = 'Previous Flight - Click to retry';
+            } finally {
+                title.classList.remove('loading');
+            }
         }
-    }
 
-    // Refresh function for floating button
-    function refreshFromFloatingButton() {
-        refreshCurrentMonth();
-    }
+        function displayFlightDetails(flight) {
+            const container = document.getElementById('flightDetails');
+            
+            let statusClass = 'status-scheduled';
+            let statusText = flight.FlightStatus || 'Unknown';
+            if (flight.FlightStatusCode === 'ARR') {
+                statusClass = 'status-arrived';
+            } else if (flight.TimeDelayed) {
+                statusClass = 'status-delayed';
+            }
 
-    function updateNavigationButtons() {
-        // You can add logic here to disable buttons if needed
-        // For example, disable previous button if we're at the earliest available month
-    }
+            // Extract time from local time strings instead of UTC
+            function formatTime(dateString) {
+                if (!dateString) return 'N/A';
+                // Extract HH:MM directly from the local time string
+                return dateString.slice(11, 16);
+            }
 
-    // Initialize on page load
-    document.addEventListener('DOMContentLoaded', function() {
-        updateNavigationButtons();
-        
-        // Check if we should reload (for home screen launches)
-        checkForReload();
-        
-        // Scroll the current month to the very top of the viewport
-        const currentMonthElement = document.getElementById('month-section');
-        if (currentMonthElement) {
-            currentMonthElement.scrollIntoView({ behavior: 'smooth' });
+            function formatDuration(minutes) {
+                if (!minutes) return '';
+                const hours = Math.floor(minutes / 60);
+                const mins = minutes % 60;
+                return `(${hours}h ${mins}m)`;
+            }
+
+            const html = `
+                <div class="flight-details">
+                    <div class="flight-header">
+                        <div class="flight-number-line">
+                            <div class="flight-number-large" id="flightNumberTop">
+                                ${flight.Flight?.Airline || 'AV'}${flight.Flight?.CommercialFlightNumber || 'N/A'}
+                            </div>
+                            <div class="tail-number">${flight.AircraftRegistrationNumber || 'N/A'}</div>
+                        </div>
+                        
+                        <div class="route-line">
+                            ${flight.Flight?.OriginAirportIATACode || 'N/A'} → ${flight.Flight?.FinalAirportIATACode || 'N/A'}
+                        </div>
+                        
+                        <div class="time-comparison">
+                            <div class="time-line">
+                                <span class="time-label">Scheduled:</span>
+                                <span class="time-value">${formatTime(flight.Flight?.ScheduleDepartureDateLOCAL)} - ${formatTime(flight.Flight?.ScheduleArrivalDateLOCAL)}</span>
+                                <span class="duration">${formatDuration(flight.Flight?.ScheduledDuration)}</span>
+                            </div>
+                            <div class="time-line">
+                                <span class="time-label">Actual:</span>
+                                <span class="time-value">${formatTime(flight.Flight?.DepartureDateLOCAL)} - ${formatTime(flight.Flight?.ArrivalDateLOCAL)}</span>
+                                <span class="duration">${formatDuration(flight.Flight?.Duration)}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="flight-status ${statusClass}">${statusText}</div>
+                    </div>
+
+                    ${flight.PreviousFlight ? `
+                    <div class="content-section-title" onclick="loadPreviousFlight(${JSON.stringify(flight.PreviousFlight).replace(/"/g, '&quot;')})">
+                        Previous Flight
+                    </div>
+                    <div id="previousFlightSection">
+                        <div class="loading">Loading previous flight...</div>
+                    </div>
+                    ` : '<div class="content-section-title">Previous Flight</div><div class="detail-item"><span class="detail-value">No previous flight data available</span></div>'}
+
+                    <div id="crewSection"></div>
+
+                    <div class="content-section-title">Flight Details</div>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <span class="detail-label">Operational Number:</span>
+                            <span class="detail-value">${flight.Flight?.OperationalNumber || 'N/A'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Service Type:</span>
+                            <span class="detail-value">${flight.Flight?.Service_type || 'N/A'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Fleet Type:</span>
+                            <span class="detail-value">${flight.Fleet || 'N/A'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Departure Gate:</span>
+                            <span class="detail-value">${flight.DepartureGate || 'N/A'} ${flight.DepartureTerminal ? `(T${flight.DepartureTerminal})` : ''}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Arrival Gate:</span>
+                            <span class="detail-value">${flight.ArrivalGate || 'N/A'} ${flight.ArrivalTerminal ? `(T${flight.ArrivalTerminal})` : ''}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Time Advanced:</span>
+                            <span class="detail-value">${flight.Flight?.TimeAdvanced ? 'Yes' : 'No'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Time Delayed:</span>
+                            <span class="detail-value">${flight.Flight?.TimeDelayed ? 'Yes' : 'No'}</span>
+                        </div>
+                    </div>
+
+                    ${flight.MELs && flight.MELs.length > 0 ? `
+                    <div class="content-section-title">Equipment Issues (MELs)</div>
+                    <ul class="mel-list">
+                        ${flight.MELs.map(mel => `
+                            <li class="mel-item">
+                                <div class="mel-code">${mel.MELCode || 'N/A'}</div>
+                                <div class="mel-desc">${mel.MELDesc || 'No description'}</div>
+                                ${mel.MELComment ? `<div class="mel-desc">Comment: ${mel.MELComment}</div>` : ''}
+                            </li>
+                        `).join('')}
+                    </ul>
+                    ` : ''}
+
+                    <div class="success-message">
+                        <strong>Last Updated:</strong> ${new Date(flight.LastModified).toLocaleString()}
+                    </div>
+                </div>
+            `;
+
+            container.innerHTML = html;
         }
-        
-        // Hide loading overlay after page loads
-        setTimeout(() => {
-            document.getElementById('loadingOverlay').style.display = 'none';
-        }, 500);
-    });
+
+        function displayPreviousFlightDetails(flight) {
+            const previousFlightSection = document.getElementById('previousFlightSection');
+            
+            // Extract time from local time strings instead of UTC
+            function formatTime(dateString) {
+                if (!dateString) return 'N/A';
+                // Extract HH:MM directly from the local time string
+                return dateString.slice(11, 16);
+            }
+
+            function formatDuration(minutes) {
+                if (!minutes) return '';
+                const hours = Math.floor(minutes / 60);
+                const mins = minutes % 60;
+                return `(${hours}h ${mins}m)`;
+            }
+
+            const html = `
+                <div class="flight-header">
+                    <div class="flight-number-line">
+                        <div class="previous-flight-number">
+                            ${flight.Flight?.Airline || 'AV'}${flight.Flight?.CommercialFlightNumber || 'N/A'}
+                        </div>
+                        <!-- Removed tail number since it's the same aircraft -->
+                    </div>
+                    
+                    <div class="route-line">
+                        ${flight.Flight?.OriginAirportIATACode || 'N/A'} → ${flight.Flight?.FinalAirportIATACode || 'N/A'}
+                    </div>
+                    
+                    <div class="time-comparison">
+                        <div class="time-line">
+                            <span class="time-label">Scheduled:</span>
+                            <span class="time-value">${formatTime(flight.Flight?.ScheduleDepartureDateLOCAL)} - ${formatTime(flight.Flight?.ScheduleArrivalDateLOCAL)}</span>
+                            <span class="duration">${formatDuration(flight.Flight?.ScheduledDuration)}</span>
+                        </div>
+                        <div class="time-line">
+                            <span class="time-label">Actual:</span>
+                            <span class="time-value">${formatTime(flight.Flight?.DepartureDateLOCAL)} - ${formatTime(flight.Flight?.ArrivalDateLOCAL)}</span>
+                            <span class="duration">${formatDuration(flight.Flight?.Duration)}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            previousFlightSection.innerHTML = html;
+        }
+
+        function displayCrewMembers(crewData) {
+            if (!crewData.MembersTeamFlight || crewData.MembersTeamFlight.length === 0) return;
+
+            const crewSection = document.getElementById('crewSection');
+            let html = `
+                <div class="content-section-title">Crew Members</div>
+                <div class="crew-list">
+            `;
+
+            crewData.MembersTeamFlight.forEach((member, index) => {
+                const position = member.Position || 'Unknown';
+                const profile = member.Profile || {};
+                const fleet = profile.Qualifications ? profile.Qualifications.join(', ') : (profile.RawQualifications || 'N/A');
+                
+                let cardClass = 'crew-member-compact crew-card';
+                if (position.includes('CP')) cardClass += ' captain';
+                else if (position.includes('FO')) cardClass += ' first-officer';
+                else if (position.includes('FA')) cardClass += ' fa';
+                else if (position.includes('DH')) cardClass += ' dh';
+
+                html += `
+                    <div class="${cardClass}" onclick="toggleCrewDetails(${index})">
+                        <div class="crew-name">${member.Names || ''} ${member.LastName || ''}</div>
+                        <div class="crew-position">${position}</div>
+                        <div class="crew-details-expanded" id="crew-details-${index}" style="display: none;">
+                            <div class="crew-detail-item">
+                                <span>Crew ID:</span>
+                                <span>${member.CrewMemberUniqueId || 'N/A'}</span>
+                            </div>
+                            <div class="crew-detail-item">
+                                <span>Base:</span>
+                                <span>${profile.Base || 'N/A'}</span>
+                            </div>
+                            <div class="crew-detail-item">
+                                <span>Fleet:</span>
+                                <span>${fleet}</span>
+                            </div>
+                            <div class="crew-detail-item">
+                                <span>Seniority:</span>
+                                <span>${profile.Superiority || 'N/A'}</span>
+                            </div>
+                            ${member.FlightRole ? `<div class="crew-role">${member.FlightRole}</div>` : ''}
+                            ${profile.TelephoneNumber ? `
+                            <div class="crew-detail-item">
+                                <span>Phone:</span>
+                                <span>${profile.TelephoneNumber}</span>
+                            </div>
+                            ` : ''}
+                            ${profile.CorporateEmail ? `
+                            <div class="crew-email">${profile.CorporateEmail}</div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += '</div>';
+            crewSection.innerHTML = html;
+        }
+
+        function toggleCrewDetails(index) {
+            const crewMember = document.querySelectorAll('.crew-member-compact')[index];
+            const details = document.getElementById(`crew-details-${index}`);
+            
+            if (details.style.display === 'none') {
+                details.style.display = 'block';
+                crewMember.classList.add('expanded');
+            } else {
+                details.style.display = 'none';
+                crewMember.classList.remove('expanded');
+            }
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.classList.remove('hidden');
+        }
+
+        // Prevent zooming with keyboard
+        document.addEventListener('keydown', function(e) {
+            if ((e.ctrlKey && (e.key === '+' || e.key === '-' || e.key === '=')) || 
+                (e.ctrlKey && e.key === '0') ||
+                (e.metaKey && (e.key === '+' || e.key === '-' || e.key === '=')) ||
+                (e.metaKey && e.key === '0')) {
+                e.preventDefault();
+            }
+        });
+
+        // Prevent zooming with wheel
+        document.addEventListener('wheel', function(e) {
+            if (e.ctrlKey) {
+                e.preventDefault();
+            }
+        }, { passive: false });
     </script>
 </body>
 </html>

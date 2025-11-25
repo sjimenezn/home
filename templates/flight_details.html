@@ -578,6 +578,7 @@
     <script>
         document.getElementById('departure_date').value = new Date().toISOString().slice(0, 10);
         let currentFlightData = null;
+        let isAutoFetched = false;
 
         // Auto-fill form if URL parameters are present
         const urlParams = new URLSearchParams(window.location.search);
@@ -598,6 +599,9 @@
                 origin_airport: originAirport,
                 operational_number: '42307372'
             };
+            
+            // Mark as auto-fetched to handle cleanup
+            isAutoFetched = true;
         }
 
         function clearOriginAirport() {
@@ -615,14 +619,26 @@
             const resultsSection = document.getElementById('resultsSection');
             const errorMessage = document.getElementById('errorMessage');
 
+            // Clear any previous state
             errorMessage.classList.add('hidden');
-            resultsSection.classList.add('hidden');
             loading.classList.remove('hidden');
             searchBtn.disabled = true;
             searchBtn.textContent = 'Searching...';
 
+            // If this is the first manual search after auto-fetch, clear the auto-fetched content
+            if (isAutoFetched) {
+                const autoFlightDetails = document.getElementById('flightDetails');
+                if (autoFlightDetails) {
+                    autoFlightDetails.innerHTML = '';
+                }
+                isAutoFetched = false;
+            }
+
+            // Always show results section for manual searches
+            resultsSection.classList.remove('hidden');
+
             try {
-                // RESET currentFlightData with fresh form data - this is the key fix
+                // RESET currentFlightData with fresh form data
                 currentFlightData = {
                     airline: 'AV',
                     flight_number: formData.get('flight_number'),
@@ -641,7 +657,6 @@
 
                 if (result.success) {
                     displayFlightDetails(result.flight_details);
-                    resultsSection.classList.remove('hidden');
                     
                     setTimeout(() => {
                         const flightNumberTop = document.getElementById('flightNumberTop');

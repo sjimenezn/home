@@ -601,19 +601,23 @@
                     }, 500);
                     
                     // Final scroll to top after everything is loaded
-                    setTimeout(() => {
-                        const flightNumberTop = document.getElementById('flightNumberTop');
-                        if (flightNumberTop) {
-                            flightNumberTop.scrollIntoView({ 
-                                behavior: 'smooth', 
-                                block: 'start' 
-                            });
-                        }
-                        // Clear loading state
-                        loading.classList.add('hidden');
-                        searchBtn.disabled = false;
-                        searchBtn.textContent = 'Search Flight';
-                    }, 1500);
+setTimeout(() => {
+    const flightNumberTop = document.getElementById('flightNumberTop');
+    if (flightNumberTop) {
+        // Calculate position with padding to prevent cutting off
+        const elementPosition = flightNumberTop.getBoundingClientRect().top + window.pageYOffset;
+        const offsetPosition = elementPosition - 100; // 100px padding from top
+        
+        window.scrollTo({
+            top: offsetPosition,
+            behavior: 'smooth'
+        });
+    }
+    // Clear loading state
+    loading.classList.add('hidden');
+    searchBtn.disabled = false;
+    searchBtn.textContent = 'Search Flight';
+}, 1500);
                     
                 } else {
                     showError(result.error || 'Failed to fetch flight details');

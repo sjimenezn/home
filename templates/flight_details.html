@@ -533,12 +533,34 @@
             </div>
 
             <div id="errorMessage" class="error-message hidden"></div>
+
+            <!-- Auto-fetch section for when parameters are provided via URL -->
+            <div id="autoFetchSection"></div>
         </div>
     </div>
 
     <script>
         document.getElementById('departure_date').value = new Date().toISOString().slice(0, 10);
         let currentFlightData = null;
+
+        // Check if URL parameters are present for auto-fetch
+        const urlParams = new URLSearchParams(window.location.search);
+        const flightNumber = urlParams.get('flight_number');
+        const localDate = urlParams.get('local_date');
+        const originAirport = urlParams.get('origin_airport');
+
+        // Auto-fetch if parameters are present
+        if (flightNumber && localDate && originAirport) {
+            // Fill the form with the parameters
+            document.getElementById('flight_number').value = flightNumber;
+            document.getElementById('departure_date').value = localDate;
+            document.getElementById('origin_airport').value = originAirport;
+            
+            // Auto-submit the form
+            setTimeout(() => {
+                document.getElementById('flightSearchForm').dispatchEvent(new Event('submit'));
+            }, 500);
+        }
 
         function clearOriginAirport() {
             const originInput = document.getElementById('origin_airport');

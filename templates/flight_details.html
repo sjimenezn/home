@@ -513,63 +513,10 @@
                 <div>Fetching flight details...</div>
             </div>
 
-            <!-- Auto-display flight data if available -->
-            {% if auto_fetch and flight_details %}
-                <div id="flightDetails">
-                    <!-- Flight details will be displayed here by JavaScript -->
-                </div>
-                <script>
-                    // Immediately display the flight data that was fetched server-side
-                    document.addEventListener('DOMContentLoaded', function() {
-                        const urlParams = new URLSearchParams(window.location.search);
-                        const flightNumber = urlParams.get('flight_number');
-                        const localDate = urlParams.get('local_date');
-                        const originAirport = urlParams.get('origin_airport');
-                        
-                        if (flightNumber && localDate && originAirport) {
-                            currentFlightData = {
-                                airline: 'AV',
-                                flight_number: flightNumber,
-                                departure_date: localDate + 'T00:00:00Z',
-                                origin_airport: originAirport,
-                                operational_number: '42307372'
-                            };
-                            
-                            displayFlightDetails({{ flight_details | tojson }});
-                            
-                            // Load crew members
-                            setTimeout(() => {
-                                loadCrewMembers();
-                            }, 500);
-                            
-                            // Auto-load previous flight if available
-                            const flightDetails = {{ flight_details | tojson }};
-                            if (flightDetails && flightDetails.PreviousFlight) {
-                                setTimeout(() => {
-                                    loadPreviousFlight(flightDetails.PreviousFlight);
-                                }, 1000);
-                            }
-                        }
-                        
-                        // Auto-scroll to flight details
-                        setTimeout(() => {
-                            const flightDetails = document.getElementById('flightDetails');
-                            if (flightDetails) {
-                                flightDetails.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                            }
-                        }, 100);
-                    });
-                </script>
-            {% elif auto_fetch and not flight_details %}
-                <div class="error-message">
-                    Failed to fetch flight details for {{ flight_number }} on {{ local_date }} from {{ origin_airport }}
-                </div>
-            {% else %}
-                <!-- Manual search results section -->
-                <div id="resultsSection" class="hidden">
-                    <div id="flightDetails"></div>
-                </div>
-            {% endif %}
+            <!-- Manual search results section -->
+            <div id="resultsSection" class="hidden">
+                <div id="flightDetails"></div>
+            </div>
 
             <div id="errorMessage" class="error-message hidden"></div>
         </div>
@@ -579,25 +526,25 @@
         document.getElementById('departure_date').value = new Date().toISOString().slice(0, 10);
         let currentFlightData = null;
 
-        // Auto-fill form if URL parameters are present
+        // Check URL parameters and auto-fetch if present (client-side only)
         const urlParams = new URLSearchParams(window.location.search);
         const flightNumber = urlParams.get('flight_number');
         const localDate = urlParams.get('local_date');
         const originAirport = urlParams.get('origin_airport');
         
+        // Auto-fetch if URL parameters are present
         if (flightNumber && localDate && originAirport) {
-            document.getElementById('flight_number').value = flightNumber;
-            document.getElementById('departure_date').value = localDate;
-            document.getElementById('origin_airport').value = originAirport;
-            
-            // Set currentFlightData for manual searches later
-            currentFlightData = {
-                airline: 'AV',
-                flight_number: flightNumber,
-                departure_date: localDate + 'T00:00:00Z',
-                origin_airport: originAirport,
-                operational_number: '42307372'
-            };
+            document.addEventListener('DOMContentLoaded', function() {
+                // Auto-fill the form
+                document.getElementById('flight_number').value = flightNumber;
+                document.getElementById('departure_date').value = localDate;
+                document.getElementById('origin_airport').value = originAirport;
+                
+                // Trigger the search automatically after a short delay
+                setTimeout(() => {
+                    document.getElementById('flightSearchForm').dispatchEvent(new Event('submit'));
+                }, 100);
+            });
         }
 
         function clearOriginAirport() {
@@ -642,13 +589,6 @@
                     displayFlightDetails(result.flight_details);
                     resultsSection.classList.remove('hidden');
                     
-                    setTimeout(() => {
-                        document.getElementById('flightNumberTop').scrollIntoView({ 
-                            behavior: 'smooth', 
-                            block: 'start' 
-                        });
-                    }, 100);
-                    
                     // Automatically load previous flight if available
                     if (result.flight_details.PreviousFlight) {
                         setTimeout(() => {
@@ -660,12 +600,20 @@
                         loadCrewMembers();
                     }, 500);
                     
-                    // Clear loading state after everything is initiated
+                    // Final scroll to top after everything is loaded
                     setTimeout(() => {
+                        const flightNumberTop = document.getElementById('flightNumberTop');
+                        if (flightNumberTop) {
+                            flightNumberTop.scrollIntoView({ 
+                                behavior: 'smooth', 
+                                block: 'start' 
+                            });
+                        }
+                        // Clear loading state
                         loading.classList.add('hidden');
                         searchBtn.disabled = false;
                         searchBtn.textContent = 'Search Flight';
-                    }, 1000);
+                    }, 1500);
                     
                 } else {
                     showError(result.error || 'Failed to fetch flight details');

@@ -23,7 +23,8 @@
         .assignment-item { background: #3a3a3a; padding: 3px; margin: 2px 0; border-radius: 3px; border-left: none; font-size: 0.8em; }
         .assignment-flight { background: #2a2a2a; border-left: none; }
         .assignment-ground { background: #3a3a2a; border-left: none; }
-        .flight-number { font-weight: bold; color: #ffc107; font-size: 1.6em; display: inline; }
+        .flight-number { font-weight: bold; color: #ffc107; font-size: 1.6em; display: inline; cursor: pointer; text-decoration: none; transition: color 0.2s ease; }
+        .flight-number:hover { color: #ffd54f; text-decoration: underline; }
         .departure-stand { font-weight: bold; color: #4fc3f7; font-size: 1.6em; display: inline; margin-left: 8px; }
         .route { font-size: 1.4em; color: #f0f0f0; font-weight: bold; margin: 3px 0; }
         .flight-times { font-size: 1.2em; color: #f0f0f0; font-weight: bold; margin-top: 3px; }
@@ -140,7 +141,9 @@
                                     <div class="assignment-item {% if assignment.is_flight %}assignment-flight{% else %}assignment-ground{% endif %}">
                                         {% if assignment.is_flight %}
                                             <div>
-                                                <span class="flight-number">{{ assignment.flight_number }}</span>
+                                                <a href="/flight_details?flight_number={{ assignment.flight_number }}&local_date={{ day.date }}&origin_airport={{ assignment.origin }}" class="flight-number">
+                                                    {{ assignment.flight_number }}
+                                                </a>
                                                 {% if assignment.departure_stand %}
                                                     <span class="departure-stand">{{ assignment.departure_stand }}</span>
                                                 {% endif %}
@@ -188,6 +191,7 @@
                 <a href="/" class="nav-button">Schedule View</a>
                 <a href="/calendar" class="nav-button active">Calendar View</a>
                 <a href="/pdf" class="nav-button">PDF Download</a>
+                <a href="/flight_details" class="nav-button">Flight Search</a>
             </div>
             <button class="button" onclick="refreshCurrentMonth()" id="refreshBtn">Refresh Schedule</button>
         </div>

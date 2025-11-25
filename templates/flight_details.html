@@ -39,6 +39,8 @@
         .time-line { display: flex; justify-content: center; margin-bottom: 3px; font-size: 0.9em; }
         .time-label { width: 80px; color: #b8b8d0; text-align: right; margin-right: 10px; }
         .time-value { text-align: left; }
+        .time-early { color: #81c784; } /* Green for early/on-time */
+        .time-late { color: #f44336; } /* Red for late */
         .flight-status { padding: 4px 8px; border-radius: 12px; font-size: 0.8em; display: inline-block; margin-top: 5px; }
         .status-arrived { background: #2e7d32; }
         .status-scheduled { background: #1976d2; }
@@ -172,17 +174,32 @@
                     displayFlightDetails(result.flight_details);
                     resultsSection.classList.remove('hidden');
                     
+                    // Load previous flight and crew, then scroll
                     if (result.flight_details.PreviousFlight) {
-                        setTimeout(() => loadPreviousFlight(result.flight_details.PreviousFlight), 500);
+                        setTimeout(() => {
+                            loadPreviousFlight(result.flight_details.PreviousFlight).then(() => {
+                                // Scroll after previous flight loads
+                                setTimeout(() => {
+                                    const flightNumberTop = document.getElementById('flightNumberTop');
+                                    if (flightNumberTop) {
+                                        flightNumberTop.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                    }
+                                }, 100);
+                            });
+                        }, 500);
+                    } else {
+                        // If no previous flight, scroll after crew loads
+                        setTimeout(() => {
+                            const flightNumberTop = document.getElementById('flightNumberTop');
+                            if (flightNumberTop) {
+                                flightNumberTop.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            }
+                        }, 1500);
                     }
                     
                     setTimeout(() => loadCrewMembers(), 500);
                     
                     setTimeout(() => {
-                        const flightNumberTop = document.getElementById('flightNumberTop');
-                        if (flightNumberTop) {
-                            flightNumberTop.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        }
                         loading.classList.add('hidden');
                         searchBtn.disabled = false;
                         searchBtn.textContent = 'Search';
@@ -277,6 +294,15 @@
             const gateInfo = flight.DepartureGate ? `T${flight.DepartureTerminal || ''} ${flight.DepartureGate}` : '';
             const fleet = flight.Fleet || '';
             
+            // Calculate time colors
+            const scheduledDeparture = flight.Flight?.ScheduleDepartureDateLOCAL;
+            const actualDeparture = flight.Flight?.DepartureDateLOCAL;
+            const scheduledArrival = flight.Flight?.ScheduleArrivalDateLOCAL;
+            const actualArrival = flight.Flight?.ArrivalDateLOCAL;
+            
+            const departureColor = getTimeColor(actualDeparture, scheduledDeparture);
+            const arrivalColor = getTimeColor(actualArrival, scheduledArrival);
+            
             const html = `
                 <div class="flight-header">
                     <div class="flight-number-line">
@@ -299,11 +325,13 @@
                     <div class="time-comparison">
                         <div class="time-line">
                             <span class="time-label">Scheduled:</span>
-                            <span class="time-value">${formatTime(flight.Flight?.ScheduleDepartureDateLOCAL)} - ${formatTime(flight.Flight?.ScheduleArrivalDateLOCAL)}</span>
+                            <span class="time-value">${formatTime(scheduledDeparture)} - ${formatTime(scheduledArrival)}</span>
                         </div>
                         <div class="time-line">
                             <span class="time-label">Actual:</span>
-                            <span class="time-value">${formatTime(flight.Flight?.DepartureDateLOCAL)} - ${formatTime(flight.Flight?.ArrivalDateLOCAL)}</span>
+                            <span class="time-value ${departureColor}">${formatTime(actualDeparture)}</span>
+                            <span> - </span>
+                            <span class="time-value ${arrivalColor}">${formatTime(actualArrival)}</span>
                         </div>
                         <div class="flight-status ${statusClass}">${flight.FlightStatus || 'Unknown'}</div>
                     </div>
@@ -346,6 +374,15 @@
         function displayPreviousFlightDetails(flight) {
             const previousFlightSection = document.getElementById('previousFlightSection');
             
+            // Calculate time colors for previous flight
+            const scheduledDeparture = flight.Flight?.ScheduleDepartureDateLOCAL;
+            const actualDeparture = flight.Flight?.DepartureDateLOCAL;
+            const scheduledArrival = flight.Flight?.ScheduleArrivalDateLOCAL;
+            const actualArrival = flight.Flight?.ArrivalDateLOCAL;
+            
+            const departureColor = getTimeColor(actualDeparture, scheduledDeparture);
+            const arrivalColor = getTimeColor(actualArrival, scheduledArrival);
+            
             const html = `
                 <div class="flight-header">
                     <div class="flight-number-line">
@@ -363,17 +400,36 @@
                     <div class="time-comparison">
                         <div class="time-line">
                             <span class="time-label">Scheduled:</span>
-                            <span class="time-value">${formatTime(flight.Flight?.ScheduleDepartureDateLOCAL)} - ${formatTime(flight.Flight?.ScheduleArrivalDateLOCAL)}</span>
+                            <span class="time-value">${formatTime(scheduledDeparture)} - ${formatTime(scheduledArrival)}</span>
                         </div>
                         <div class="time-line">
                             <span class="time-label">Actual:</span>
-                            <span class="time-value">${formatTime(flight.Flight?.DepartureDateLOCAL)} - ${formatTime(flight.Flight?.ArrivalDateLOCAL)}</span>
+                            <span class="time-value ${departureColor}">${formatTime(actualDeparture)}</span>
+                            <span> - </span>
+                            <span class="time-value ${arrivalColor}">${formatTime(actualArrival)}</span>
                         </div>
                     </div>
                 </div>
             `;
 
             previousFlightSection.innerHTML = html;
+        }
+
+        function getTimeColor(actualTime, scheduledTime) {
+            if (!actualTime || !scheduledTime) return '';
+            
+            const actual = actualTime.slice(11, 16); // "HH:MM"
+            const scheduled = scheduledTime.slice(11, 16);
+            
+            // Convert to minutes since midnight for comparison
+            const actualMinutes = parseInt(actual.split(':')[0]) * 60 + parseInt(actual.split(':')[1]);
+            const scheduledMinutes = parseInt(scheduled.split(':')[0]) * 60 + parseInt(scheduled.split(':')[1]);
+            
+            return actualMinutes <= scheduledMinutes ? 'time-early' : 'time-late';
+        }
+
+        function formatTime(dateString) {
+            return dateString ? dateString.slice(11, 16) : 'N/A';
         }
 
         function displayCrewMembers(crewData) {
@@ -434,10 +490,6 @@
                 details.style.display = 'none';
                 crewMember.classList.remove('expanded');
             }
-        }
-
-        function formatTime(dateString) {
-            return dateString ? dateString.slice(11, 16) : 'N/A';
         }
 
         function showError(message) {

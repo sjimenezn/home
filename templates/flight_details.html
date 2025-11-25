@@ -12,55 +12,53 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: Arial, sans-serif;
             margin: 10px;
             background: #121212;
             color: #f0f0f0;
-            font-size: 18px;
-            line-height: 1.6;
+            font-size: 0.7em;
             touch-action: pan-x pan-y;
         }
 
         .container {
-            max-width: 600px;
-            margin: 10px auto;
+            max-width: 1400px;
+            margin: 0 auto;
             background: #2a2a2a;
-            padding: 20px;
+            padding: 15px;
             border-radius: 8px;
             border: 1px solid #444;
         }
 
         .header {
             text-align: center;
-            margin-bottom: 25px;
+            margin-bottom: 15px;
         }
 
-        /* Navigation Banner */
-        .nav-banner {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr 1fr;
-            gap: 1px;
-            background: #444;
-            border: 1px solid #444;
-            border-radius: 8px;
-            overflow: hidden;
+        .nav-buttons {
+            text-align: center;
+            margin: 10px 0;
         }
+
         .nav-button {
-            padding: 12px 5px;
             background: #3a3a3a;
             color: #f0f0f0;
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 0 3px;
             text-decoration: none;
-            font-size: 0.9em;
-            font-weight: 500;
-            text-align: center;
+            display: inline-block;
+            font-size: 0.8em;
         }
+
         .nav-button:hover {
             background: #4a4a4a;
         }
+
         .nav-button.active {
             background: #f0f0f0;
             color: #121212;
-            font-weight: 700;
         }
 
         .content-section {
@@ -70,11 +68,11 @@
             margin-bottom: 10px;
         }
 
-        /* Updated Form Styles to match PDF page */
+        /* Updated Form Styles */
         .input-group {
             margin-bottom: 20px;
         }
-        .input-label {
+        .input-group label {
             display: block;
             margin-bottom: 8px;
             font-weight: 600;
@@ -473,30 +471,29 @@
             </div>
         </div>
 
-        <!-- Updated Navigation Banner -->
-        <div class="nav-banner">
-            <a href="/" class="nav-button">📋 Schedule</a>
-            <a href="/calendar" class="nav-button">📅 Calendar</a>
-            <a href="/pdf" class="nav-button">📄 PDF</a>
-            <a href="/flight_details" class="nav-button active">🔍 Flight Search</a>
+        <div class="nav-buttons">
+            <a href="/" class="nav-button">Schedule View</a>
+            <a href="/calendar" class="nav-button">Calendar View</a>
+            <a href="/pdf" class="nav-button">PDF Download</a>
+            <a href="/flight_details" class="nav-button active">Flight Search</a>
         </div>
 
         <div class="content-section">
-            <!-- Updated search form with PDF page styling -->
+            <!-- ALWAYS show search form -->
             <form id="flightSearchForm">
                 <div class="input-group">
-                    <label class="input-label" for="flight_number">Flight Number *</label>
+                    <label for="flight_number">Flight Number *</label>
                     <input type="text" id="flight_number" name="flight_number" class="crew-input" required placeholder="e.g., 210">
                 </div>
 
                 <div class="input-group">
-                    <label class="input-label" for="departure_date">Departure Date *</label>
+                    <label for="departure_date">Departure Date *</label>
                     <input type="date" id="departure_date" name="departure_date" class="date-input" required>
                 </div>
 
                 <div class="input-group flex-group">
                     <div style="flex-grow: 1;">
-                        <label class="input-label" for="origin_airport">Origin Airport (IATA) *</label>
+                        <label for="origin_airport">Origin Airport (IATA) *</label>
                         <input type="text" id="origin_airport" name="origin_airport" class="crew-input" required value="BOG" maxlength="3">
                     </div>
                     <button type="button" class="button clear-btn" onclick="clearOriginAirport()">Clear</button>

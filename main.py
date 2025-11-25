@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-My Crew Schedule Monitor - Optimized Version with Flight Details and Crew Members
+My Crew Schedule Monitor - Optimized Version
 """
 
 import os
@@ -16,11 +16,9 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 def get_utc_minus_5():
-    """Get current datetime in UTC-5 timezone"""
     return datetime.utcnow() - timedelta(hours=5)
 
 def load_crew_names():
-    """Load crew names from name_list.txt"""
     try:
         if os.path.exists('name_list.txt'):
             with open('name_list.txt', 'r', encoding='utf-8') as f:
@@ -47,7 +45,6 @@ class CrewAPIClient:
         self.auth_token = None
         
     def _login(self):
-        """Login to API"""
         try:
             self.session = requests.Session()
             email = os.getenv('CREW_EMAIL', 'sergio.jimenez@avianca.com')
@@ -73,7 +70,6 @@ class CrewAPIClient:
         return False
 
     def get_schedule_data(self, crew_id=None):
-        """Get schedule data using the old endpoint (for schedule view)"""
         try:
             target_crew_id = crew_id or current_crew_id
             logger.info(f"📊 Fetching schedule data for crew: {target_crew_id}...")
@@ -94,7 +90,6 @@ class CrewAPIClient:
                 "Referer": "https://mycrew.avianca.com/",
             }
             
-            logger.info(f"🌐 Making API request for crew {target_crew_id}...")
             response = self.session.get(url, params=params, headers=headers, timeout=30)
             
             if response.status_code == 200:
@@ -109,44 +104,37 @@ class CrewAPIClient:
             return None
 
     def get_assignments_by_user(self, crew_id=None, year=None, month=None):
-        """Get assignments for specific month (for calendar view)"""
         try:
             target_crew_id = crew_id or current_crew_id
-            now = get_utc_minus_5()  # Use UTC-5 time
+            now = get_utc_minus_5()
             year = year or now.year
             month = month or now.month
             
-            # Calculate month range
             first_day = datetime(year, month, 1)
             last_day = (datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)) - timedelta(days=1)
             days_in_month = (last_day - first_day).days + 1
             
-            # Determine if we're requesting a future month
             current_month = datetime(now.year, now.month, 1)
             requested_month = datetime(year, month, 1)
             
             if requested_month > current_month:
-                # FUTURE MONTH: Start from last day of current month
                 last_day_of_current = (datetime(now.year + 1, 1, 1) if now.month == 12 
                                      else datetime(now.year, now.month + 1, 1)) - timedelta(days=1)
                 start_date = last_day_of_current
                 
-                # FIXED: Request calculated days +5 for future months
                 base_days = (last_day - last_day_of_current).days + 1
                 change_days = base_days + 5
-                logger.info(f"🔮 Future month detected: starting from {start_date.date()}, baseDays: {base_days}, changeDays: {change_days}")
+                logger.info(f"🔮 Future month: {start_date.date()}, changeDays: {change_days}")
             else:
-                # CURRENT OR PAST MONTH: Start from first day of requested month
                 start_date = first_day
-                # Apply December fix for past/current months
                 if month == 12:
-                    change_days = days_in_month  # December has 31 days, don't add extra
-                    logger.info(f"🎄 December detected: requesting exact month length ({change_days} days)")
+                    change_days = days_in_month
+                    logger.info(f"🎄 December: {change_days} days")
                 else:
                     change_days = days_in_month + 1
-                    logger.info(f"📅 Regular month: requesting {change_days} days (month: {days_in_month} + 1)")
+                    logger.info(f"📅 Regular month: {change_days} days")
             
-            logger.info(f"📅 Requesting data for {year}-{month:02d} (Days in month: {days_in_month}, First: {first_day.date()}, Last: {last_day.date()})")
+            logger.info(f"📅 Requesting {year}-{month:02d} (Days: {days_in_month})")
             
             if not self._login():
                 return None
@@ -160,8 +148,6 @@ class CrewAPIClient:
                 "timeZoneOffset": -300
             }
             
-            logger.info(f"🌐 API Request: date={params['date']}, changeDays={params['changeDays']}")
-            
             headers = {
                 "Authorization": self.auth_token,
                 "Ocp-Apim-Subscription-Key": self.subscription_key,
@@ -173,15 +159,6 @@ class CrewAPIClient:
             response = self.session.get(url, params=params, headers=headers, timeout=30)
             if response.status_code == 200:
                 data = response.json()
-                
-                # Debug: Check what dates we actually received
-                if data:
-                    dates_received = set()
-                    for assignment in data[:5]:  # Check first 5 assignments
-                        if assignment and assignment.get('StartDate'):
-                            dates_received.add(assignment['StartDate'][:10])
-                    logger.info(f"📊 Sample dates received: {sorted(dates_received)}")
-                
                 logger.info(f"✅ Fetched {len(data)} assignments for {year}-{month:02d}")
                 return {'year': year, 'month': month, 'assignments': data}
                 
@@ -190,21 +167,10 @@ class CrewAPIClient:
         return None
 
     def get_flight_details(self, airline, flight_number, departure_date, origin_airport, operational_number):
-        """
-        Get detailed flight information using the FlightDetails endpoint
-        
-        Parameters:
-        - airline: e.g., "AV"
-        - flight_number: e.g., "210"
-        - departure_date: e.g., "2025-10-01T06:57:00Z"
-        - origin_airport: e.g., "BOG"
-        - operational_number: e.g., "42307372"
-        """
         try:
             if not self._login():
                 return None
             
-            # Construct the URL as shown in your example
             url = f"{self.base_url}/FlightDetails/{airline}/{flight_number}/{departure_date}/{origin_airport}/{operational_number}"
             
             headers = {
@@ -216,7 +182,6 @@ class CrewAPIClient:
                 "Referer": "https://mycrew.avianca.com/",
             }
             
-            # Request body as shown in your example
             body = {
                 "holding": airline,
                 "commercialFlightNumber": flight_number,
@@ -224,38 +189,24 @@ class CrewAPIClient:
                 "originAirportIATACode": origin_airport
             }
             
-            logger.info(f"🛫 Fetching flight details: {airline}{flight_number} on {departure_date}")
+            logger.info(f"🛫 Fetching flight details: {airline}{flight_number}")
             
             response = self.session.post(url, json=body, headers=headers, timeout=30)
             
             if response.status_code == 200:
                 flight_data = response.json()
-                logger.info(f"✅ Flight details fetched successfully for {airline}{flight_number}")
+                logger.info(f"✅ Flight details fetched for {airline}{flight_number}")
                 return flight_data
-            else:
-                logger.error(f"❌ Failed to fetch flight details: {response.status_code} - {response.text}")
-                return None
                 
         except Exception as e:
             logger.error(f"❌ Error fetching flight details: {e}")
-            return None
+        return None
 
     def get_flight_crew_members(self, airline, flight_number, departure_date, origin_airport, operational_number):
-        """
-        Get crew members for a specific flight
-        
-        Parameters:
-        - airline: e.g., "AV"
-        - flight_number: e.g., "0211"
-        - departure_date: e.g., "2025-10-01T15:24:00Z"
-        - origin_airport: e.g., "JFK"
-        - operational_number: e.g., "42307373"
-        """
         try:
             if not self._login():
                 return None
             
-            # Construct the URL for crew members
             url = f"{self.base_url}/FlightDetails/FlightMembersTeam/{airline}/{flight_number}/{departure_date}/{origin_airport}/{operational_number}"
             
             headers = {
@@ -267,7 +218,6 @@ class CrewAPIClient:
                 "Referer": "https://mycrew.avianca.com/",
             }
             
-            # Request body as shown in your example
             body = {
                 "commercialFlightNumber": flight_number,
                 "departureflightDate": departure_date,
@@ -275,42 +225,30 @@ class CrewAPIClient:
                 "originAirportIATACode": operational_number
             }
             
-            logger.info(f"👥 Fetching crew members for: {airline}{flight_number} on {departure_date}")
+            logger.info(f"👥 Fetching crew for: {airline}{flight_number}")
             
             response = self.session.post(url, json=body, headers=headers, timeout=30)
             
             if response.status_code == 200:
                 crew_data = response.json()
-                logger.info(f"✅ Crew members fetched successfully for {airline}{flight_number}")
+                logger.info(f"✅ Crew fetched for {airline}{flight_number}")
                 return crew_data
-            else:
-                logger.error(f"❌ Failed to fetch crew members: {response.status_code} - {response.text}")
-                return None
                 
         except Exception as e:
-            logger.error(f"❌ Error fetching crew members: {e}")
-            return None
+            logger.error(f"❌ Error fetching crew: {e}")
+        return None
 
     def get_flight_details_from_assignment(self, assignment):
-        """
-        Extract flight details from an assignment and fetch detailed flight info
-        
-        Parameters:
-        - assignment: A flight assignment dictionary from schedule data
-        """
         try:
             flight_assignment = assignment.get('FlighAssignement', {})
             
-            # Extract required parameters from assignment
             airline = flight_assignment.get('Airline', 'AV')
             flight_number = flight_assignment.get('CommercialFlightNumber', '')
             operational_number = flight_assignment.get('OperationalNumber', '')
             departure_date_utc = flight_assignment.get('ScheduledDepartureDate', '')
             origin_airport = flight_assignment.get('OriginAirportIATACode', '')
             
-            # Validate required fields
             if not all([flight_number, operational_number, departure_date_utc, origin_airport]):
-                logger.warning(f"⚠️ Missing required flight data in assignment: {flight_assignment}")
                 return None
             
             return self.get_flight_details(
@@ -322,11 +260,10 @@ class CrewAPIClient:
             )
             
         except Exception as e:
-            logger.error(f"❌ Error extracting flight details from assignment: {e}")
+            logger.error(f"❌ Error extracting flight details: {e}")
             return None
     
     def download_schedule_pdf(self, crew_id, schedule_type="actual", month="", year=""):
-        """Download schedule PDF"""
         try:
             if not self._login():
                 return None
@@ -366,7 +303,6 @@ class CrewAPIClient:
         return None
 
 def create_empty_month_data(year, month):
-    """Create empty month structure when no data is available"""
     first_day = datetime(year, month, 1)
     last_day = (datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)) - timedelta(days=1)
     
@@ -384,43 +320,26 @@ def create_empty_month_data(year, month):
     return [month_data]
 
 def transform_assignments_to_calendar_data(assignments_data, year, month):
-    """Transform assignments into calendar month structure"""
     if not assignments_data or not isinstance(assignments_data, list):
         logger.warning(f"⚠️ No assignments data for {year}-{month:02d}")
-        # Return empty month structure
         return create_empty_month_data(year, month)
     
     first_day = datetime(year, month, 1)
     last_day = (datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)) - timedelta(days=1)
     
-    # Group assignments by day
     days_dict = {}
-    assignments_found = False
     for assignment in assignments_data:
         if assignment and assignment.get('StartDate'):
             try:
                 date_str = assignment['StartDate'][:10]
                 date_obj = datetime.strptime(date_str, '%Y-%m-%d')
                 if date_obj.year == year and date_obj.month == month:
-                    assignments_found = True
                     if date_str not in days_dict:
                         days_dict[date_str] = {'StartDate': assignment['StartDate'], 'Dem': '', 'AssignementList': []}
                     days_dict[date_str]['AssignementList'].append(assignment)
             except (ValueError, KeyError):
                 continue
     
-    if not assignments_found:
-        logger.warning(f"⚠️ No assignments found for the requested month {year}-{month:02d}")
-        # Check what months we actually have data for
-        actual_months = set()
-        for assignment in assignments_data:
-            if assignment and assignment.get('StartDate'):
-                date_str = assignment['StartDate'][:7]  # YYYY-MM
-                actual_months.add(date_str)
-        if actual_months:
-            logger.info(f"📊 Actual months with data: {sorted(actual_months)}")
-    
-    # Create month data with all days
     month_data = []
     current_date = first_day
     while current_date <= last_day:
@@ -435,11 +354,9 @@ def transform_assignments_to_calendar_data(assignments_data, year, month):
     return [month_data]
 
 def create_calendar_view_data(month_data):
-    """Convert month data to calendar grid format"""
     if not month_data or not isinstance(month_data, list):
         return []
     
-    # Find first day of month
     first_day = None
     for day in month_data:
         if day and day.get('StartDate'):
@@ -452,7 +369,6 @@ def create_calendar_view_data(month_data):
     if not first_day:
         return []
     
-    # Create calendar grid (6 weeks)
     calendar_start = first_day - timedelta(days=first_day.weekday())
     calendar_days = []
     
@@ -461,7 +377,6 @@ def create_calendar_view_data(month_data):
         date_str = current_date.strftime('%Y-%m-%d')
         calendar_day = None
         
-        # Find assignments for this date
         for day_data in month_data:
             if day_data and day_data.get('StartDate', '').startswith(date_str):
                 assignments = []
@@ -479,7 +394,7 @@ def create_calendar_view_data(month_data):
                             'time_advanced': flight_data.get('TimeAdvanced', False),
                             'time_delayed': flight_data.get('TimeDelayed', False),
                             'aircraft_registration': assignment.get('AircraftRegistrationNumber', '').strip() if assignment.get('AircraftRegistrationNumber') else '',
-                            'operational_number': flight_data.get('OperationalNumber', '')  # Added for flight details
+                            'operational_number': flight_data.get('OperationalNumber', '')
                         })
                     else:
                         assignments.append({
@@ -497,7 +412,6 @@ def create_calendar_view_data(month_data):
                 }
                 break
         
-        # Create empty day if in current month
         if not calendar_day and current_date.month == first_day.month:
             calendar_day = {
                 'date': date_str,
@@ -514,7 +428,6 @@ def get_month_name(year, month):
     return datetime(year, month, 1).strftime('%B %Y')
 
 def get_month_name_from_data(month_data):
-    """Extract month name from the first valid day in month data"""
     if not month_data or not isinstance(month_data, list):
         return "Unknown Month"
     
@@ -528,7 +441,6 @@ def get_month_name_from_data(month_data):
                 continue
     return "Unknown Month"
 
-# Global variables
 client = CrewAPIClient()
 schedule_data = None
 last_fetch_time = None
@@ -541,16 +453,14 @@ crew_names = load_crew_names()
 def index():
     global schedule_data, last_fetch_time
     
-    # 🔄 ADDED: Automatically fetch fresh data on every page load
-    logger.info("🔄 Auto-fetching fresh data on page load...")
+    logger.info("🔄 Auto-fetching fresh data...")
     new_data = client.get_schedule_data(current_crew_id)
     if new_data is not None:
         schedule_data = new_data
         last_fetch_time = get_utc_minus_5().strftime("%Y-%m-%d %H:%M:%S")
-        logger.info("✅ Auto-fetch completed successfully!")
-    # If fetch fails, keep existing data but log warning
+        logger.info("✅ Auto-fetch completed!")
     elif schedule_data is None:
-        logger.warning("⚠️ Auto-fetch failed and no existing data available")
+        logger.warning("⚠️ Auto-fetch failed")
     
     total_days = 0
     total_assignments = 0
@@ -558,7 +468,6 @@ def index():
     current_date = get_utc_minus_5().strftime('%Y-%m-%d')
     
     if schedule_data and isinstance(schedule_data, list):
-        # Generate month names for display
         month_names = [get_month_name_from_data(month) for month in schedule_data]
         
         for month in schedule_data:
@@ -590,7 +499,7 @@ def calendar_view():
     month = request.args.get('month', type=int, default=current_calendar_month)
     current_calendar_year, current_calendar_month = year, month
     
-    logger.info(f"🗓️ Calendar view requested: {year}-{month:02d}")
+    logger.info(f"🗓️ Calendar view: {year}-{month:02d}")
     
     assignments_result = client.get_assignments_by_user(current_crew_id, year=year, month=month)
     if assignments_result:
@@ -600,34 +509,15 @@ def calendar_view():
             assignments_result['month']
         )
         last_fetch_time = get_utc_minus_5().strftime("%Y-%m-%d %H:%M:%S")
-        
-        # Debug: Check what we're actually displaying
-        if schedule_data and schedule_data[0]:
-            actual_dates = []
-            for day in schedule_data[0]:
-                if day and day.get('StartDate'):
-                    actual_dates.append(day['StartDate'][:7])  # Get YYYY-MM
-            unique_months = set(actual_dates)
-            logger.info(f"📅 ACTUAL data months: {sorted(unique_months)}")
-            logger.info(f"📅 REQUESTED month: {year}-{month:02d}")
-            
-            # Check if we got data for the requested month
-            requested_month = f"{year}-{month:02d}"
-            if requested_month not in unique_months and unique_months:
-                # We're not showing the requested month, log what we actually have
-                actual_month = sorted(unique_months)[0]
-                logger.warning(f"⚠️ No data for requested month {requested_month}, showing {actual_month} instead")
     
     month_name = get_month_name(year, month)
     month_calendars = [create_calendar_view_data(schedule_data[0])] if schedule_data else []
     
-    # Calculate totals for the template
     total_days = len(schedule_data[0]) if schedule_data else 0
     total_assignments = sum(len(day.get('AssignementList', [])) for day in schedule_data[0]) if schedule_data else 0
     
     refresh_message = "Data refreshed successfully!" if request.args.get('refresh') == 'success' else None
     
-    # Get month names for display (needed by template)
     month_names = [month_name]
     
     return render_template('calendar_view.html',
@@ -645,10 +535,8 @@ def calendar_view():
         current_calendar_month=current_calendar_month
     )
 
-# NEW: Flight Details Endpoints
 @app.route('/flight_details')
 def flight_details_page():
-    """Page to search for flight details"""
     return render_template('flight_details.html',
         current_crew_id=current_crew_id,
         crew_names=crew_names
@@ -656,11 +544,9 @@ def flight_details_page():
 
 @app.route('/api/flight_details', methods=['POST'])
 def get_flight_details_api():
-    """API endpoint to get flight details"""
     try:
         data = request.get_json()
         
-        # Required parameters
         airline = data.get('airline', 'AV')
         flight_number = data.get('flight_number')
         departure_date = data.get('departure_date')
@@ -670,7 +556,7 @@ def get_flight_details_api():
         if not all([flight_number, departure_date, origin_airport, operational_number]):
             return jsonify({
                 'success': False,
-                'error': 'Missing required parameters: flight_number, departure_date, origin_airport, operational_number'
+                'error': 'Missing required parameters'
             }), 400
         
         flight_details = client.get_flight_details(
@@ -701,11 +587,9 @@ def get_flight_details_api():
 
 @app.route('/api/flight_crew', methods=['POST'])
 def get_flight_crew_api():
-    """API endpoint to get crew members for a flight"""
     try:
         data = request.get_json()
         
-        # Required parameters
         airline = data.get('airline', 'AV')
         flight_number = data.get('flight_number')
         departure_date = data.get('departure_date')
@@ -715,7 +599,7 @@ def get_flight_crew_api():
         if not all([flight_number, departure_date, origin_airport, operational_number]):
             return jsonify({
                 'success': False,
-                'error': 'Missing required parameters: flight_number, departure_date, origin_airport, operational_number'
+                'error': 'Missing required parameters'
             }), 400
         
         crew_data = client.get_flight_crew_members(
@@ -746,7 +630,6 @@ def get_flight_crew_api():
 
 @app.route('/api/flight_details_from_assignment', methods=['POST'])
 def get_flight_details_from_assignment_api():
-    """API endpoint to get flight details from assignment data"""
     try:
         data = request.get_json()
         assignment = data.get('assignment')

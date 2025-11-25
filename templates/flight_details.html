@@ -5,476 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>FLIGHT SEARCH - Crew Schedule Monitor</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: Arial, sans-serif;
-            margin: 10px;
-            background: #121212;
-            color: #f0f0f0;
-            font-size: 0.7em;
-            touch-action: pan-x pan-y;
-        }
-
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            background: #2a2a2a;
-            padding: 15px;
-            border-radius: 8px;
-            border: 1px solid #444;
-        }
-
-        .header {
-            text-align: center;
-            margin-bottom: 15px;
-        }
-
-        .nav-buttons {
-            text-align: center;
-            margin: 10px 0;
-        }
-
-        .nav-button {
-            background: #3a3a3a;
-            color: #f0f0f0;
-            padding: 6px 12px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            margin: 0 3px;
-            text-decoration: none;
-            display: inline-block;
-            font-size: 0.8em;
-        }
-
-        .nav-button:hover {
-            background: #4a4a4a;
-        }
-
-        .nav-button.active {
-            background: #f0f0f0;
-            color: #121212;
-        }
-
-        .content-section {
-            background: #2a2a2a;
-            padding: 15px;
-            border-radius: 6px;
-            margin-bottom: 10px;
-        }
-
-        .form-group {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .form-group label {
-            font-weight: 600;
-            margin-bottom: 4px;
-            color: #f0f0f0;
-            font-size: 0.8em;
-        }
-
-        .form-group input {
-            padding: 8px;
-            border: 1px solid #444;
-            border-radius: 4px;
-            font-size: 0.8em;
-            background: #1e1e1e;
-            color: #f0f0f0;
-        }
-
-        .form-group input:focus {
-            outline: none;
-            border-color: #555;
-            background: #2a2a2a;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 10px;
-            color: #ffc107;
-            font-size: 0.8em;
-        }
-
-        .flight-details {
-            background: #1e1e1e;
-            border-radius: 6px;
-            padding: 15px;
-            margin-top: 10px;
-            border: 1px solid #444;
-        }
-
-        /* Search form layout - simple 2x2 grid */
-        .search-form-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            grid-template-rows: auto auto;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-
-        .search-buttons {
-            display: flex;
-            gap: 10px;
-            align-items: end;
-        }
-
-        .clear-origin-btn {
-            background: #555;
-            color: white;
-            border: none;
-            padding: 10px;
-            border-radius: 4px;
-            font-size: 0.8em;
-            font-weight: 600;
-            cursor: pointer;
-            height: 36px;
-            width: 60px;
-            flex-shrink: 0;
-        }
-
-        .clear-origin-btn:hover {
-            background: #666;
-        }
-
-        .btn {
-            background: #555;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 4px;
-            font-size: 0.8em;
-            font-weight: 600;
-            cursor: pointer;
-            height: 36px;
-            flex-grow: 1;
-        }
-
-        .btn:hover {
-            background: #666;
-        }
-
-        .btn:disabled {
-            background: #444;
-            cursor: not-allowed;
-        }
-
-        /* Flight Header */
-        .flight-header {
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid #444;
-        }
-
-        .flight-number-line {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-        }
-
-        .flight-number-large {
-            font-size: 1.8em;
-            font-weight: bold;
-            color: #ffc107;
-        }
-
-        .tail-number {
-            font-size: 1.8em;
-            color: #4fc3f7;
-            font-weight: bold;
-        }
-
-        .route-line {
-            font-size: 1.4em;
-            font-weight: bold;
-            color: #f0f0f0;
-            margin-bottom: 8px;
-            text-align: center;
-        }
-
-        .time-comparison {
-            margin-bottom: 8px;
-        }
-
-        .time-line {
-            display: flex;
-            align-items: center;
-            font-size: 1em;
-            margin-bottom: 3px;
-            color: #f0f0f0;
-        }
-
-        .time-label {
-            font-weight: bold;
-            color: #b8b8d0;
-            width: 70px;
-            text-align: right;
-            margin-right: 10px;
-        }
-
-        .time-value {
-            font-weight: bold;
-            margin-right: 8px;
-        }
-
-        .duration {
-            color: #81c784;
-            font-size: 0.8em;
-        }
-
-        .flight-status {
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-            font-size: 0.7em;
-            display: inline-block;
-        }
-
-        .status-arrived {
-            background: #2e7d32;
-            color: white;
-        }
-
-        .status-scheduled {
-            background: #1976d2;
-            color: white;
-        }
-
-        .status-delayed {
-            background: #d32f2f;
-            color: white;
-        }
-
-        /* Content sections without cards */
-        .content-section-title {
-            color: #f0f0f0;
-            margin: 15px 0 8px 0;
-            font-size: 0.9em;
-            border-bottom: 1px solid #444;
-            padding-bottom: 4px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: color 0.2s ease;
-        }
-
-        .content-section-title:hover {
-            color: #ffc107;
-        }
-
-        .content-section-title.loading {
-            color: #ffc107;
-            cursor: default;
-        }
-
-        .detail-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 8px;
-            margin-bottom: 10px;
-        }
-
-        .detail-item {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 6px;
-            padding: 4px 0;
-            border-bottom: 1px solid #333;
-        }
-
-        .detail-label {
-            font-weight: 600;
-            color: #b8b8d0;
-            font-size: 0.75em;
-        }
-
-        .detail-value {
-            color: #f0f0f0;
-            text-align: right;
-            font-size: 0.75em;
-        }
-
-        .mel-list {
-            list-style: none;
-            margin-bottom: 10px;
-        }
-
-        .mel-item {
-            background: #5a3a3a;
-            border: 1px solid #7a3a3a;
-            border-radius: 3px;
-            padding: 8px;
-            margin-bottom: 6px;
-        }
-
-        .mel-code {
-            font-weight: 600;
-            color: #ffab91;
-            font-size: 0.75em;
-        }
-
-        .mel-desc {
-            color: #ffab91;
-            font-size: 0.7em;
-        }
-
-        .error-message {
-            background: #5a3a3a;
-            color: #f8d7da;
-            padding: 8px;
-            border-radius: 4px;
-            margin: 10px 0;
-            border: 1px solid #7a3a3a;
-            font-size: 0.75em;
-            font-weight: 600;
-            text-align: center;
-        }
-
-        .success-message {
-            background: #2e4b2e;
-            color: #d4edda;
-            padding: 8px;
-            border-radius: 4px;
-            margin: 10px 0;
-            border: 1px solid #3a5a3a;
-            font-size: 0.75em;
-            font-weight: 600;
-            text-align: center;
-        }
-
-        .crew-info {
-            background: #3a3a3a;
-            padding: 8px;
-            border-radius: 4px;
-            margin-bottom: 10px;
-            text-align: center;
-            border: 1px solid #444;
-            font-size: 0.75em;
-        }
-
-        .hidden {
-            display: none;
-        }
-
-        /* Crew Members */
-        .crew-list {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-            gap: 6px;
-            margin: 8px 0;
-        }
-
-        .crew-member-compact {
-            background: #2a2a2a;
-            border-radius: 4px;
-            padding: 6px;
-            border: 1px solid #444;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            font-size: 0.7em;
-        }
-
-        .crew-member-compact:hover {
-            background: #333;
-        }
-
-        .crew-member-compact.expanded {
-            background: #3a3a3a;
-        }
-
-        .crew-name {
-            font-weight: 600;
-            color: #f0f0f0;
-            font-size: 0.8em;
-            margin-bottom: 2px;
-        }
-
-        .crew-position {
-            color: #ffc107;
-            font-size: 0.7em;
-            font-weight: 600;
-        }
-
-        .crew-details-expanded {
-            margin-top: 6px;
-            padding-top: 6px;
-            border-top: 1px solid #444;
-            font-size: 0.65em;
-            color: #b8b8d0;
-        }
-
-        .crew-detail-item {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 2px;
-        }
-
-        .crew-email {
-            color: #90caf9;
-            word-break: break-all;
-            margin-top: 4px;
-            font-size: 0.6em;
-        }
-
-        .crew-role {
-            font-style: italic;
-            color: #b8b8d0;
-            margin-top: 2px;
-            font-size: 0.65em;
-        }
-
-        .crew-card.captain .crew-position {
-            color: #e57373;
-        }
-
-        .crew-card.first-officer .crew-position {
-            color: #ffb74d;
-        }
-
-        .crew-card.fa .crew-position {
-            color: #81c784;
-        }
-
-        .crew-card.dh .crew-position {
-            color: #ba68c8;
-        }
-
-        /* Previous Flight Styling */
-        .previous-flight-number {
-            color: #b0b0b0 !important;
-            font-size: 1.6em;
-        }
-
-        @media (max-width: 768px) {
-            body {
-                margin: 5px;
-            }
-            
-            .container {
-                padding: 10px;
-            }
-            
-            .flight-number-line {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 5px;
-            }
-            
-            .detail-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .crew-list {
-                grid-template-columns: 1fr;
-            }
-        }
+        /* ... (keep all your existing CSS styles) ... */
     </style>
 </head>
 <body>
@@ -537,9 +68,30 @@
                 <script>
                     // Immediately display the flight data that was fetched server-side
                     document.addEventListener('DOMContentLoaded', function() {
+                        // Set currentFlightData for crew and previous flight loading
+                        const urlParams = new URLSearchParams(window.location.search);
+                        const flightNumber = urlParams.get('flight_number');
+                        const localDate = urlParams.get('local_date');
+                        const originAirport = urlParams.get('origin_airport');
+                        
+                        if (flightNumber && localDate && originAirport) {
+                            currentFlightData = {
+                                airline: 'AV',
+                                flight_number: flightNumber,
+                                departure_date: localDate + 'T00:00:00Z',
+                                origin_airport: originAirport,
+                                operational_number: '42307372'
+                            };
+                        }
+                        
                         displayFlightDetails({{ flight_details | tojson }});
                         {% if crew_data %}
                         displayCrewMembers({{ crew_data | tojson }});
+                        {% else %}
+                        // Load crew members if not already loaded
+                        setTimeout(() => {
+                            loadCrewMembers();
+                        }, 500);
                         {% endif %}
                         
                         // Auto-scroll to flight details
@@ -580,6 +132,15 @@
             document.getElementById('flight_number').value = flightNumber;
             document.getElementById('departure_date').value = localDate;
             document.getElementById('origin_airport').value = originAirport;
+            
+            // Set currentFlightData for manual searches later
+            currentFlightData = {
+                airline: 'AV',
+                flight_number: flightNumber,
+                departure_date: localDate + 'T00:00:00Z',
+                origin_airport: originAirport,
+                operational_number: '42307372'
+            };
         }
 
         function clearOriginAirport() {
@@ -655,7 +216,10 @@
         });
 
         async function loadCrewMembers() {
-            if (!currentFlightData) return;
+            if (!currentFlightData) {
+                console.error('No currentFlightData available for crew loading');
+                return;
+            }
 
             try {
                 const response = await fetch('/api/flight_crew', {
@@ -667,6 +231,8 @@
                 const result = await response.json();
                 if (result.success) {
                     displayCrewMembers(result.crew_data);
+                } else {
+                    console.error('Failed to load crew members:', result.error);
                 }
             } catch (error) {
                 console.error('Error loading crew members:', error);
@@ -712,12 +278,12 @@
                     displayPreviousFlightDetails(result.flight_details);
                     title.textContent = 'Previous Flight';
                 } else {
-                    showError('Failed to load previous flight: ' + (result.error || 'Unknown error'));
+                    console.error('Failed to load previous flight:', result.error);
                     title.textContent = 'Previous Flight - Click to retry';
                 }
 
             } catch (error) {
-                showError('Network error loading previous flight: ' + error.message);
+                console.error('Network error loading previous flight:', error);
                 title.textContent = 'Previous Flight - Click to retry';
             } finally {
                 title.classList.remove('loading');

@@ -97,11 +97,11 @@
         .crew-list { display: grid; grid-template-columns: 1fr; gap: 5px; margin: 10px 0; }
         .crew-member { background: #2a2a2a; padding: 8px; border-radius: 4px; border: 1px solid #444; cursor: pointer; }
         .crew-member.expanded { background: #3a3a3a; }
-        .crew-name { font-weight: 600; font-size: 0.8em; } /* Reduced by 20% */
-        .crew-position { color: #ffc107; font-size: 0.72em; } /* Reduced by 20% */
-        .crew-details { margin-top: 8px; padding-top: 8px; border-top: 1px solid #444; font-size: 0.64em; color: #b8b8d0; display: none; } /* Reduced by 20% */
+        .crew-name { font-weight: 600; font-size: 0.8em; }
+        .crew-position { color: #ffc107; font-size: 0.72em; }
+        .crew-details { margin-top: 8px; padding-top: 8px; border-top: 1px solid #444; font-size: 0.64em; color: #b8b8d0; display: none; }
         .crew-detail-item { display: flex; justify-content: space-between; margin-bottom: 2px; }
-        .crew-email { color: #90caf9; word-break: break-all; margin-top: 4px; font-size: 0.56em; } /* Reduced by 20% */
+        .crew-email { color: #90caf9; word-break: break-all; margin-top: 4px; font-size: 0.56em; }
         
         .mel-list { list-style: none; margin: 10px 0; }
         .mel-item { background: #5a3a3a; border: 1px solid #7a3a3a; border-radius: 3px; padding: 8px; margin-bottom: 6px; }
@@ -141,7 +141,7 @@
                     <div class="input-row">
                         <input type="text" id="origin_airport" class="short-input" required value="BOG" maxlength="3">
                         <button type="button" class="button clear-btn" onclick="clearOriginAirport()">Clear</button>
-                        <button type="button" class="button search-btn" id="searchBtn">Search</button>
+                        <button type="button" class="button search-btn" id="searchBtn" onclick="handleSearch()">Search</button>
                     </div>
                 </div>
             </form>
@@ -155,43 +155,54 @@
     </div>
 
     <script>
+        // Set today's date as default
         document.getElementById('departure_date').value = new Date().toISOString().slice(0, 10);
         let currentFlightData = null;
 
+        // Handle URL parameters for direct links
         const urlParams = new URLSearchParams(window.location.search);
         const flightNumber = urlParams.get('flight_number');
         const localDate = urlParams.get('local_date');
         const originAirport = urlParams.get('origin_airport');
         
         if (flightNumber && localDate && originAirport) {
-            document.addEventListener('DOMContentLoaded', function() {
-                document.getElementById('flight_number').value = flightNumber;
-                document.getElementById('departure_date').value = localDate;
-                document.getElementById('origin_airport').value = originAirport;
-                setTimeout(() => document.getElementById('searchBtn').click(), 100);
-            });
+            document.getElementById('flight_number').value = flightNumber;
+            document.getElementById('departure_date').value = localDate;
+            document.getElementById('origin_airport').value = originAirport;
+            // Auto-search after a short delay
+            setTimeout(() => handleSearch(), 500);
         }
 
         function clearFlightNumber() {
-            const flightInput = document.getElementById('flight_number');
-            flightInput.value = '';
-            flightInput.focus();
+            document.getElementById('flight_number').value = '';
+            document.getElementById('flight_number').focus();
         }
 
         function clearOriginAirport() {
-            const originInput = document.getElementById('origin_airport');
-            originInput.value = '';
-            originInput.focus();
+            document.getElementById('origin_airport').value = '';
+            document.getElementById('origin_airport').focus();
         }
 
-        // Fixed search button handler
-        document.getElementById('searchBtn').addEventListener('click', async function(e) {
-            e.preventDefault();
+        // Main search function
+        async function handleSearch() {
+            console.log('Search button clicked');
+            
             const searchBtn = document.getElementById('searchBtn');
             const loading = document.getElementById('loading');
             const resultsSection = document.getElementById('resultsSection');
             const errorMessage = document.getElementById('errorMessage');
 
+            // Validate inputs
+            const flightNumber = document.getElementById('flight_number').value.trim();
+            const departureDate = document.getElementById('departure_date').value;
+            const originAirport = document.getElementById('origin_airport').value.trim().toUpperCase();
+
+            if (!flightNumber || !departureDate || !originAirport) {
+                showError('Please fill in all required fields');
+                return;
+            }
+
+            // Show loading state
             errorMessage.classList.add('hidden');
             resultsSection.classList.add('hidden');
             loading.classList.remove('hidden');
@@ -201,11 +212,13 @@
             try {
                 currentFlightData = {
                     airline: 'AV',
-                    flight_number: document.getElementById('flight_number').value,
-                    departure_date: document.getElementById('departure_date').value + 'T00:00:00Z',
-                    origin_airport: document.getElementById('origin_airport').value.toUpperCase(),
+                    flight_number: flightNumber,
+                    departure_date: departureDate + 'T00:00:00Z',
+                    origin_airport: originAirport,
                     operational_number: '42307372'
                 };
+
+                console.log('Sending request:', currentFlightData);
 
                 const response = await fetch('/api/flight_details', {
                     method: 'POST',
@@ -213,54 +226,32 @@
                     body: JSON.stringify(currentFlightData)
                 });
 
+                console.log('Response status:', response.status);
+
                 const result = await response.json();
+                console.log('Response data:', result);
 
                 if (result.success) {
                     displayFlightDetails(result.flight_details);
                     resultsSection.classList.remove('hidden');
                     
-                    if (result.flight_details.PreviousFlight) {
-                        setTimeout(() => {
-                            loadPreviousFlight(result.flight_details.PreviousFlight).then(() => {
-                                setTimeout(() => {
-                                    const flightNumberTop = document.getElementById('flightNumberTop');
-                                    if (flightNumberTop) {
-                                        flightNumberTop.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                                    }
-                                }, 100);
-                            });
-                        }, 500);
-                    } else {
-                        setTimeout(() => {
-                            const flightNumberTop = document.getElementById('flightNumberTop');
-                            if (flightNumberTop) {
-                                flightNumberTop.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                            }
-                        }, 1500);
-                    }
-                    
+                    // Load crew members after a delay
                     setTimeout(() => loadCrewMembers(), 500);
-                    
-                    setTimeout(() => {
-                        loading.classList.add('hidden');
-                        searchBtn.disabled = false;
-                        searchBtn.textContent = 'Search';
-                    }, 1500);
                     
                 } else {
                     showError(result.error || 'Failed to fetch flight details');
-                    loading.classList.add('hidden');
-                    searchBtn.disabled = false;
-                    searchBtn.textContent = 'Search';
                 }
 
             } catch (error) {
+                console.error('Search error:', error);
                 showError('Network error: ' + error.message);
+            } finally {
+                // Reset button state
                 loading.classList.add('hidden');
                 searchBtn.disabled = false;
                 searchBtn.textContent = 'Search';
             }
-        });
+        }
 
         async function loadCrewMembers() {
             if (!currentFlightData) return;
@@ -272,64 +263,18 @@
                 });
                 const result = await response.json();
                 if (result.success) displayCrewMembers(result.crew_data);
-            } catch (error) {}
-        }
-
-        async function loadPreviousFlight(previousFlightData) {
-            if (!previousFlightData) return;
-
-            const previousFlightSection = document.getElementById('previousFlightSection');
-            const title = document.querySelector('.section-title[onclick]');
-            
-            if (!previousFlightSection || !title) return;
-
-            title.classList.add('loading');
-            title.textContent = 'Previous Flight - Loading...';
-
-            try {
-                const flightNumber = previousFlightData.Prv_commercialFlightNumber || previousFlightData.CommercialFlightNumber;
-                const airline = previousFlightData.Prv_airline || previousFlightData.Airline || 'AV';
-                const departureDateLocal = previousFlightData.Prv_departureDateLOCAL || previousFlightData.DepartureDateLOCAL;
-                const originAirport = previousFlightData.Prv_departureAirportIATACode || previousFlightData.OriginAirportIATACode;
-                
-                if (!flightNumber || !departureDateLocal || !originAirport) {
-                    throw new Error('Missing previous flight data');
-                }
-
-                const dateString = departureDateLocal.split('T')[0];
-                const searchData = {
-                    airline: airline,
-                    flight_number: flightNumber,
-                    departure_date: dateString + 'T00:00:00Z',
-                    origin_airport: originAirport,
-                    operational_number: '42307372'
-                };
-
-                const response = await fetch('/api/flight_details', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(searchData)
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    displayPreviousFlightDetails(result.flight_details);
-                    title.textContent = 'Previous Flight';
-                } else {
-                    throw new Error(result.error || 'Failed to load previous flight');
-                }
-
             } catch (error) {
-                title.textContent = 'Previous Flight - Click to retry';
-                previousFlightSection.innerHTML = `<div class="error-message">Failed to load previous flight</div>`;
-            } finally {
-                title.classList.remove('loading');
+                console.error('Crew load error:', error);
             }
         }
 
         function displayFlightDetails(flight) {
             const container = document.getElementById('flightDetails');
+            if (!flight) {
+                container.innerHTML = '<div class="error-message">No flight data received</div>';
+                return;
+            }
+
             const statusClass = flight.FlightStatusCode === 'ARR' ? 'status-arrived' : 
                               flight.TimeDelayed ? 'status-delayed' : 'status-scheduled';
             
@@ -337,7 +282,7 @@
             const departureStand = flight.DepartureParkingStand || '';
             const departureTerminal = flight.DepartureTerminal || '';
             
-            // Format gate info as "GATE: xx T: xx"
+            // Format gate info
             let gateInfo = '';
             if (departureStand && departureTerminal) {
                 gateInfo = `GATE: ${departureStand} T: ${departureTerminal}`;
@@ -361,7 +306,7 @@
             // Create the actual time string with colored spans
             const actualTimeString = `<span class="${departureColor}">${formatTime(actualDeparture)}</span> - <span class="${arrivalColor}">${formatTime(actualArrival)}</span>`;
             
-            // Check if delay info exists - Delays is an array!
+            // Check if delay info exists
             const hasDelayInfo = flight.Delays && flight.Delays.length > 0;
             
             const html = `
@@ -465,71 +410,19 @@
             container.innerHTML = html;
         }
 
-        function displayPreviousFlightDetails(flight) {
-            const previousFlightSection = document.getElementById('previousFlightSection');
-            
-            // Calculate time colors for previous flight
-            const scheduledDeparture = flight.Flight?.ScheduleDepartureDateLOCAL;
-            const actualDeparture = flight.Flight?.DepartureDateLOCAL;
-            const scheduledArrival = flight.Flight?.ScheduleArrivalDateLOCAL;
-            const actualArrival = flight.Flight?.ArrivalDateLOCAL;
-            
-            const departureColor = getTimeColor(actualDeparture, scheduledDeparture);
-            const arrivalColor = getTimeColor(actualArrival, scheduledArrival);
-            
-            // Create the actual time string with colored spans
-            const actualTimeString = `<span class="${departureColor}">${formatTime(actualDeparture)}</span> - <span class="${arrivalColor}">${formatTime(actualArrival)}</span>`;
-            
-            const html = `
-                <div class="flight-header">
-                    <div class="flight-number-line">
-                        <div class="flight-info">
-                            <div class="previous-flight-number">
-                                ${flight.Flight?.Airline || 'AV'}${flight.Flight?.CommercialFlightNumber || 'N/A'}
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="route-line">
-                        ${flight.Flight?.OriginAirportIATACode || 'N/A'} → ${flight.Flight?.FinalAirportIATACode || 'N/A'}
-                    </div>
-                    
-                    <div class="time-comparison">
-                        <div class="time-line">
-                            <span class="time-label">Scheduled:</span>
-                            <span class="time-value">${formatTime(scheduledDeparture)} - ${formatTime(scheduledArrival)}</span>
-                        </div>
-                        <div class="time-line">
-                            <span class="time-label">Actual:</span>
-                            <span class="time-value">${actualTimeString}</span>
-                        </div>
-                    </div>
-                </div>
-            `;
-
-            previousFlightSection.innerHTML = html;
-        }
-
         function toggleDelayDetails() {
             const details = document.getElementById('delayDetails');
             if (details) {
-                if (details.style.display === 'none') {
-                    details.style.display = 'block';
-                } else {
-                    details.style.display = 'none';
-                }
+                details.style.display = details.style.display === 'none' ? 'block' : 'none';
             }
         }
 
         function getTimeColor(actualTime, scheduledTime) {
             if (!actualTime || !scheduledTime) return '';
-            
             const actual = actualTime.slice(11, 16);
             const scheduled = scheduledTime.slice(11, 16);
-            
             const actualMinutes = parseInt(actual.split(':')[0]) * 60 + parseInt(actual.split(':')[1]);
             const scheduledMinutes = parseInt(scheduled.split(':')[0]) * 60 + parseInt(scheduled.split(':')[1]);
-            
             return actualMinutes <= scheduledMinutes ? 'time-early' : 'time-late';
         }
 
@@ -585,9 +478,8 @@
         }
 
         function toggleCrewDetails(index) {
-            const crewMember = document.querySelectorAll('.crew-member')[index];
             const details = document.getElementById(`crew-details-${index}`);
-            
+            const crewMember = document.querySelectorAll('.crew-member')[index];
             if (details && crewMember) {
                 if (details.style.display === 'none') {
                     details.style.display = 'block';

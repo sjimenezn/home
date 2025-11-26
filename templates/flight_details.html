@@ -34,6 +34,7 @@
         .tail-info { text-align: right; flex: 1; }
         .tail-number { font-size: 1.8em; color: #4fc3f7; font-weight: bold; margin-bottom: 5px; }
         .fleet-type { font-size: 1.8em; color: #ffffff; font-weight: bold; }
+        .gate-info { font-size: 1.8em; color: #ffffff; font-weight: bold; margin-bottom: 5px; }
         .route-line { font-size: 1.2em; font-weight: bold; text-align: center; margin: 10px 0; }
         .time-comparison { text-align: center; margin: 10px 0; }
         .time-line { display: flex; justify-content: center; margin-bottom: 3px; font-size: 0.9em; }
@@ -288,7 +289,20 @@
             const statusClass = flight.FlightStatusCode === 'ARR' ? 'status-arrived' : 
                               flight.TimeDelayed ? 'status-delayed' : 'status-scheduled';
             
-            const gateInfo = flight.DepartureGate ? `T${flight.DepartureTerminal || ''} ${flight.DepartureGate}` : '';
+            // Get gate and terminal information
+            const departureStand = flight.DepartureParkingStand || '';
+            const departureTerminal = flight.DepartureTerminal || '';
+            
+            // Format gate info as "gate(terminal)" - same format as fleet type
+            let gateInfo = '';
+            if (departureStand && departureTerminal) {
+                gateInfo = `${departureStand}(${departureTerminal})`;
+            } else if (departureStand) {
+                gateInfo = departureStand;
+            } else if (departureTerminal) {
+                gateInfo = `T${departureTerminal}`;
+            }
+            
             const fleet = flight.Fleet || '';
             
             // Calculate time colors
@@ -310,7 +324,7 @@
                             <div class="flight-number" id="flightNumberTop">
                                 ${flight.Flight?.Airline || 'AV'}${flight.Flight?.CommercialFlightNumber || 'N/A'}
                             </div>
-                            <div class="flight-details">${gateInfo}</div>
+                            <div class="flight-details">${gateInfo ? `<div class="gate-info">${gateInfo}</div>` : ''}</div>
                         </div>
                         <div class="tail-info">
                             <div class="tail-number">${flight.AircraftRegistrationNumber || 'N/A'}</div>
@@ -372,6 +386,20 @@
         function displayPreviousFlightDetails(flight) {
             const previousFlightSection = document.getElementById('previousFlightSection');
             
+            // Get gate and terminal information for previous flight
+            const departureStand = flight.DepartureParkingStand || '';
+            const departureTerminal = flight.DepartureTerminal || '';
+            
+            // Format gate info as "gate(terminal)" - same format as fleet type
+            let gateInfo = '';
+            if (departureStand && departureTerminal) {
+                gateInfo = `${departureStand}(${departureTerminal})`;
+            } else if (departureStand) {
+                gateInfo = departureStand;
+            } else if (departureTerminal) {
+                gateInfo = `T${departureTerminal}`;
+            }
+            
             // Calculate time colors for previous flight
             const scheduledDeparture = flight.Flight?.ScheduleDepartureDateLOCAL;
             const actualDeparture = flight.Flight?.DepartureDateLOCAL;
@@ -391,6 +419,7 @@
                             <div class="previous-flight-number">
                                 ${flight.Flight?.Airline || 'AV'}${flight.Flight?.CommercialFlightNumber || 'N/A'}
                             </div>
+                            <div class="flight-details">${gateInfo ? `<div class="gate-info">${gateInfo}</div>` : ''}</div>
                         </div>
                     </div>
                     

@@ -54,7 +54,6 @@
         .status-scheduled { background: #1976d2; }
         .status-delayed { background: #d32f2f; }
         
-        /* Delay Info Styling */
         .delay-section { margin: 10px 0; }
         .delay-title { 
             color: #ffffff; 
@@ -65,7 +64,6 @@
             font-weight: 600; 
             cursor: pointer; 
         }
-        .delay-title:hover { color: #ffc107; }
         .delay-details { 
             margin-top: 8px; 
             padding-top: 8px; 
@@ -91,17 +89,16 @@
         
         .previous-flight-section { margin: 15px 0; }
         .section-title { color: #f0f0f0; margin: 15px 0 8px 0; font-size: 0.9em; border-bottom: 1px solid #444; padding-bottom: 4px; font-weight: 600; cursor: pointer; }
-        .section-title:hover { color: #ffc107; }
         .previous-flight-number { color: #b0b0b0 !important; font-size: 1.6em; }
         
         .crew-list { display: grid; grid-template-columns: 1fr; gap: 5px; margin: 10px 0; }
         .crew-member { background: #2a2a2a; padding: 8px; border-radius: 4px; border: 1px solid #444; cursor: pointer; }
         .crew-member.expanded { background: #3a3a3a; }
-        .crew-name { font-weight: 600; font-size: 0.8em; } /* Reduced by 20% */
-        .crew-position { color: #ffc107; font-size: 0.72em; } /* Reduced by 20% */
-        .crew-details { margin-top: 8px; padding-top: 8px; border-top: 1px solid #444; font-size: 0.64em; color: #b8b8d0; display: none; } /* Reduced by 20% */
+        .crew-name { font-weight: 600; font-size: 0.8em; }
+        .crew-position { color: #ffc107; font-size: 0.72em; }
+        .crew-details { margin-top: 8px; padding-top: 8px; border-top: 1px solid #444; font-size: 0.64em; color: #b8b8d0; display: none; }
         .crew-detail-item { display: flex; justify-content: space-between; margin-bottom: 2px; }
-        .crew-email { color: #90caf9; word-break: break-all; margin-top: 4px; font-size: 0.56em; } /* Reduced by 20% */
+        .crew-email { color: #90caf9; word-break: break-all; margin-top: 4px; font-size: 0.56em; }
         
         .mel-list { list-style: none; margin: 10px 0; }
         .mel-item { background: #5a3a3a; border: 1px solid #7a3a3a; border-radius: 3px; padding: 8px; margin-bottom: 6px; }
@@ -126,25 +123,23 @@
         </div>
 
         <div>
-            <form id="flightSearchForm">
-                <div class="input-group">
-                    <label>Flight Number *</label>
-                    <div class="input-row">
-                        <input type="text" id="flight_number" class="short-input" required placeholder="210" maxlength="4">
-                        <button type="button" class="button clear-btn" onclick="clearFlightNumber()">Clear</button>
-                        <input type="date" id="departure_date" class="date-input" required>
-                    </div>
+            <div class="input-group">
+                <label>Flight Number *</label>
+                <div class="input-row">
+                    <input type="text" id="flight_number" class="short-input" placeholder="210" maxlength="4">
+                    <button type="button" class="button clear-btn" onclick="clearFlightNumber()">Clear</button>
+                    <input type="date" id="departure_date" class="date-input">
                 </div>
+            </div>
 
-                <div class="input-group">
-                    <label>Origin *</label>
-                    <div class="input-row">
-                        <input type="text" id="origin_airport" class="short-input" required value="BOG" maxlength="3">
-                        <button type="button" class="button clear-btn" onclick="clearOriginAirport()">Clear</button>
-                        <button type="button" class="button search-btn" id="searchBtn">Search</button>
-                    </div>
+            <div class="input-group">
+                <label>Origin *</label>
+                <div class="input-row">
+                    <input type="text" id="origin_airport" class="short-input" value="BOG" maxlength="3">
+                    <button type="button" class="button clear-btn" onclick="clearOriginAirport()">Clear</button>
+                    <button type="button" class="button search-btn" onclick="handleSearch()">Search</button>
                 </div>
-            </form>
+            </div>
 
             <div id="loading" class="loading hidden">Loading...</div>
             <div id="resultsSection" class="hidden">
@@ -155,43 +150,37 @@
     </div>
 
     <script>
-        document.getElementById('departure_date').value = new Date().toISOString().slice(0, 10);
-        let currentFlightData = null;
-
-        const urlParams = new URLSearchParams(window.location.search);
-        const flightNumber = urlParams.get('flight_number');
-        const localDate = urlParams.get('local_date');
-        const originAirport = urlParams.get('origin_airport');
-        
-        if (flightNumber && localDate && originAirport) {
-            document.addEventListener('DOMContentLoaded', function() {
-                document.getElementById('flight_number').value = flightNumber;
-                document.getElementById('departure_date').value = localDate;
-                document.getElementById('origin_airport').value = originAirport;
-                setTimeout(() => document.getElementById('searchBtn').click(), 100);
-            });
-        }
+        // Set today's date when page loads
+        window.onload = function() {
+            document.getElementById('departure_date').value = new Date().toISOString().slice(0, 10);
+        };
 
         function clearFlightNumber() {
-            const flightInput = document.getElementById('flight_number');
-            flightInput.value = '';
-            flightInput.focus();
+            document.getElementById('flight_number').value = '';
+            document.getElementById('flight_number').focus();
         }
 
         function clearOriginAirport() {
-            const originInput = document.getElementById('origin_airport');
-            originInput.value = '';
-            originInput.focus();
+            document.getElementById('origin_airport').value = '';
+            document.getElementById('origin_airport').focus();
         }
 
-        // Fixed search button handler
-        document.getElementById('searchBtn').addEventListener('click', async function(e) {
-            e.preventDefault();
-            const searchBtn = document.getElementById('searchBtn');
+        async function handleSearch() {
+            const flightNumber = document.getElementById('flight_number').value.trim();
+            const departureDate = document.getElementById('departure_date').value;
+            const originAirport = document.getElementById('origin_airport').value.trim().toUpperCase();
+            
+            if (!flightNumber || !departureDate || !originAirport) {
+                alert('Please fill in all fields');
+                return;
+            }
+
+            const searchBtn = document.querySelector('.search-btn');
             const loading = document.getElementById('loading');
             const resultsSection = document.getElementById('resultsSection');
             const errorMessage = document.getElementById('errorMessage');
 
+            // Show loading
             errorMessage.classList.add('hidden');
             resultsSection.classList.add('hidden');
             loading.classList.remove('hidden');
@@ -199,18 +188,16 @@
             searchBtn.textContent = 'Searching...';
 
             try {
-                currentFlightData = {
-                    airline: 'AV',
-                    flight_number: document.getElementById('flight_number').value,
-                    departure_date: document.getElementById('departure_date').value + 'T00:00:00Z',
-                    origin_airport: document.getElementById('origin_airport').value.toUpperCase(),
-                    operational_number: '42307372'
-                };
-
                 const response = await fetch('/api/flight_details', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(currentFlightData)
+                    body: JSON.stringify({
+                        airline: 'AV',
+                        flight_number: flightNumber,
+                        departure_date: departureDate + 'T00:00:00Z',
+                        origin_airport: originAirport,
+                        operational_number: '42307372'
+                    })
                 });
 
                 const result = await response.json();
@@ -219,125 +206,47 @@
                     displayFlightDetails(result.flight_details);
                     resultsSection.classList.remove('hidden');
                     
-                    if (result.flight_details.PreviousFlight) {
-                        setTimeout(() => {
-                            loadPreviousFlight(result.flight_details.PreviousFlight).then(() => {
-                                setTimeout(() => {
-                                    const flightNumberTop = document.getElementById('flightNumberTop');
-                                    if (flightNumberTop) {
-                                        flightNumberTop.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                                    }
-                                }, 100);
-                            });
-                        }, 500);
-                    } else {
-                        setTimeout(() => {
-                            const flightNumberTop = document.getElementById('flightNumberTop');
-                            if (flightNumberTop) {
-                                flightNumberTop.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                            }
-                        }, 1500);
-                    }
-                    
-                    setTimeout(() => loadCrewMembers(), 500);
-                    
-                    setTimeout(() => {
-                        loading.classList.add('hidden');
-                        searchBtn.disabled = false;
-                        searchBtn.textContent = 'Search';
-                    }, 1500);
+                    // Load crew after delay
+                    setTimeout(() => loadCrewMembers(flightNumber, departureDate, originAirport), 500);
                     
                 } else {
                     showError(result.error || 'Failed to fetch flight details');
-                    loading.classList.add('hidden');
-                    searchBtn.disabled = false;
-                    searchBtn.textContent = 'Search';
                 }
 
             } catch (error) {
                 showError('Network error: ' + error.message);
+            } finally {
                 loading.classList.add('hidden');
                 searchBtn.disabled = false;
                 searchBtn.textContent = 'Search';
             }
-        });
+        }
 
-        async function loadCrewMembers() {
-            if (!currentFlightData) return;
+        async function loadCrewMembers(flightNumber, departureDate, originAirport) {
             try {
                 const response = await fetch('/api/flight_crew', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(currentFlightData)
+                    body: JSON.stringify({
+                        airline: 'AV',
+                        flight_number: flightNumber,
+                        departure_date: departureDate + 'T00:00:00Z',
+                        origin_airport: originAirport,
+                        operational_number: '42307372'
+                    })
                 });
                 const result = await response.json();
                 if (result.success) displayCrewMembers(result.crew_data);
-            } catch (error) {}
-        }
-
-        async function loadPreviousFlight(previousFlightData) {
-            if (!previousFlightData) return;
-
-            const previousFlightSection = document.getElementById('previousFlightSection');
-            const title = document.querySelector('.section-title[onclick]');
-            
-            if (!previousFlightSection || !title) return;
-
-            title.classList.add('loading');
-            title.textContent = 'Previous Flight - Loading...';
-
-            try {
-                const flightNumber = previousFlightData.Prv_commercialFlightNumber || previousFlightData.CommercialFlightNumber;
-                const airline = previousFlightData.Prv_airline || previousFlightData.Airline || 'AV';
-                const departureDateLocal = previousFlightData.Prv_departureDateLOCAL || previousFlightData.DepartureDateLOCAL;
-                const originAirport = previousFlightData.Prv_departureAirportIATACode || previousFlightData.OriginAirportIATACode;
-                
-                if (!flightNumber || !departureDateLocal || !originAirport) {
-                    throw new Error('Missing previous flight data');
-                }
-
-                const dateString = departureDateLocal.split('T')[0];
-                const searchData = {
-                    airline: airline,
-                    flight_number: flightNumber,
-                    departure_date: dateString + 'T00:00:00Z',
-                    origin_airport: originAirport,
-                    operational_number: '42307372'
-                };
-
-                const response = await fetch('/api/flight_details', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(searchData)
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    displayPreviousFlightDetails(result.flight_details);
-                    title.textContent = 'Previous Flight';
-                } else {
-                    throw new Error(result.error || 'Failed to load previous flight');
-                }
-
             } catch (error) {
-                title.textContent = 'Previous Flight - Click to retry';
-                previousFlightSection.innerHTML = `<div class="error-message">Failed to load previous flight</div>`;
-            } finally {
-                title.classList.remove('loading');
+                console.log('Failed to load crew:', error);
             }
         }
 
         function displayFlightDetails(flight) {
             const container = document.getElementById('flightDetails');
-            const statusClass = flight.FlightStatusCode === 'ARR' ? 'status-arrived' : 
-                              flight.TimeDelayed ? 'status-delayed' : 'status-scheduled';
             
-            // Get gate and terminal information
             const departureStand = flight.DepartureParkingStand || '';
             const departureTerminal = flight.DepartureTerminal || '';
-            
-            // Format gate info as "GATE: xx T: xx"
             let gateInfo = '';
             if (departureStand && departureTerminal) {
                 gateInfo = `GATE: ${departureStand} T: ${departureTerminal}`;
@@ -347,35 +256,23 @@
                 gateInfo = `T: ${departureTerminal}`;
             }
             
-            const fleet = flight.Fleet || '';
+            const statusClass = flight.FlightStatusCode === 'ARR' ? 'status-arrived' : 
+                              flight.TimeDelayed ? 'status-delayed' : 'status-scheduled';
             
-            // Calculate time colors
-            const scheduledDeparture = flight.Flight?.ScheduleDepartureDateLOCAL;
-            const actualDeparture = flight.Flight?.DepartureDateLOCAL;
-            const scheduledArrival = flight.Flight?.ScheduleArrivalDateLOCAL;
-            const actualArrival = flight.Flight?.ArrivalDateLOCAL;
-            
-            const departureColor = getTimeColor(actualDeparture, scheduledDeparture);
-            const arrivalColor = getTimeColor(actualArrival, scheduledArrival);
-            
-            // Create the actual time string with colored spans
-            const actualTimeString = `<span class="${departureColor}">${formatTime(actualDeparture)}</span> - <span class="${arrivalColor}">${formatTime(actualArrival)}</span>`;
-            
-            // Check if delay info exists - Delays is an array!
             const hasDelayInfo = flight.Delays && flight.Delays.length > 0;
             
             const html = `
                 <div class="flight-header">
                     <div class="flight-number-line">
                         <div class="flight-info">
-                            <div class="flight-number" id="flightNumberTop">
+                            <div class="flight-number">
                                 ${flight.Flight?.Airline || 'AV'}${flight.Flight?.CommercialFlightNumber || 'N/A'}
                             </div>
-                            <div class="flight-details">${gateInfo ? `<div class="gate-info">${gateInfo}</div>` : ''}</div>
+                            <div>${gateInfo ? `<div class="gate-info">${gateInfo}</div>` : ''}</div>
                         </div>
                         <div class="tail-info">
                             <div class="tail-number">${flight.AircraftRegistrationNumber || 'N/A'}</div>
-                            <div class="fleet-type">${fleet}</div>
+                            <div class="fleet-type">${flight.Fleet || ''}</div>
                         </div>
                     </div>
                     
@@ -386,11 +283,11 @@
                     <div class="time-comparison">
                         <div class="time-line">
                             <span class="time-label">Scheduled:</span>
-                            <span class="time-value">${formatTime(scheduledDeparture)} - ${formatTime(scheduledArrival)}</span>
+                            <span class="time-value">${formatTime(flight.Flight?.ScheduleDepartureDateLOCAL)} - ${formatTime(flight.Flight?.ScheduleArrivalDateLOCAL)}</span>
                         </div>
                         <div class="time-line">
                             <span class="time-label">Actual:</span>
-                            <span class="time-value">${actualTimeString}</span>
+                            <span class="time-value">${formatTime(flight.Flight?.DepartureDateLOCAL)} - ${formatTime(flight.Flight?.ArrivalDateLOCAL)}</span>
                         </div>
                         <div class="flight-status ${statusClass}">${flight.FlightStatus || 'Unknown'}</div>
                     </div>
@@ -402,30 +299,13 @@
                         </div>
                         <div class="delay-details" id="delayDetails">
                             ${flight.Delays.map((delay, index) => `
-                                ${delay.DelayCode || delay.DelayDesc || delay.DelayTime ? `
                                 <div class="delay-group">
-                                    ${delay.DelayCode ? `
-                                    <div class="delay-detail-item">
-                                        <span>Delay Code:</span>
-                                        <span>${delay.DelayCode}</span>
-                                    </div>
-                                    ` : ''}
-                                    ${delay.DelayDesc ? `
-                                    <div class="delay-detail-item">
-                                        <span>Delay Description:</span>
-                                        <span>${delay.DelayDesc}</span>
-                                    </div>
-                                    ` : ''}
-                                    ${delay.DelayTime ? `
-                                    <div class="delay-detail-item">
-                                        <span>Delay Time:</span>
-                                        <span>${delay.DelayTime} minutes</span>
-                                    </div>
-                                    ` : ''}
+                                    ${delay.DelayCode ? `<div class="delay-detail-item"><span>Delay Code:</span><span>${delay.DelayCode}</span></div>` : ''}
+                                    ${delay.DelayDesc ? `<div class="delay-detail-item"><span>Delay Description:</span><span>${delay.DelayDesc}</span></div>` : ''}
+                                    ${delay.DelayTime ? `<div class="delay-detail-item"><span>Delay Time:</span><span>${delay.DelayTime} minutes</span></div>` : ''}
                                 </div>
-                                ${flight.Delays.length > 1 && index < flight.Delays.length - 1 ? '<hr style="border: none; border-top: 1px solid #333; margin: 8px 0;">' : ''}
-                                ` : ''
-                            ).join('')}
+                                ${flight.Delays.length > 1 && index < flight.Delays.length - 1 ? '<hr style="margin: 8px 0; border: 1px solid #333;">' : ''}
+                            `).join('')}
                         </div>
                     </div>
                     ` : ''}
@@ -433,14 +313,10 @@
 
                 ${flight.PreviousFlight ? `
                 <div class="previous-flight-section">
-                    <div class="section-title" onclick="loadPreviousFlight(${JSON.stringify(flight.PreviousFlight).replace(/"/g, '&quot;')})">
-                        Previous Flight
-                    </div>
-                    <div id="previousFlightSection">
-                        <div class="loading">Loading previous flight...</div>
-                    </div>
+                    <div class="section-title">Previous Flight</div>
+                    <div id="previousFlightSection">Previous flight data available</div>
                 </div>
-                ` : '<div class="section-title">Previous Flight</div><div style="color: #b8b8d0; font-size: 0.9em; margin: 10px 0;">No previous flight data</div>'}
+                ` : '<div class="section-title">Previous Flight</div><div>No previous flight data</div>'}
 
                 <div id="crewSection"></div>
 
@@ -451,131 +327,28 @@
                         <li class="mel-item">
                             <div class="mel-code">${mel.MELCode || 'N/A'}</div>
                             <div class="mel-desc">${mel.MELDesc || 'No description'}</div>
-                            ${mel.MELComment ? `<div class="mel-desc">Comment: ${mel.MELComment}</div>` : ''}
                         </li>
                     `).join('')}
                 </ul>
                 ` : ''}
-
-                <div class="success-message">
-                    <strong>Last Updated:</strong> ${new Date(flight.LastModified).toLocaleString()}
-                </div>
             `;
 
             container.innerHTML = html;
         }
 
-        function displayPreviousFlightDetails(flight) {
-            const previousFlightSection = document.getElementById('previousFlightSection');
-            
-            // Calculate time colors for previous flight
-            const scheduledDeparture = flight.Flight?.ScheduleDepartureDateLOCAL;
-            const actualDeparture = flight.Flight?.DepartureDateLOCAL;
-            const scheduledArrival = flight.Flight?.ScheduleArrivalDateLOCAL;
-            const actualArrival = flight.Flight?.ArrivalDateLOCAL;
-            
-            const departureColor = getTimeColor(actualDeparture, scheduledDeparture);
-            const arrivalColor = getTimeColor(actualArrival, scheduledArrival);
-            
-            // Create the actual time string with colored spans
-            const actualTimeString = `<span class="${departureColor}">${formatTime(actualDeparture)}</span> - <span class="${arrivalColor}">${formatTime(actualArrival)}</span>`;
-            
-            const html = `
-                <div class="flight-header">
-                    <div class="flight-number-line">
-                        <div class="flight-info">
-                            <div class="previous-flight-number">
-                                ${flight.Flight?.Airline || 'AV'}${flight.Flight?.CommercialFlightNumber || 'N/A'}
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="route-line">
-                        ${flight.Flight?.OriginAirportIATACode || 'N/A'} → ${flight.Flight?.FinalAirportIATACode || 'N/A'}
-                    </div>
-                    
-                    <div class="time-comparison">
-                        <div class="time-line">
-                            <span class="time-label">Scheduled:</span>
-                            <span class="time-value">${formatTime(scheduledDeparture)} - ${formatTime(scheduledArrival)}</span>
-                        </div>
-                        <div class="time-line">
-                            <span class="time-label">Actual:</span>
-                            <span class="time-value">${actualTimeString}</span>
-                        </div>
-                    </div>
-                </div>
-            `;
-
-            previousFlightSection.innerHTML = html;
-        }
-
-        function toggleDelayDetails() {
-            const details = document.getElementById('delayDetails');
-            if (details) {
-                if (details.style.display === 'none') {
-                    details.style.display = 'block';
-                } else {
-                    details.style.display = 'none';
-                }
-            }
-        }
-
-        function getTimeColor(actualTime, scheduledTime) {
-            if (!actualTime || !scheduledTime) return '';
-            
-            const actual = actualTime.slice(11, 16);
-            const scheduled = scheduledTime.slice(11, 16);
-            
-            const actualMinutes = parseInt(actual.split(':')[0]) * 60 + parseInt(actual.split(':')[1]);
-            const scheduledMinutes = parseInt(scheduled.split(':')[0]) * 60 + parseInt(scheduled.split(':')[1]);
-            
-            return actualMinutes <= scheduledMinutes ? 'time-early' : 'time-late';
-        }
-
-        function formatTime(dateString) {
-            return dateString ? dateString.slice(11, 16) : 'N/A';
-        }
-
         function displayCrewMembers(crewData) {
-            if (!crewData.MembersTeamFlight || crewData.MembersTeamFlight.length === 0) return;
+            if (!crewData.MembersTeamFlight) return;
             const crewSection = document.getElementById('crewSection');
             
             let html = `<div class="section-title">Crew Members</div><div class="crew-list">`;
             crewData.MembersTeamFlight.forEach((member, index) => {
-                const profile = member.Profile || {};
-                const fleet = profile.Qualifications ? profile.Qualifications.join(', ') : (profile.RawQualifications || 'N/A');
-                
                 html += `
                     <div class="crew-member" onclick="toggleCrewDetails(${index})">
                         <div class="crew-name">${member.Names || ''} ${member.LastName || ''}</div>
                         <div class="crew-position">${member.Position || 'Unknown'}</div>
                         <div class="crew-details" id="crew-details-${index}">
-                            <div class="crew-detail-item">
-                                <span>Crew ID:</span>
-                                <span>${member.CrewMemberUniqueId || 'N/A'}</span>
-                            </div>
-                            <div class="crew-detail-item">
-                                <span>Base:</span>
-                                <span>${profile.Base || 'N/A'}</span>
-                            </div>
-                            <div class="crew-detail-item">
-                                <span>Fleet:</span>
-                                <span>${fleet}</span>
-                            </div>
-                            <div class="crew-detail-item">
-                                <span>Seniority:</span>
-                                <span>${profile.Superiority || 'N/A'}</span>
-                            </div>
-                            ${profile.TelephoneNumber ? `
-                            <div class="crew-detail-item">
-                                <span>Phone:</span>
-                                <span>${profile.TelephoneNumber}</span>
-                            </div>
-                            ` : ''}
-                            ${profile.CorporateEmail ? `
-                            <div class="crew-email">${profile.CorporateEmail}</div>
-                            ` : ''}
+                            <div class="crew-detail-item"><span>Crew ID:</span><span>${member.CrewMemberUniqueId || 'N/A'}</span></div>
+                            <div class="crew-detail-item"><span>Position:</span><span>${member.Position || 'N/A'}</span></div>
                         </div>
                     </div>
                 `;
@@ -584,10 +357,16 @@
             crewSection.innerHTML = html;
         }
 
+        function toggleDelayDetails() {
+            const details = document.getElementById('delayDetails');
+            if (details) {
+                details.style.display = details.style.display === 'none' ? 'block' : 'none';
+            }
+        }
+
         function toggleCrewDetails(index) {
+            const details = document.getElementById('crew-details-' + index);
             const crewMember = document.querySelectorAll('.crew-member')[index];
-            const details = document.getElementById(`crew-details-${index}`);
-            
             if (details && crewMember) {
                 if (details.style.display === 'none') {
                     details.style.display = 'block';
@@ -597,6 +376,10 @@
                     crewMember.classList.remove('expanded');
                 }
             }
+        }
+
+        function formatTime(dateString) {
+            return dateString ? dateString.slice(11, 16) : 'N/A';
         }
 
         function showError(message) {

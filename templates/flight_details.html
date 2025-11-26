@@ -38,9 +38,9 @@
         .time-comparison { text-align: center; margin: 10px 0; }
         .time-line { display: flex; justify-content: center; margin-bottom: 3px; font-size: 0.9em; }
         .time-label { width: 80px; color: #b8b8d0; text-align: right; margin-right: 10px; }
-        .time-value { text-align: left; }
-        .time-early { color: #81c784; } /* Green for early/on-time */
-        .time-late { color: #f44336; } /* Red for late */
+        .time-value { text-align: left; width: 120px; } /* Fixed width for alignment */
+        .time-early { color: #81c784; }
+        .time-late { color: #f44336; }
         .flight-status { padding: 4px 8px; border-radius: 12px; font-size: 0.8em; display: inline-block; margin-top: 5px; }
         .status-arrived { background: #2e7d32; }
         .status-scheduled { background: #1976d2; }
@@ -174,11 +174,9 @@
                     displayFlightDetails(result.flight_details);
                     resultsSection.classList.remove('hidden');
                     
-                    // Load previous flight and crew, then scroll
                     if (result.flight_details.PreviousFlight) {
                         setTimeout(() => {
                             loadPreviousFlight(result.flight_details.PreviousFlight).then(() => {
-                                // Scroll after previous flight loads
                                 setTimeout(() => {
                                     const flightNumberTop = document.getElementById('flightNumberTop');
                                     if (flightNumberTop) {
@@ -188,7 +186,6 @@
                             });
                         }, 500);
                     } else {
-                        // If no previous flight, scroll after crew loads
                         setTimeout(() => {
                             const flightNumberTop = document.getElementById('flightNumberTop');
                             if (flightNumberTop) {
@@ -303,6 +300,9 @@
             const departureColor = getTimeColor(actualDeparture, scheduledDeparture);
             const arrivalColor = getTimeColor(actualArrival, scheduledArrival);
             
+            // Create the actual time string with colored spans
+            const actualTimeString = `<span class="${departureColor}">${formatTime(actualDeparture)}</span> - <span class="${arrivalColor}">${formatTime(actualArrival)}</span>`;
+            
             const html = `
                 <div class="flight-header">
                     <div class="flight-number-line">
@@ -329,9 +329,7 @@
                         </div>
                         <div class="time-line">
                             <span class="time-label">Actual:</span>
-                            <span class="time-value ${departureColor}">${formatTime(actualDeparture)}</span>
-                            <span> - </span>
-                            <span class="time-value ${arrivalColor}">${formatTime(actualArrival)}</span>
+                            <span class="time-value">${actualTimeString}</span>
                         </div>
                         <div class="flight-status ${statusClass}">${flight.FlightStatus || 'Unknown'}</div>
                     </div>
@@ -383,6 +381,9 @@
             const departureColor = getTimeColor(actualDeparture, scheduledDeparture);
             const arrivalColor = getTimeColor(actualArrival, scheduledArrival);
             
+            // Create the actual time string with colored spans
+            const actualTimeString = `<span class="${departureColor}">${formatTime(actualDeparture)}</span> - <span class="${arrivalColor}">${formatTime(actualArrival)}</span>`;
+            
             const html = `
                 <div class="flight-header">
                     <div class="flight-number-line">
@@ -404,9 +405,7 @@
                         </div>
                         <div class="time-line">
                             <span class="time-label">Actual:</span>
-                            <span class="time-value ${departureColor}">${formatTime(actualDeparture)}</span>
-                            <span> - </span>
-                            <span class="time-value ${arrivalColor}">${formatTime(actualArrival)}</span>
+                            <span class="time-value">${actualTimeString}</span>
                         </div>
                     </div>
                 </div>
@@ -418,10 +417,9 @@
         function getTimeColor(actualTime, scheduledTime) {
             if (!actualTime || !scheduledTime) return '';
             
-            const actual = actualTime.slice(11, 16); // "HH:MM"
+            const actual = actualTime.slice(11, 16);
             const scheduled = scheduledTime.slice(11, 16);
             
-            // Convert to minutes since midnight for comparison
             const actualMinutes = parseInt(actual.split(':')[0]) * 60 + parseInt(actual.split(':')[1]);
             const scheduledMinutes = parseInt(scheduled.split(':')[0]) * 60 + parseInt(scheduled.split(':')[1]);
             

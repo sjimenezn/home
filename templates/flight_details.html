@@ -7,7 +7,14 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: Arial; margin: 10px; background: #121212; color: #f0f0f0; font-size: 16px; }
-        .container { max-width: 100%; margin: 0 auto; background: #2a2a2a; padding: 15px; border-radius: 8px; border: 1px solid #444; }
+        .container { 
+            max-width: 600px;
+            margin: 10px auto;
+            background: #2a2a2a; 
+            padding: 15px; 
+            border-radius: 8px; 
+            border: 1px solid #444; 
+        }
         .header { text-align: center; margin-bottom: 15px; }
         .nav-buttons { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 1px; background: #444; border-radius: 8px; overflow: hidden; margin: 10px 0; }
         .nav-button { padding: 12px 5px; background: #3a3a3a; color: #f0f0f0; text-decoration: none; text-align: center; }
@@ -34,12 +41,12 @@
         .tail-info { text-align: right; flex: 1; }
         .tail-number { font-size: 1.8em; color: #4fc3f7; font-weight: bold; margin-bottom: 5px; }
         .fleet-type { font-size: 1.8em; color: #ffffff; font-weight: bold; }
-        .gate-info { font-size: 1.8em; color: #ffffff; font-weight: bold; margin-bottom: 5px; }
+        .gate-info { font-size: 1.1em; color: #ffffff; font-weight: bold; margin-bottom: 5px; }
         .route-line { font-size: 1.2em; font-weight: bold; text-align: center; margin: 10px 0; }
         .time-comparison { text-align: center; margin: 10px 0; }
         .time-line { display: flex; justify-content: center; margin-bottom: 3px; font-size: 0.9em; }
         .time-label { width: 80px; color: #b8b8d0; text-align: right; margin-right: 10px; }
-        .time-value { text-align: left; width: 120px; } /* Fixed width for alignment */
+        .time-value { text-align: left; width: 120px; }
         .time-early { color: #81c784; }
         .time-late { color: #f44336; }
         .flight-status { padding: 4px 8px; border-radius: 12px; font-size: 0.8em; display: inline-block; margin-top: 5px; }
@@ -47,13 +54,11 @@
         .status-scheduled { background: #1976d2; }
         .status-delayed { background: #d32f2f; }
         
-        /* Previous Flight Styling */
         .previous-flight-section { margin: 15px 0; }
         .section-title { color: #f0f0f0; margin: 15px 0 8px 0; font-size: 0.9em; border-bottom: 1px solid #444; padding-bottom: 4px; font-weight: 600; cursor: pointer; }
         .section-title:hover { color: #ffc107; }
         .previous-flight-number { color: #b0b0b0 !important; font-size: 1.6em; }
         
-        /* Crew Members */
         .crew-list { display: grid; grid-template-columns: 1fr; gap: 5px; margin: 10px 0; }
         .crew-member { background: #2a2a2a; padding: 8px; border-radius: 4px; border: 1px solid #444; cursor: pointer; }
         .crew-member.expanded { background: #3a3a3a; }
@@ -63,7 +68,6 @@
         .crew-detail-item { display: flex; justify-content: space-between; margin-bottom: 2px; }
         .crew-email { color: #90caf9; word-break: break-all; margin-top: 4px; font-size: 0.7em; }
         
-        /* MEL Styling */
         .mel-list { list-style: none; margin: 10px 0; }
         .mel-item { background: #5a3a3a; border: 1px solid #7a3a3a; border-radius: 3px; padding: 8px; margin-bottom: 6px; }
         .mel-code { font-weight: 600; color: #ffab91; font-size: 0.8em; }
@@ -293,14 +297,14 @@
             const departureStand = flight.DepartureParkingStand || '';
             const departureTerminal = flight.DepartureTerminal || '';
             
-            // Format gate info as "gate(terminal)" - same format as fleet type
+            // Format gate info as "GATE: xx TERMINAL: xx"
             let gateInfo = '';
             if (departureStand && departureTerminal) {
-                gateInfo = `${departureStand}(${departureTerminal})`;
+                gateInfo = `GATE: ${departureStand} TERMINAL: ${departureTerminal}`;
             } else if (departureStand) {
-                gateInfo = departureStand;
+                gateInfo = `GATE: ${departureStand}`;
             } else if (departureTerminal) {
-                gateInfo = `T${departureTerminal}`;
+                gateInfo = `TERMINAL: ${departureTerminal}`;
             }
             
             const fleet = flight.Fleet || '';
@@ -386,20 +390,6 @@
         function displayPreviousFlightDetails(flight) {
             const previousFlightSection = document.getElementById('previousFlightSection');
             
-            // Get gate and terminal information for previous flight
-            const departureStand = flight.DepartureParkingStand || '';
-            const departureTerminal = flight.DepartureTerminal || '';
-            
-            // Format gate info as "gate(terminal)" - same format as fleet type
-            let gateInfo = '';
-            if (departureStand && departureTerminal) {
-                gateInfo = `${departureStand}(${departureTerminal})`;
-            } else if (departureStand) {
-                gateInfo = departureStand;
-            } else if (departureTerminal) {
-                gateInfo = `T${departureTerminal}`;
-            }
-            
             // Calculate time colors for previous flight
             const scheduledDeparture = flight.Flight?.ScheduleDepartureDateLOCAL;
             const actualDeparture = flight.Flight?.DepartureDateLOCAL;
@@ -419,7 +409,6 @@
                             <div class="previous-flight-number">
                                 ${flight.Flight?.Airline || 'AV'}${flight.Flight?.CommercialFlightNumber || 'N/A'}
                             </div>
-                            <div class="flight-details">${gateInfo ? `<div class="gate-info">${gateInfo}</div>` : ''}</div>
                         </div>
                     </div>
                     

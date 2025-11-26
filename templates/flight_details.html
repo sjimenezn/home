@@ -138,11 +138,15 @@
         }
 
         function clearFlightNumber() {
-            document.getElementById('flight_number').value = '';
+            const flightInput = document.getElementById('flight_number');
+            flightInput.value = '';
+            flightInput.focus();
         }
 
         function clearOriginAirport() {
-            document.getElementById('origin_airport').value = '';
+            const originInput = document.getElementById('origin_airport');
+            originInput.value = '';
+            originInput.focus();
         }
 
         document.getElementById('flightSearchForm').addEventListener('submit', async function(e) {
@@ -297,14 +301,14 @@
             const departureStand = flight.DepartureParkingStand || '';
             const departureTerminal = flight.DepartureTerminal || '';
             
-            // Format gate info as "GATE: xx TERMINAL: xx"
+            // Format gate info as "GATE: xx T: xx"
             let gateInfo = '';
             if (departureStand && departureTerminal) {
-                gateInfo = `GATE: ${departureStand} TERMINAL: ${departureTerminal}`;
+                gateInfo = `GATE: ${departureStand} T: ${departureTerminal}`;
             } else if (departureStand) {
                 gateInfo = `GATE: ${departureStand}`;
             } else if (departureTerminal) {
-                gateInfo = `TERMINAL: ${departureTerminal}`;
+                gateInfo = `T: ${departureTerminal}`;
             }
             
             const fleet = flight.Fleet || '';

@@ -34,10 +34,32 @@
         .hidden { display: none; }
         
         .flight-header { margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #444; }
-        .flight-number-line { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+        .flight-number-line { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 10px; 
+        }
         .flight-info { flex: 1; }
         .flight-number { font-size: 1.8em; font-weight: bold; color: #ffc107; margin-bottom: 5px; }
         .flight-details { font-size: 0.9em; color: #b8b8d0; }
+        .flight-status-center { 
+            text-align: center; 
+            flex: 1; 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .flight-status { 
+            padding: 4px 8px; 
+            border-radius: 12px; 
+            font-size: 0.8em; 
+            display: inline-block; 
+            margin-top: 5px; 
+        }
+        .status-arrived { background: #2e7d32; }
+        .status-scheduled { background: #1976d2; }
+        .status-delayed { background: #d32f2f; }
         .tail-info { text-align: right; flex: 1; }
         .tail-number { font-size: 1.8em; color: #4fc3f7; font-weight: bold; margin-bottom: 5px; }
         .fleet-type { font-size: 1.1em; color: #ffffff; font-weight: bold; }
@@ -49,10 +71,6 @@
         .time-value { text-align: left; width: 120px; }
         .time-early { color: #81c784; }
         .time-late { color: #f44336; }
-        .flight-status { padding: 4px 8px; border-radius: 12px; font-size: 0.8em; display: inline-block; margin-top: 5px; }
-        .status-arrived { background: #2e7d32; }
-        .status-scheduled { background: #1976d2; }
-        .status-delayed { background: #d32f2f; }
         
         /* Delay Info Styling */
         .delay-section { margin: 10px 0; }
@@ -368,6 +386,9 @@
                             </div>
                             <div class="flight-details">${gateInfo ? `<div class="gate-info">${gateInfo}</div>` : ''}</div>
                         </div>
+                        <div class="flight-status-center">
+                            <div class="flight-status ${statusClass}">${flight.FlightStatus || 'Unknown'}</div>
+                        </div>
                         <div class="tail-info">
                             <div class="tail-number">${flight.AircraftRegistrationNumber || 'N/A'}</div>
                             <div class="fleet-type">${fleet}</div>
@@ -387,7 +408,6 @@
                             <span class="time-label">Actual:</span>
                             <span class="time-value">${actualTimeString}</span>
                         </div>
-                        <div class="flight-status ${statusClass}">${flight.FlightStatus || 'Unknown'}</div>
                     </div>
 
                     ${hasDelayInfo ? `

@@ -79,6 +79,15 @@
             justify-content: space-between; 
             margin-bottom: 2px; 
         }
+        .delay-group {
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #333;
+        }
+        .delay-group:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
         
         .previous-flight-section { margin: 15px 0; }
         .section-title { color: #f0f0f0; margin: 15px 0 8px 0; font-size: 0.9em; border-bottom: 1px solid #444; padding-bottom: 4px; font-weight: 600; cursor: pointer; }
@@ -88,11 +97,11 @@
         .crew-list { display: grid; grid-template-columns: 1fr; gap: 5px; margin: 10px 0; }
         .crew-member { background: #2a2a2a; padding: 8px; border-radius: 4px; border: 1px solid #444; cursor: pointer; }
         .crew-member.expanded { background: #3a3a3a; }
-        .crew-name { font-weight: 600; }
-        .crew-position { color: #ffc107; font-size: 0.9em; }
-        .crew-details { margin-top: 8px; padding-top: 8px; border-top: 1px solid #444; font-size: 0.8em; color: #b8b8d0; display: none; }
+        .crew-name { font-weight: 600; font-size: 0.8em; } /* Reduced by 20% */
+        .crew-position { color: #ffc107; font-size: 0.72em; } /* Reduced by 20% */
+        .crew-details { margin-top: 8px; padding-top: 8px; border-top: 1px solid #444; font-size: 0.64em; color: #b8b8d0; display: none; } /* Reduced by 20% */
         .crew-detail-item { display: flex; justify-content: space-between; margin-bottom: 2px; }
-        .crew-email { color: #90caf9; word-break: break-all; margin-top: 4px; font-size: 0.7em; }
+        .crew-email { color: #90caf9; word-break: break-all; margin-top: 4px; font-size: 0.56em; } /* Reduced by 20% */
         
         .mel-list { list-style: none; margin: 10px 0; }
         .mel-item { background: #5a3a3a; border: 1px solid #7a3a3a; border-radius: 3px; padding: 8px; margin-bottom: 6px; }
@@ -388,27 +397,34 @@
                     ${hasDelayInfo ? `
                     <div class="delay-section">
                         <div class="delay-title" onclick="toggleDelayDetails()">
-                            DELAY INFO
+                            DELAY INFO ${flight.Delays.length > 1 ? `(${flight.Delays.length})` : ''}
                         </div>
                         <div class="delay-details" id="delayDetails">
-                            ${flight.Delays[0].DelayCode ? `
-                            <div class="delay-detail-item">
-                                <span>Delay Code:</span>
-                                <span>${flight.Delays[0].DelayCode}</span>
-                            </div>
-                            ` : ''}
-                            ${flight.Delays[0].DelayDesc ? `
-                            <div class="delay-detail-item">
-                                <span>Delay Description:</span>
-                                <span>${flight.Delays[0].DelayDesc}</span>
-                            </div>
-                            ` : ''}
-                            ${flight.Delays[0].DelayTime ? `
-                            <div class="delay-detail-item">
-                                <span>Delay Time:</span>
-                                <span>${flight.Delays[0].DelayTime} minutes</span>
-                            </div>
-                            ` : ''}
+                            ${flight.Delays.map((delay, index) => `
+                                ${delay.DelayCode || delay.DelayDesc || delay.DelayTime ? `
+                                <div class="delay-group">
+                                    ${delay.DelayCode ? `
+                                    <div class="delay-detail-item">
+                                        <span>Delay Code:</span>
+                                        <span>${delay.DelayCode}</span>
+                                    </div>
+                                    ` : ''}
+                                    ${delay.DelayDesc ? `
+                                    <div class="delay-detail-item">
+                                        <span>Delay Description:</span>
+                                        <span>${delay.DelayDesc}</span>
+                                    </div>
+                                    ` : ''}
+                                    ${delay.DelayTime ? `
+                                    <div class="delay-detail-item">
+                                        <span>Delay Time:</span>
+                                        <span>${delay.DelayTime} minutes</span>
+                                    </div>
+                                    ` : ''}
+                                </div>
+                                ${flight.Delays.length > 1 && index < flight.Delays.length - 1 ? '<hr style="border: none; border-top: 1px solid #333; margin: 8px 0;">' : ''}
+                                ` : ''
+                            ).join('')}
                         </div>
                     </div>
                     ` : ''}
@@ -583,6 +599,36 @@
             errorDiv.textContent = message;
             errorDiv.classList.remove('hidden');
         }
+
+        // Event delegation for click issues
+        document.addEventListener('click', function(e) {
+            // Handle delay title clicks
+            if (e.target.classList.contains('delay-title')) {
+                const details = document.getElementById('delayDetails');
+                if (details) {
+                    if (details.style.display === 'none') {
+                        details.style.display = 'block';
+                    } else {
+                        details.style.display = 'none';
+                    }
+                }
+            }
+            
+            // Handle crew member clicks
+            if (e.target.closest('.crew-member')) {
+                const crewMember = e.target.closest('.crew-member');
+                const details = crewMember.querySelector('.crew-details');
+                if (details) {
+                    if (details.style.display === 'none') {
+                        details.style.display = 'block';
+                        crewMember.classList.add('expanded');
+                    } else {
+                        details.style.display = 'none';
+                        crewMember.classList.remove('expanded');
+                    }
+                }
+            }
+        });
     </script>
 </body>
 </html>

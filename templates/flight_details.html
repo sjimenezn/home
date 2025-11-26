@@ -351,64 +351,28 @@
             // Create the actual time string with colored spans
             const actualTimeString = `<span class="${departureColor}">${formatTime(actualDeparture)}</span> - <span class="${arrivalColor}">${formatTime(actualArrival)}</span>`;
             
-            // Check if delay info exists
-            const hasDelayInfo = flight.DelayCode || flight.DelayDesc || flight.DelayTime;
-            
-            const html = `
-                <div class="flight-header">
-                    <div class="flight-number-line">
-                        <div class="flight-info">
-                            <div class="flight-number" id="flightNumberTop">
-                                ${flight.Flight?.Airline || 'AV'}${flight.Flight?.CommercialFlightNumber || 'N/A'}
-                            </div>
-                            <div class="flight-details">${gateInfo ? `<div class="gate-info">${gateInfo}</div>` : ''}</div>
-                        </div>
-                        <div class="tail-info">
-                            <div class="tail-number">${flight.AircraftRegistrationNumber || 'N/A'}</div>
-                            <div class="fleet-type">${fleet}</div>
-                        </div>
-                    </div>
-                    
-                    <div class="route-line">
-                        ${flight.Flight?.OriginAirportIATACode || 'N/A'} → ${flight.Flight?.FinalAirportIATACode || 'N/A'}
-                    </div>
-                    
-                    <div class="time-comparison">
-                        <div class="time-line">
-                            <span class="time-label">Scheduled:</span>
-                            <span class="time-value">${formatTime(scheduledDeparture)} - ${formatTime(scheduledArrival)}</span>
-                        </div>
-                        <div class="time-line">
-                            <span class="time-label">Actual:</span>
-                            <span class="time-value">${actualTimeString}</span>
-                        </div>
-                        <div class="flight-status ${statusClass}">${flight.FlightStatus || 'Unknown'}</div>
-                    </div>
+            // Check if delay info exists - look inside flight.Delays
+const hasDelayInfo = flight.Delays && (flight.Delays.DelayCode || flight.Delays.DelayDesc || flight.Delays.DelayTime);
 
-                    ${hasDelayInfo ? `
-                    <div class="delay-section">
-                        <div class="delay-title" onclick="toggleDelayDetails()">
-                            DELAY INFO
-                        </div>
-                        <div class="delay-details" id="delayDetails">
-                            ${flight.DelayCode ? `
-                            <div class="delay-detail-item">
-                                <span>Delay Code:</span>
-                                <span>${flight.DelayCode}</span>
-                            </div>
-                            ` : ''}
-                            ${flight.DelayDesc ? `
-                            <div class="delay-detail-item">
-                                <span>Delay Description:</span>
-                                <span>${flight.DelayDesc}</span>
-                            </div>
-                            ` : ''}
-                            ${flight.DelayTime ? `
-                            <div class="delay-detail-item">
-                                <span>Delay Time:</span>
-                                <span>${flight.DelayTime}</span>
-                            </div>
-                            ` : ''}
+// Then in the HTML template, access the properties from flight.Delays:
+${flight.Delays && flight.Delays.DelayCode ? `
+<div class="delay-detail-item">
+    <span>Delay Code:</span>
+    <span>${flight.Delays.DelayCode}</span>
+</div>
+` : ''}
+${flight.Delays && flight.Delays.DelayDesc ? `
+<div class="delay-detail-item">
+    <span>Delay Description:</span>
+    <span>${flight.Delays.DelayDesc}</span>
+</div>
+` : ''}
+${flight.Delays && flight.Delays.DelayTime ? `
+<div class="delay-detail-item">
+    <span>Delay Time:</span>
+    <span>${flight.Delays.DelayTime}</span>
+</div>
+` : ''}
                         </div>
                     </div>
                     ` : ''}

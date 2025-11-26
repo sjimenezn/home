@@ -351,8 +351,8 @@
             // Create the actual time string with colored spans
             const actualTimeString = `<span class="${departureColor}">${formatTime(actualDeparture)}</span> - <span class="${arrivalColor}">${formatTime(actualArrival)}</span>`;
             
-            // Check if delay info exists - look inside flight.Delays
-            const hasDelayInfo = flight.Delays && (flight.Delays.DelayCode || flight.Delays.DelayDesc || flight.Delays.DelayTime);
+            // Check if delay info exists - Delays is an array!
+            const hasDelayInfo = flight.Delays && flight.Delays.length > 0;
             
             const html = `
                 <div class="flight-header">
@@ -391,22 +391,22 @@
                             DELAY INFO
                         </div>
                         <div class="delay-details" id="delayDetails">
-                            ${flight.Delays && flight.Delays.DelayCode ? `
+                            ${flight.Delays[0].DelayCode ? `
                             <div class="delay-detail-item">
                                 <span>Delay Code:</span>
-                                <span>${flight.Delays.DelayCode}</span>
+                                <span>${flight.Delays[0].DelayCode}</span>
                             </div>
                             ` : ''}
-                            ${flight.Delays && flight.Delays.DelayDesc ? `
+                            ${flight.Delays[0].DelayDesc ? `
                             <div class="delay-detail-item">
                                 <span>Delay Description:</span>
-                                <span>${flight.Delays.DelayDesc}</span>
+                                <span>${flight.Delays[0].DelayDesc}</span>
                             </div>
                             ` : ''}
-                            ${flight.Delays && flight.Delays.DelayTime ? `
+                            ${flight.Delays[0].DelayTime ? `
                             <div class="delay-detail-item">
                                 <span>Delay Time:</span>
-                                <span>${flight.Delays.DelayTime}</span>
+                                <span>${flight.Delays[0].DelayTime} minutes</span>
                             </div>
                             ` : ''}
                         </div>

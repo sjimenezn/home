@@ -54,6 +54,32 @@
         .status-scheduled { background: #1976d2; }
         .status-delayed { background: #d32f2f; }
         
+        /* Delay Info Styling */
+        .delay-section { margin: 10px 0; }
+        .delay-title { 
+            color: #ffffff; 
+            margin: 10px 0 5px 0; 
+            font-size: 0.8em; 
+            border-bottom: 1px solid #444; 
+            padding-bottom: 4px; 
+            font-weight: 600; 
+            cursor: pointer; 
+        }
+        .delay-title:hover { color: #ffc107; }
+        .delay-details { 
+            margin-top: 8px; 
+            padding-top: 8px; 
+            border-top: 1px solid #444; 
+            font-size: 0.8em; 
+            color: #b8b8d0; 
+            display: none; 
+        }
+        .delay-detail-item { 
+            display: flex; 
+            justify-content: space-between; 
+            margin-bottom: 2px; 
+        }
+        
         .previous-flight-section { margin: 15px 0; }
         .section-title { color: #f0f0f0; margin: 15px 0 8px 0; font-size: 0.9em; border-bottom: 1px solid #444; padding-bottom: 4px; font-weight: 600; cursor: pointer; }
         .section-title:hover { color: #ffc107; }
@@ -325,6 +351,9 @@
             // Create the actual time string with colored spans
             const actualTimeString = `<span class="${departureColor}">${formatTime(actualDeparture)}</span> - <span class="${arrivalColor}">${formatTime(actualArrival)}</span>`;
             
+            // Check if delay info exists
+            const hasDelayInfo = flight.DelayCode || flight.DelayDesc || flight.DelayTime;
+            
             const html = `
                 <div class="flight-header">
                     <div class="flight-number-line">
@@ -355,6 +384,34 @@
                         </div>
                         <div class="flight-status ${statusClass}">${flight.FlightStatus || 'Unknown'}</div>
                     </div>
+
+                    ${hasDelayInfo ? `
+                    <div class="delay-section">
+                        <div class="delay-title" onclick="toggleDelayDetails()">
+                            DELAY INFO
+                        </div>
+                        <div class="delay-details" id="delayDetails">
+                            ${flight.DelayCode ? `
+                            <div class="delay-detail-item">
+                                <span>Delay Code:</span>
+                                <span>${flight.DelayCode}</span>
+                            </div>
+                            ` : ''}
+                            ${flight.DelayDesc ? `
+                            <div class="delay-detail-item">
+                                <span>Delay Description:</span>
+                                <span>${flight.DelayDesc}</span>
+                            </div>
+                            ` : ''}
+                            ${flight.DelayTime ? `
+                            <div class="delay-detail-item">
+                                <span>Delay Time:</span>
+                                <span>${flight.DelayTime}</span>
+                            </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                    ` : ''}
                 </div>
 
                 ${flight.PreviousFlight ? `
@@ -434,6 +491,15 @@
             `;
 
             previousFlightSection.innerHTML = html;
+        }
+
+        function toggleDelayDetails() {
+            const details = document.getElementById('delayDetails');
+            if (details.style.display === 'none') {
+                details.style.display = 'block';
+            } else {
+                details.style.display = 'none';
+            }
         }
 
         function getTimeColor(actualTime, scheduledTime) {

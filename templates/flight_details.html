@@ -40,7 +40,7 @@
         .flight-details { font-size: 0.9em; color: #b8b8d0; }
         .tail-info { text-align: right; flex: 1; }
         .tail-number { font-size: 1.8em; color: #4fc3f7; font-weight: bold; margin-bottom: 5px; }
-        .fleet-type { font-size: 1.1em; color: #ffffff; font-weight: bold; } /* Changed to match gate-info size */
+        .fleet-type { font-size: 1.1em; color: #ffffff; font-weight: bold; }
         .gate-info { font-size: 1.1em; color: #ffffff; font-weight: bold; margin-bottom: 5px; }
         .route-line { font-size: 1.2em; font-weight: bold; text-align: center; margin: 10px 0; }
         .time-comparison { text-align: center; margin: 10px 0; }
@@ -97,11 +97,11 @@
         .crew-list { display: grid; grid-template-columns: 1fr; gap: 5px; margin: 10px 0; }
         .crew-member { background: #2a2a2a; padding: 8px; border-radius: 4px; border: 1px solid #444; cursor: pointer; }
         .crew-member.expanded { background: #3a3a3a; }
-        .crew-name { font-weight: 600; font-size: 0.8em; } /* Reduced by 20% */
-        .crew-position { color: #ffc107; font-size: 0.72em; } /* Reduced by 20% */
-        .crew-details { margin-top: 8px; padding-top: 8px; border-top: 1px solid #444; font-size: 0.64em; color: #b8b8d0; display: none; } /* Reduced by 20% */
+        .crew-name { font-weight: 600; font-size: 0.64em; } /* Reduced another 20% */
+        .crew-position { color: #ffc107; font-size: 0.576em; } /* Reduced another 20% */
+        .crew-details { margin-top: 8px; padding-top: 8px; border-top: 1px solid #444; font-size: 0.512em; color: #b8b8d0; display: none; } /* Reduced another 20% */
         .crew-detail-item { display: flex; justify-content: space-between; margin-bottom: 2px; }
-        .crew-email { color: #90caf9; word-break: break-all; margin-top: 4px; font-size: 0.56em; } /* Reduced by 20% */
+        .crew-email { color: #90caf9; word-break: break-all; margin-top: 4px; font-size: 0.448em; } /* Reduced another 20% */
         
         .mel-list { list-style: none; margin: 10px 0; }
         .mel-item { background: #5a3a3a; border: 1px solid #7a3a3a; border-radius: 3px; padding: 8px; margin-bottom: 6px; }
@@ -163,12 +163,14 @@
         const localDate = urlParams.get('local_date');
         const originAirport = urlParams.get('origin_airport');
         
+        // Auto-search immediately if URL parameters are present
         if (flightNumber && localDate && originAirport) {
             document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('flight_number').value = flightNumber;
                 document.getElementById('departure_date').value = localDate;
                 document.getElementById('origin_airport').value = originAirport;
-                setTimeout(() => document.getElementById('flightSearchForm').dispatchEvent(new Event('submit')), 100);
+                // Remove delay - search immediately
+                document.getElementById('flightSearchForm').dispatchEvent(new Event('submit'));
             });
         }
 
@@ -218,43 +220,37 @@
                     displayFlightDetails(result.flight_details);
                     resultsSection.classList.remove('hidden');
                     
+                    // Load crew and previous flight in parallel for better performance
+                    const loadPromises = [];
+                    
                     if (result.flight_details.PreviousFlight) {
-                        setTimeout(() => {
-                            loadPreviousFlight(result.flight_details.PreviousFlight).then(() => {
-                                setTimeout(() => {
-                                    const flightNumberTop = document.getElementById('flightNumberTop');
-                                    if (flightNumberTop) {
-                                        flightNumberTop.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                                    }
-                                }, 100);
-                            });
-                        }, 500);
-                    } else {
+                        loadPromises.push(loadPreviousFlight(result.flight_details.PreviousFlight));
+                    }
+                    
+                    loadPromises.push(loadCrewMembers());
+                    
+                    // Wait for all parallel loads to complete
+                    Promise.all(loadPromises).finally(() => {
+                        // Simple, reliable autoscroll with consistent timing
                         setTimeout(() => {
                             const flightNumberTop = document.getElementById('flightNumberTop');
                             if (flightNumberTop) {
-                                flightNumberTop.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                flightNumberTop.scrollIntoView({ 
+                                    behavior: 'smooth', 
+                                    block: 'start',
+                                    inline: 'nearest'
+                                });
                             }
-                        }, 1500);
-                    }
-                    
-                    setTimeout(() => loadCrewMembers(), 500);
-                    
-                    setTimeout(() => {
-                        loading.classList.add('hidden');
-                        searchBtn.disabled = false;
-                        searchBtn.textContent = 'Search';
-                    }, 1500);
+                        }, 300); // Consistent 300ms delay for all cases
+                    });
                     
                 } else {
                     showError(result.error || 'Failed to fetch flight details');
-                    loading.classList.add('hidden');
-                    searchBtn.disabled = false;
-                    searchBtn.textContent = 'Search';
                 }
 
             } catch (error) {
                 showError('Network error: ' + error.message);
+            } finally {
                 loading.classList.add('hidden');
                 searchBtn.disabled = false;
                 searchBtn.textContent = 'Search';

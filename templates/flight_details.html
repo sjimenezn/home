@@ -97,11 +97,11 @@
         .crew-list { display: grid; grid-template-columns: 1fr; gap: 5px; margin: 10px 0; }
         .crew-member { background: #2a2a2a; padding: 8px; border-radius: 4px; border: 1px solid #444; cursor: pointer; }
         .crew-member.expanded { background: #3a3a3a; }
-        .crew-name { font-weight: 600; font-size: 0.64em; } /* Reduced another 20% */
-        .crew-position { color: #ffc107; font-size: 0.576em; } /* Reduced another 20% */
-        .crew-details { margin-top: 8px; padding-top: 8px; border-top: 1px solid #444; font-size: 0.512em; color: #b8b8d0; display: none; } /* Reduced another 20% */
+        .crew-name { font-weight: 600; font-size: 0.64em; }
+        .crew-position { color: #ffc107; font-size: 0.576em; }
+        .crew-details { margin-top: 8px; padding-top: 8px; border-top: 1px solid #444; font-size: 0.512em; color: #b8b8d0; display: none; }
         .crew-detail-item { display: flex; justify-content: space-between; margin-bottom: 2px; }
-        .crew-email { color: #90caf9; word-break: break-all; margin-top: 4px; font-size: 0.448em; } /* Reduced another 20% */
+        .crew-email { color: #90caf9; word-break: break-all; margin-top: 4px; font-size: 0.448em; }
         
         .mel-list { list-style: none; margin: 10px 0; }
         .mel-item { background: #5a3a3a; border: 1px solid #7a3a3a; border-radius: 3px; padding: 8px; margin-bottom: 6px; }
@@ -475,16 +475,8 @@
             
             const html = `
                 <div class="flight-header">
-                    <div class="flight-number-line">
-                        <div class="flight-info">
-                            <div class="previous-flight-number">
-                                ${flight.Flight?.Airline || 'AV'}${flight.Flight?.CommercialFlightNumber || 'N/A'}
-                            </div>
-                        </div>
-                    </div>
-                    
                     <div class="route-line">
-                        ${flight.Flight?.OriginAirportIATACode || 'N/A'} → ${flight.Flight?.FinalAirportIATACode || 'N/A'}
+                        ${flight.Flight?.Airline || 'AV'}${flight.Flight?.CommercialFlightNumber || 'N/A'} ${flight.Flight?.OriginAirportIATACode || 'N/A'} → ${flight.Flight?.FinalAirportIATACode || 'N/A'}
                     </div>
                     
                     <div class="time-comparison">

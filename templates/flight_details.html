@@ -141,7 +141,7 @@
                     <div class="input-row">
                         <input type="text" id="origin_airport" class="short-input" required value="BOG" maxlength="3">
                         <button type="button" class="button clear-btn" onclick="clearOriginAirport()">Clear</button>
-                        <button type="submit" class="button search-btn" id="searchBtn">Search</button>
+                        <button type="button" class="button search-btn" id="searchBtn">Search</button>
                     </div>
                 </div>
             </form>
@@ -168,7 +168,7 @@
                 document.getElementById('flight_number').value = flightNumber;
                 document.getElementById('departure_date').value = localDate;
                 document.getElementById('origin_airport').value = originAirport;
-                setTimeout(() => document.getElementById('flightSearchForm').dispatchEvent(new Event('submit')), 100);
+                setTimeout(() => document.getElementById('searchBtn').click(), 100);
             });
         }
 
@@ -184,7 +184,8 @@
             originInput.focus();
         }
 
-        document.getElementById('flightSearchForm').addEventListener('submit', async function(e) {
+        // Fixed search button handler
+        document.getElementById('searchBtn').addEventListener('click', async function(e) {
             e.preventDefault();
             const searchBtn = document.getElementById('searchBtn');
             const loading = document.getElementById('loading');
@@ -511,10 +512,12 @@
 
         function toggleDelayDetails() {
             const details = document.getElementById('delayDetails');
-            if (details.style.display === 'none') {
-                details.style.display = 'block';
-            } else {
-                details.style.display = 'none';
+            if (details) {
+                if (details.style.display === 'none') {
+                    details.style.display = 'block';
+                } else {
+                    details.style.display = 'none';
+                }
             }
         }
 
@@ -585,12 +588,14 @@
             const crewMember = document.querySelectorAll('.crew-member')[index];
             const details = document.getElementById(`crew-details-${index}`);
             
-            if (details.style.display === 'none') {
-                details.style.display = 'block';
-                crewMember.classList.add('expanded');
-            } else {
-                details.style.display = 'none';
-                crewMember.classList.remove('expanded');
+            if (details && crewMember) {
+                if (details.style.display === 'none') {
+                    details.style.display = 'block';
+                    crewMember.classList.add('expanded');
+                } else {
+                    details.style.display = 'none';
+                    crewMember.classList.remove('expanded');
+                }
             }
         }
 
@@ -599,36 +604,6 @@
             errorDiv.textContent = message;
             errorDiv.classList.remove('hidden');
         }
-
-        // Event delegation for click issues
-        document.addEventListener('click', function(e) {
-            // Handle delay title clicks
-            if (e.target.classList.contains('delay-title')) {
-                const details = document.getElementById('delayDetails');
-                if (details) {
-                    if (details.style.display === 'none') {
-                        details.style.display = 'block';
-                    } else {
-                        details.style.display = 'none';
-                    }
-                }
-            }
-            
-            // Handle crew member clicks
-            if (e.target.closest('.crew-member')) {
-                const crewMember = e.target.closest('.crew-member');
-                const details = crewMember.querySelector('.crew-details');
-                if (details) {
-                    if (details.style.display === 'none') {
-                        details.style.display = 'block';
-                        crewMember.classList.add('expanded');
-                    } else {
-                        details.style.display = 'none';
-                        crewMember.classList.remove('expanded');
-                    }
-                }
-            }
-        });
     </script>
 </body>
 </html>

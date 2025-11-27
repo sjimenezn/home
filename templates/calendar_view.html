@@ -60,13 +60,19 @@
         .departure-stand { font-weight: bold; color: #4fc3f7; font-size: 1.6em; display: inline; margin-left: 8px; }
         .route { font-size: 1.4em; color: #f0f0f0; font-weight: bold; margin: 3px 0; }
         .flight-times { font-size: 1.2em; color: #f0f0f0; font-weight: bold; margin-top: 3px; }
-        .time-on-time {
-            text-decoration: underline;
-            text-decoration-color: #81c784;
+        .status-dot {
+            display: inline-block;
+            width: 1.2em;
+            height: 1.2em;
+            border-radius: 50%;
+            margin-left: 6px;
+            vertical-align: middle;
         }
-        .time-delayed {
-            text-decoration: underline;
-            text-decoration-color: #e57373;
+        .status-dot.on-time {
+            background-color: #81c784;
+        }
+        .status-dot.delayed {
+            background-color: #e57373;
         }
         .no-assignments { color: #888; text-align: center; font-size: 0.8em; padding: 10px; }
         .month-section { 
@@ -205,9 +211,7 @@
                                                 {{ assignment.origin }}-{{ assignment.destination }}
                                             </div>
                                             <div class="flight-times">
-                                                <span class="{% if assignment.time_delayed %}time-delayed{% else %}time-on-time{% endif %}">
-                                                    {{ assignment.departure_time }} - {{ assignment.arrival_time }}
-                                                </span>
+                                                {{ assignment.departure_time }} - {{ assignment.arrival_time }}<span class="status-dot {% if assignment.time_delayed %}delayed{% else %}on-time{% endif %}"></span>
                                                 {% if assignment.aircraft_registration %} | {{ assignment.aircraft_registration }}{% endif %}
                                             </div>
                                         {% else %}

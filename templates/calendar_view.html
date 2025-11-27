@@ -4,23 +4,28 @@
     <title>My Crew Schedule - Calendar View</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <style>
-        body { 
-            font-family: Arial, sans-serif; 
+        html, body {
+            height: 100%;
+            overflow-x: hidden;
             margin: 1px;
             padding: 1px;
-            background: #121212; 
-            color: #f0f0f0; 
+            background: #121212;
+            color: #f0f0f0;
+            font-family: Arial, sans-serif;
         }
-        .container { 
-            max-width: 1400px; 
-            margin: 0 auto; 
-            background: #2a2a2a; 
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: #2a2a2a;
             padding: 0;
             border-radius: 0;
             border: none;
+            min-height: 100vh;
+            position: relative;
+            overflow: hidden;
         }
-        .header { 
-            text-align: center; 
+        .header {
+            text-align: center;
             margin-top: 0;
             margin-bottom: 10px;
             padding: 10px;
@@ -32,16 +37,22 @@
         .button { background: #555; color: white; padding: 8px 16px; border: none; border-radius: 5px; cursor: pointer; font-size: 0.9em; }
         .button:hover { background: #666; }
         .info-box { background: #3a3a3a; padding: 10px; border-radius: 5px; margin: 10px 0; text-align: center; font-size: 0.9em; }
-        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin: 10px 0; }
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+            margin: 10px 0;
+            grid-auto-rows: min-content;
+        }
         .calendar-day { border: 1px solid #444; padding: 5px; border-radius: 5px; min-height: 100px; background: #1e1e1e; }
-        .calendar-day-header { 
-            background: #555; 
-            color: white; 
+        .calendar-day-header {
+            background: #555;
+            color: white;
             padding: 2px;
-            border-radius: 3px; 
-            margin-bottom: 5px; 
-            text-align: center; 
-            font-weight: bold; 
+            border-radius: 3px;
+            margin-bottom: 5px;
+            text-align: center;
+            font-weight: bold;
             font-size: 1.3em;
             line-height: 1.2;
             height: 24px;
@@ -74,17 +85,17 @@
             background-color: #e57373;
         }
         .no-assignments { color: #888; text-align: center; font-size: 0.8em; padding: 10px; }
-        .month-section { 
+        .month-section {
             margin: 0;
         }
-        .month-header { 
-            background: #333; 
-            color: white; 
+        .month-header {
+            background: #333;
+            color: white;
             padding: 8px;
             border-radius: 0;
             margin-bottom: 8px;
-            text-align: center; 
-            position: relative; 
+            text-align: center;
+            position: relative;
         }
         .month-navigation { display: flex; justify-content: center; align-items: center; gap: 15px; }
         .chevron { background: none; border: none; color: white; font-size: 1.8em; cursor: pointer; padding: 0 10px; }
@@ -94,7 +105,7 @@
         .week-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 8px; }
         .week-day { text-align: center; font-weight: bold; padding: 6px; background: #555; color: white; border-radius: 4px; }
         .hidden { display: none; }
-        
+
         /* Floating Button Styles */
         .floating-button {
             position: fixed;
@@ -114,24 +125,25 @@
             align-items: center;
             justify-content: center;
             transition: all 0.3s ease;
+            transform: translateZ(0);
         }
         .floating-button:hover {
             background: #666;
-            transform: scale(1.1);
+            transform: scale(1.1) translateZ(0);
             box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
         }
         .floating-button:active {
-            transform: scale(0.95);
+            transform: scale(0.95) translateZ(0);
         }
         .floating-button.loading {
             background: #666;
             animation: spin 1s linear infinite;
         }
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% { transform: rotate(0deg) translateZ(0); }
+            100% { transform: rotate(360deg) translateZ(0); }
         }
-        
+
         /* Loading indicator */
         .loading-overlay {
             position: fixed;
@@ -147,11 +159,11 @@
             font-size: 1.5em;
             color: #f0f0f0;
         }
-        
+
         /* Success and Error messages */
         .success { background: #2e4b2e; color: #d4edda; padding: 10px; border-radius: 5px; margin: 8px 0; font-weight: 600; text-align: center; font-size: 0.9em; }
         .error { background: #5a3a3a; color: #f8d7da; padding: 10px; border-radius: 5px; margin: 8px 0; font-weight: 600; text-align: center; font-size: 0.9em; }
-        
+
         h1 {
             margin: 0 0 5px 0;
             font-size: 1.2em;
@@ -175,7 +187,7 @@
                         <button class="chevron" onclick="navigateMonth(1)" id="nextMonth">〉</button>
                     </div>
                 </div>
-                
+
                 <div class="week-days">
                     <div class="week-day">MON</div>
                     <div class="week-day">TUE</div>
@@ -185,7 +197,7 @@
                     <div class="week-day">SAT</div>
                     <div class="week-day">SUN</div>
                 </div>
-                
+
                 <div class="calendar-grid">
                     {% for day in month_calendars[0] %}
                         {% if day %}
@@ -193,7 +205,7 @@
                                 <div class="calendar-day-header">
                                     {{ day.day_number }}
                                 </div>
-                                
+
                                 {% if day.assignments and day.assignments|length > 0 %}
                                     {% for assignment in day.assignments %}
                                     <div class="assignment-item {% if assignment.is_flight %}assignment-flight{% else %}assignment-ground{% endif %}">
@@ -281,7 +293,7 @@
             // Check if we should reload (only reload once per session)
             if (!sessionStorage.getItem('homeScreenLaunched')) {
                 sessionStorage.setItem('homeScreenLaunched', 'true');
-                
+
                 // Small delay to ensure page is fully loaded, then reload
                 setTimeout(() => {
                     window.location.reload();
@@ -295,7 +307,7 @@
         // Calculate new month and year
         let newYear = currentYear;
         let newMonth = currentMonth + direction;
-        
+
         if (newMonth > 12) {
             newMonth = 1;
             newYear++;
@@ -303,10 +315,10 @@
             newMonth = 12;
             newYear--;
         }
-        
+
         // Show loading overlay
         document.getElementById('loadingOverlay').style.display = 'flex';
-        
+
         // Navigate to new month
         const url = new URL(window.location);
         url.searchParams.set('year', newYear);
@@ -318,13 +330,13 @@
     function refreshCurrentMonth() {
         const button = document.getElementById('refreshBtn');
         const floatingBtn = document.querySelector('.floating-button');
-        
+
         button.disabled = true;
         button.textContent = 'Loading...';
         floatingBtn.classList.add('loading');
         floatingBtn.disabled = true;
         document.getElementById('loadingOverlay').style.display = 'flex';
-        
+
         fetch('/fetch?refresh=true')
             .then(r => r.json())
             .then(data => {
@@ -342,7 +354,7 @@
                 alert('Error: ' + err);
                 resetButtons();
             });
-            
+
         function resetButtons() {
             button.disabled = false;
             button.textContent = 'Refresh Schedule';
@@ -365,10 +377,10 @@
     // Initialize on page load
     document.addEventListener('DOMContentLoaded', function() {
         updateNavigationButtons();
-        
+
         // Check if we should reload (for home screen launches)
         checkForReload();
-        
+
         // Hide loading overlay after page loads
         setTimeout(() => {
             document.getElementById('loadingOverlay').style.display = 'none';

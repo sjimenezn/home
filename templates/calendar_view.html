@@ -6,8 +6,8 @@
     <style>
         body { 
             font-family: Arial, sans-serif; 
-            margin: 1px; /* 1px margin outside */
-            padding: 1px; /* 1px padding inside */
+            margin: 1px;
+            padding: 1px;
             background: #121212; 
             color: #f0f0f0; 
         }
@@ -60,8 +60,14 @@
         .departure-stand { font-weight: bold; color: #4fc3f7; font-size: 1.6em; display: inline; margin-left: 8px; }
         .route { font-size: 1.4em; color: #f0f0f0; font-weight: bold; margin: 3px 0; }
         .flight-times { font-size: 1.2em; color: #f0f0f0; font-weight: bold; margin-top: 3px; }
-        .status-on-time { color: #81c784; font-weight: bold; margin-left: 5px; }
-        .status-delayed { color: #e57373; font-weight: bold; margin-left: 5px; }
+        .time-on-time {
+            text-decoration: underline;
+            text-decoration-color: #81c784;
+        }
+        .time-delayed {
+            text-decoration: underline;
+            text-decoration-color: #e57373;
+        }
         .no-assignments { color: #888; text-align: center; font-size: 0.8em; padding: 10px; }
         .month-section { 
             margin: 0;
@@ -199,9 +205,9 @@
                                                 {{ assignment.origin }}-{{ assignment.destination }}
                                             </div>
                                             <div class="flight-times">
-                                                {{ assignment.departure_time }} - {{ assignment.arrival_time }}
-                                                {% if assignment.time_advanced %}<span class="status-on-time">On Time</span>{% endif %}
-                                                {% if assignment.time_delayed %}<span class="status-delayed">Delayed</span>{% endif %}
+                                                <span class="{% if assignment.time_delayed %}time-delayed{% else %}time-on-time{% endif %}">
+                                                    {{ assignment.departure_time }} - {{ assignment.arrival_time }}
+                                                </span>
                                                 {% if assignment.aircraft_registration %} | {{ assignment.aircraft_registration }}{% endif %}
                                             </div>
                                         {% else %}

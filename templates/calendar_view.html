@@ -59,7 +59,7 @@
         .flight-number:hover { color: #ffd54f; text-decoration: underline; }
         .departure-stand { font-weight: bold; color: #4fc3f7; font-size: 1.6em; display: inline; margin-left: 8px; }
         .route { font-size: 1.4em; color: #f0f0f0; font-weight: bold; margin: 3px 0; }
-        .flight-times { font-size: 1.4em; color: #f0f0f0; font-weight: bold; margin-top: 3px; }
+        .flight-times { font-size: 1.2em; color: #f0f0f0; font-weight: bold; margin-top: 3px; }
         .status-dot {
             display: inline-block;
             width: 0.35em;
@@ -217,7 +217,7 @@
                                             <div style="font-weight: bold; color: #f0f0f0; font-size: 1.4em;">
                                                 {{ assignment.activity_code }}
                                             </div>
-                                            <div style="font-size: 1.4em; color: #f0f0f0; font-weight: bold;">
+                                            <div style="font-size: 1.2em; color: #f0f0f0; font-weight: bold;">
                                                 {{ assignment.start_time }} - {{ assignment.end_time }}
                                             </div>
                                         {% endif %}
@@ -261,7 +261,7 @@
         {% if last_fetch %}
         <div class="info-box">
             <h3>Last updated: {{ last_fetch }}</h3>
-            <p>Total days: {{ total_days }} | Total assignments: {{ total_assignments }}</p>
+            <p>Flight time: {{ total_actual_hours }}h {{ total_actual_minutes }}m (Scheduled: {{ total_scheduled_hours }}h {{ total_scheduled_minutes }}m) | Total assignments: {{ total_assignments }}</p>
             <p>Current Crew ID: <strong>{{ current_crew_id }}</strong></p>
         </div>
         {% endif %}

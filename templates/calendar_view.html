@@ -6,7 +6,8 @@
     <style>
         body { 
             font-family: Arial, sans-serif; 
-            margin: 5px; /* REDUCED from 20px */
+            margin: 0;
+            padding: 5px;
             background: #121212; 
             color: #f0f0f0; 
         }
@@ -14,25 +15,34 @@
             max-width: 1400px; 
             margin: 0 auto; 
             background: #2a2a2a; 
-            padding: 15px; /* REDUCED from 20px */
+            padding: 10px;
             border-radius: 10px; 
             border: 1px solid #444; 
         }
         .header { 
             text-align: center; 
-            margin-top: 5px; /* REDUCED from 30px */
-            margin-bottom: 20px; 
+            margin-top: 0;
+            margin-bottom: 15px;
         }
-        .nav-buttons { text-align: center; margin: 15px 0; }
+        .nav-buttons { text-align: center; margin: 10px 0; }
         .nav-button { background: #3a3a3a; color: #f0f0f0; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; margin: 0 5px; text-decoration: none; display: inline-block; }
         .nav-button:hover { background: #4a4a4a; }
         .nav-button.active { background: #f0f0f0; color: #121212; }
         .button { background: #555; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
         .button:hover { background: #666; }
-        .info-box { background: #3a3a3a; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center; }
-        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin: 20px 0; }
+        .info-box { background: #3a3a3a; padding: 15px; border-radius: 5px; margin: 15px 0; text-align: center; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin: 15px 0; }
         .calendar-day { border: 1px solid #444; padding: 5px; border-radius: 5px; min-height: 100px; background: #1e1e1e; }
-        .calendar-day-header { background: #555; color: white; padding: 4px; border-radius: 3px; margin-bottom: 5px; text-align: center; font-weight: bold; font-size: 1.5em; }
+        .calendar-day-header { 
+            background: #555; 
+            color: white; 
+            padding: 6px; /* CHANGED: Match weekday padding */
+            border-radius: 4px; /* CHANGED: Match weekday border radius */
+            margin-bottom: 5px; 
+            text-align: center; 
+            font-weight: bold; 
+            font-size: 1em; /* CHANGED: Reduced from 1.5em to match weekday size */
+        }
         .calendar-day.current-day { border: 3px solid #ffc107; background: #3a3a3a; }
         .calendar-day.weekend { background: #2a2a2a; }
         .calendar-day.empty { background: #1a1a1a; border: 1px dashed #444; }
@@ -48,24 +58,24 @@
         .status-delayed { color: #e57373; font-weight: bold; margin-left: 5px; }
         .no-assignments { color: #888; text-align: center; font-size: 0.8em; padding: 10px; }
         .month-section { 
-            margin: 10px 0; /* REDUCED from 30px 0 */
+            margin: 5px 0;
         }
         .month-header { 
             background: #333; 
             color: white; 
-            padding: 10px; /* REDUCED from 15px */
+            padding: 8px;
             border-radius: 8px; 
-            margin-bottom: 10px; /* REDUCED from 15px */
+            margin-bottom: 8px;
             text-align: center; 
             position: relative; 
         }
-        .month-navigation { display: flex; justify-content: center; align-items: center; gap: 20px; }
-        .chevron { background: none; border: none; color: white; font-size: 2em; cursor: pointer; padding: 0 15px; }
+        .month-navigation { display: flex; justify-content: center; align-items: center; gap: 15px; }
+        .chevron { background: none; border: none; color: white; font-size: 1.8em; cursor: pointer; padding: 0 10px; }
         .chevron:hover { color: #ffc107; }
         .chevron:disabled { color: #666; cursor: not-allowed; }
-        .month-title { font-size: 1.5em; margin: 0 20px; }
-        .week-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin-bottom: 10px; }
-        .week-day { text-align: center; font-weight: bold; padding: 8px; background: #555; color: white; border-radius: 4px; }
+        .month-title { font-size: 1.4em; margin: 0 15px; }
+        .week-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 8px; }
+        .week-day { text-align: center; font-weight: bold; padding: 6px; background: #555; color: white; border-radius: 4px; }
         .hidden { display: none; }
         
         /* Floating Button Styles */
@@ -122,8 +132,13 @@
         }
         
         /* Success and Error messages */
-        .success { background: #2e4b2e; color: #d4edda; padding: 15px; border-radius: 5px; margin: 15px 0; font-weight: 600; text-align: center; }
-        .error { background: #5a3a3a; color: #f8d7da; padding: 15px; border-radius: 5px; margin: 15px 0; font-weight: 600; text-align: center; }
+        .success { background: #2e4b2e; color: #d4edda; padding: 12px; border-radius: 5px; margin: 12px 0; font-weight: 600; text-align: center; }
+        .error { background: #5a3a3a; color: #f8d7da; padding: 12px; border-radius: 5px; margin: 12px 0; font-weight: 600; text-align: center; }
+        
+        h1 {
+            margin: 5px 0;
+            font-size: 1.4em;
+        }
     </style>
 </head>
 <body>
@@ -133,7 +148,33 @@
             <div>Loading calendar data...</div>
         </div>
 
-        <!-- CALENDAR AT THE TOP -->
+        <!-- HEADER AND BUTTONS AT THE TOP -->
+        <div class="header">
+            <h1>My Crew Schedule - Calendar View</h1>
+            <div class="nav-buttons">
+                <a href="/" class="nav-button">Schedule View</a>
+                <a href="/calendar" class="nav-button active">Calendar View</a>
+                <a href="/pdf" class="nav-button">PDF Download</a>
+                <a href="/flight_details" class="nav-button">Flight Search</a>
+            </div>
+            <button class="button" onclick="refreshCurrentMonth()" id="refreshBtn">Refresh Schedule</button>
+        </div>
+
+        {% if refresh_message %}
+        <div class="success">
+            {{ refresh_message }}
+        </div>
+        {% endif %}
+
+        {% if last_fetch %}
+        <div class="info-box">
+            <h3>Last updated: {{ last_fetch }}</h3>
+            <p>Total days: {{ total_days }} | Total assignments: {{ total_assignments }}</p>
+            <p>Current Crew ID: <strong>{{ current_crew_id }}</strong></p>
+        </div>
+        {% endif %}
+
+        <!-- CALENDAR BELOW HEADER -->
         {% if schedule_data %}
             <div class="month-section" id="month-section">
                 <div class="month-header">
@@ -208,32 +249,6 @@
                 <h3>No schedule data available</h3>
                 <p>Click "Refresh Schedule" to load your schedule.</p>
             </div>
-        {% endif %}
-
-        <!-- HEADER AND BUTTONS BELOW THE CALENDAR -->
-        <div class="header">
-            <h1>My Crew Schedule - Calendar View</h1>
-            <div class="nav-buttons">
-                <a href="/" class="nav-button">Schedule View</a>
-                <a href="/calendar" class="nav-button active">Calendar View</a>
-                <a href="/pdf" class="nav-button">PDF Download</a>
-                <a href="/flight_details" class="nav-button">Flight Search</a>
-            </div>
-            <button class="button" onclick="refreshCurrentMonth()" id="refreshBtn">Refresh Schedule</button>
-        </div>
-
-        {% if refresh_message %}
-        <div class="success">
-            {{ refresh_message }}
-        </div>
-        {% endif %}
-
-        {% if last_fetch %}
-        <div class="info-box">
-            <h3>Last updated: {{ last_fetch }}</h3>
-            <p>Total days: {{ total_days }} | Total assignments: {{ total_assignments }}</p>
-            <p>Current Crew ID: <strong>{{ current_crew_id }}</strong></p>
-        </div>
         {% endif %}
     </div>
 
@@ -338,12 +353,6 @@
         
         // Check if we should reload (for home screen launches)
         checkForReload();
-        
-        // Scroll the current month to the very top of the viewport
-        const currentMonthElement = document.getElementById('month-section');
-        if (currentMonthElement) {
-            currentMonthElement.scrollIntoView({ behavior: 'smooth' });
-        }
         
         // Hide loading overlay after page loads
         setTimeout(() => {

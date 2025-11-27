@@ -519,6 +519,32 @@ def calendar_view():
     total_days = len(schedule_data[0]) if schedule_data else 0
     total_assignments = sum(len(day.get('AssignementList', [])) for day in schedule_data[0]) if schedule_data else 0
     
+    # NEW: Calculate total flight durations
+    total_actual_minutes = 0
+    total_scheduled_minutes = 0
+    
+    if schedule_data:
+        for day in schedule_data[0]:
+            for assignment in day.get('AssignementList', []):
+                flight_data = assignment.get('FlighAssignement', {})
+                if flight_data and flight_data.get('CommercialFlightNumber') != "XXX":
+                    # Sum actual duration
+                    actual_duration = flight_data.get('Duration')
+                    if actual_duration is not None:
+                        total_actual_minutes += actual_duration
+                    
+                    # Sum scheduled duration
+                    scheduled_duration = flight_data.get('ScheduledDuration')
+                    if scheduled_duration is not None:
+                        total_scheduled_minutes += scheduled_duration
+    
+    # Convert to hours and minutes
+    total_actual_hours = total_actual_minutes // 60
+    total_actual_minutes_remainder = total_actual_minutes % 60
+    
+    total_scheduled_hours = total_scheduled_minutes // 60
+    total_scheduled_minutes_remainder = total_scheduled_minutes % 60
+    
     refresh_message = "Data refreshed successfully!" if request.args.get('refresh') == 'success' else None
     
     month_names = [month_name]
@@ -535,9 +561,14 @@ def calendar_view():
         current_date=get_utc_minus_5().strftime('%Y-%m-%d'),
         current_month_index=0,
         current_calendar_year=current_calendar_year,
-        current_calendar_month=current_calendar_month
+        current_calendar_month=current_calendar_month,
+        # NEW: Pass duration data to template
+        total_actual_hours=total_actual_hours,
+        total_actual_minutes=total_actual_minutes_remainder,
+        total_scheduled_hours=total_scheduled_hours,
+        total_scheduled_minutes=total_scheduled_minutes_remainder
     )
-
+    
 @app.route('/flight_details')
 def flight_details_page():
     # Simply render the template without auto-fetching

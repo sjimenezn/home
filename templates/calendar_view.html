@@ -23,28 +23,35 @@
             border: none;
             min-height: 100vh;
             position: relative;
-            overflow: hidden;
+            overflow-x: auto; /* Allow horizontal scrolling */
+            overflow-y: visible;
         }
         
-        /* Calendar section stays at top */
+        /* Calendar section */
         .month-section {
             margin: 0;
         }
         
-        /* Header section below calendar */
+        /* Make header and PDF controls match calendar width */
         .header {
             text-align: center;
             margin-top: 0;
             margin-bottom: 10px;
             padding: 10px;
+            min-width: 1200px; /* Match calendar width */
+            width: 100%;
+            box-sizing: border-box;
         }
         
-        /* PDF controls section */
+        /* PDF controls section matches calendar width */
         .pdf-controls-section {
             margin: 15px 0;
             padding: 10px;
             background: #3a3a3a;
             border-radius: 5px;
+            min-width: 1200px; /* Match calendar width */
+            width: 100%;
+            box-sizing: border-box;
         }
         
         /* Rest of your existing CSS remains the same */
@@ -99,14 +106,28 @@
             background: #5a5a5a;
         }
         
-        .info-box { background: #3a3a3a; padding: 10px; border-radius: 5px; margin: 10px 0; text-align: center; font-size: 0.9em; }
+        .info-box { 
+            background: #3a3a3a; 
+            padding: 10px; 
+            border-radius: 5px; 
+            margin: 10px 0; 
+            text-align: center; 
+            font-size: 0.9em;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        /* Calendar grid - forces minimum width */
         .calendar-grid {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
             gap: 5px;
             margin: 10px 0;
             grid-auto-rows: min-content;
+            min-width: 1200px; /* This controls the overall width */
+            width: 100%;
         }
+        
         .calendar-day { border: 1px solid #444; padding: 5px; border-radius: 5px; min-height: 100px; background: #1e1e1e; }
         .calendar-day-header {
             background: #555;
@@ -156,13 +177,24 @@
             margin-bottom: 8px;
             text-align: center;
             position: relative;
+            min-width: 1200px; /* Match calendar width */
+            width: 100%;
+            box-sizing: border-box;
         }
         .month-navigation { display: flex; justify-content: center; align-items: center; gap: 15px; }
         .chevron { background: none; border: none; color: white; font-size: 1.8em; cursor: pointer; padding: 0 10px; }
         .chevron:hover { color: #ffc107; }
         .chevron:disabled { color: #666; cursor: not-allowed; }
         .month-title { font-size: 1.4em; margin: 0 15px; }
-        .week-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 8px; }
+        .week-days { 
+            display: grid; 
+            grid-template-columns: repeat(7, 1fr); 
+            gap: 8px; 
+            margin-bottom: 8px; 
+            min-width: 1200px; /* Match calendar width */
+            width: 100%;
+            box-sizing: border-box;
+        }
         .week-day { text-align: center; font-weight: bold; padding: 6px; background: #555; color: white; border-radius: 4px; }
         .hidden { display: none; }
 
@@ -221,8 +253,32 @@
         }
 
         /* Success and Error messages */
-        .success { background: #2e4b2e; color: #d4edda; padding: 10px; border-radius: 5px; margin: 8px 0; font-weight: 600; text-align: center; font-size: 0.9em; }
-        .error { background: #5a3a3a; color: #f8d7da; padding: 10px; border-radius: 5px; margin: 8px 0; font-weight: 600; text-align: center; font-size: 0.9em; }
+        .success { 
+            background: #2e4b2e; 
+            color: #d4edda; 
+            padding: 10px; 
+            border-radius: 5px; 
+            margin: 8px 0; 
+            font-weight: 600; 
+            text-align: center; 
+            font-size: 0.9em;
+            min-width: 1200px; /* Match calendar width */
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .error { 
+            background: #5a3a3a; 
+            color: #f8d7da; 
+            padding: 10px; 
+            border-radius: 5px; 
+            margin: 8px 0; 
+            font-weight: 600; 
+            text-align: center; 
+            font-size: 0.9em;
+            min-width: 1200px; /* Match calendar width */
+            width: 100%;
+            box-sizing: border-box;
+        }
 
         h1 {
             margin: 0 0 5px 0;

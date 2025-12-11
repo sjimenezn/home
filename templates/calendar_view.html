@@ -2,19 +2,28 @@
 <html>
 <head>
     <title>My Crew Schedule - Calendar View</title>
-    <meta name="viewport" content="width=1080, initial-scale=1.0, maximum-scale=5.0">
+    <meta name="viewport" content="width=1080, initial-scale=0.35, maximum-scale=5.0, minimum-scale=0.1">
     <style>
+        /* Force everything to use border-box */
+        * {
+            box-sizing: border-box;
+        }
+        
         html, body {
             height: 100%;
-            overflow-x: hidden;
-            margin: 1px;
-            padding: 1px;
+            overflow-x: visible;
+            margin: 0;
+            padding: 0;
             background: #121212;
             color: #f0f0f0;
             font-family: Arial, sans-serif;
         }
+        
+        /* Center everything perfectly with exact 1080px width */
         .container {
-            max-width: 1400px;
+            width: 1080px;
+            min-width: 1080px;
+            max-width: 1080px;
             margin: 0 auto;
             background: #2a2a2a;
             padding: 0;
@@ -22,35 +31,38 @@
             border: none;
             min-height: 100vh;
             position: relative;
-            overflow-x: auto;
+            overflow-x: visible;
             overflow-y: visible;
         }
         
         /* Calendar section */
         .month-section {
             margin: 0;
+            width: 1080px;
+            min-width: 1080px;
+            max-width: 1080px;
         }
         
-        /* Make header and PDF controls match calendar width */
+        /* Header section - exact 1080px */
         .header {
             text-align: center;
-            margin-top: 0;
+            margin: 0;
             margin-bottom: 10px;
             padding: 10px;
+            width: 1080px;
             min-width: 1080px;
-            width: 100%;
-            box-sizing: border-box;
+            max-width: 1080px;
         }
         
-        /* PDF controls section matches calendar width */
+        /* PDF controls section - exact 1080px */
         .pdf-controls-section {
             margin: 15px 0;
             padding: 10px;
             background: #3a3a3a;
             border-radius: 5px;
+            width: 1080px;
             min-width: 1080px;
-            width: 100%;
-            box-sizing: border-box;
+            max-width: 1080px;
         }
         
         .nav-buttons { text-align: center; margin: 8px 0; }
@@ -79,7 +91,6 @@
             background: #1e1e1e;
             border: 1px solid #555;
             border-radius: 5px;
-            box-sizing: border-box;
         }
         .flex-group {
             display: flex;
@@ -111,20 +122,21 @@
             margin: 10px 0; 
             text-align: center; 
             font-size: 0.9em;
-            min-width: 1080px; /* FIXED: Added min-width */
-            width: 100%;
-            box-sizing: border-box;
+            width: 1080px;
+            min-width: 1080px;
+            max-width: 1080px;
         }
         
-        /* Calendar grid - forces minimum width */
+        /* Calendar grid - exact 1080px */
         .calendar-grid {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
             gap: 5px;
             margin: 10px 0;
             grid-auto-rows: min-content;
+            width: 1080px;
             min-width: 1080px;
-            width: 100%;
+            max-width: 1080px;
         }
         
         .calendar-day { border: 1px solid #444; padding: 5px; border-radius: 5px; min-height: 100px; background: #1e1e1e; }
@@ -176,9 +188,9 @@
             margin-bottom: 8px;
             text-align: center;
             position: relative;
+            width: 1080px;
             min-width: 1080px;
-            width: 100%;
-            box-sizing: border-box;
+            max-width: 1080px;
         }
         .month-navigation { display: flex; justify-content: center; align-items: center; gap: 15px; }
         .chevron { background: none; border: none; color: white; font-size: 1.8em; cursor: pointer; padding: 0 10px; }
@@ -190,9 +202,9 @@
             grid-template-columns: repeat(7, 1fr); 
             gap: 8px; 
             margin-bottom: 8px; 
+            width: 1080px;
             min-width: 1080px;
-            width: 100%;
-            box-sizing: border-box;
+            max-width: 1080px;
         }
         .week-day { text-align: center; font-weight: bold; padding: 6px; background: #555; color: white; border-radius: 4px; }
         .hidden { display: none; }
@@ -251,7 +263,7 @@
             color: #f0f0f0;
         }
 
-        /* Success and Error messages */
+        /* Success and Error messages - exact 1080px */
         .success { 
             background: #2e4b2e; 
             color: #d4edda; 
@@ -261,9 +273,9 @@
             font-weight: 600; 
             text-align: center; 
             font-size: 0.9em;
+            width: 1080px;
             min-width: 1080px;
-            width: 100%;
-            box-sizing: border-box;
+            max-width: 1080px;
         }
         .error { 
             background: #5a3a3a; 
@@ -274,9 +286,9 @@
             font-weight: 600; 
             text-align: center; 
             font-size: 0.9em;
+            width: 1080px;
             min-width: 1080px;
-            width: 100%;
-            box-sizing: border-box;
+            max-width: 1080px;
         }
 
         h1 {

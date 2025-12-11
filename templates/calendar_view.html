@@ -2,7 +2,6 @@
 <html>
 <head>
     <title>My Crew Schedule - Calendar View</title>
-    <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         html, body {
@@ -23,7 +22,7 @@
             border: none;
             min-height: 100vh;
             position: relative;
-            overflow-x: auto; /* Allow horizontal scrolling */
+            overflow-x: auto;
             overflow-y: visible;
         }
         
@@ -38,7 +37,7 @@
             margin-top: 0;
             margin-bottom: 10px;
             padding: 10px;
-            min-width: 1200px; /* Match calendar width */
+            min-width: 1200px;
             width: 100%;
             box-sizing: border-box;
         }
@@ -49,7 +48,7 @@
             padding: 10px;
             background: #3a3a3a;
             border-radius: 5px;
-            min-width: 1200px; /* Match calendar width */
+            min-width: 1200px;
             width: 100%;
             box-sizing: border-box;
         }
@@ -76,7 +75,7 @@
         .crew-input {
             width: 100%;
             padding: 10px 12px;
-            font-size: 16px;
+            font-size: 18px; /* CHANGED TO 18px */
             color: #ffffff;
             background: #1e1e1e;
             border: 1px solid #555;
@@ -124,7 +123,7 @@
             gap: 5px;
             margin: 10px 0;
             grid-auto-rows: min-content;
-            min-width: 1200px; /* This controls the overall width */
+            min-width: 1200px;
             width: 100%;
         }
         
@@ -177,7 +176,7 @@
             margin-bottom: 8px;
             text-align: center;
             position: relative;
-            min-width: 1200px; /* Match calendar width */
+            min-width: 1200px;
             width: 100%;
             box-sizing: border-box;
         }
@@ -191,7 +190,7 @@
             grid-template-columns: repeat(7, 1fr); 
             gap: 8px; 
             margin-bottom: 8px; 
-            min-width: 1200px; /* Match calendar width */
+            min-width: 1200px;
             width: 100%;
             box-sizing: border-box;
         }
@@ -262,7 +261,7 @@
             font-weight: 600; 
             text-align: center; 
             font-size: 0.9em;
-            min-width: 1200px; /* Match calendar width */
+            min-width: 1200px;
             width: 100%;
             box-sizing: border-box;
         }
@@ -275,7 +274,7 @@
             font-weight: 600; 
             text-align: center; 
             font-size: 0.9em;
-            min-width: 1200px; /* Match calendar width */
+            min-width: 1200px;
             width: 100%;
             box-sizing: border-box;
         }
@@ -529,18 +528,6 @@
         }, 3000);
     }
 
-    // Check if page was launched from home screen and reload if needed
-    function checkForReload() {
-        if (window.navigator.standalone === true) {
-            if (!sessionStorage.getItem('homeScreenLaunched')) {
-                sessionStorage.setItem('homeScreenLaunched', 'true');
-                setTimeout(() => {
-                    window.location.reload();
-                }, 100);
-            }
-        }
-    }
-
     // Navigate to previous or next month
     function navigateMonth(direction) {
         let newYear = currentYear;
@@ -606,7 +593,6 @@
     // Initialize on page load
     document.addEventListener('DOMContentLoaded', function() {
         updateNavigationButtons();
-        checkForReload();
 
         // Hide loading overlay after page loads
         setTimeout(() => {

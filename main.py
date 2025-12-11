@@ -515,7 +515,7 @@ def calendar_view():
     total_days = len(schedule_data[0]) if schedule_data else 0
     total_assignments = sum(len(day.get('AssignementList', [])) for day in schedule_data[0]) if schedule_data else 0
     
-    # NEW: Calculate total flight durations
+    # Calculate total flight durations
     total_actual_minutes = 0
     total_scheduled_minutes = 0
     
@@ -558,11 +558,13 @@ def calendar_view():
         current_month_index=0,
         current_calendar_year=current_calendar_year,
         current_calendar_month=current_calendar_month,
-        # NEW: Pass duration data to template
+        # Pass duration data to template
         total_actual_hours=total_actual_hours,
         total_actual_minutes=total_actual_minutes_remainder,
         total_scheduled_hours=total_scheduled_hours,
-        total_scheduled_minutes=total_scheduled_minutes_remainder
+        total_scheduled_minutes=total_scheduled_minutes_remainder,
+        # ADDED: Pass crew names for the dropdown
+        crew_names=crew_names
     )
     
 @app.route('/flight_details')

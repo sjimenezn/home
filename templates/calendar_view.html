@@ -36,6 +36,51 @@
         .nav-button.active { background: #f0f0f0; color: #121212; }
         .button { background: #555; color: white; padding: 8px 16px; border: none; border-radius: 5px; cursor: pointer; font-size: 0.9em; }
         .button:hover { background: #666; }
+        
+        /* NEW: Crew Selector Styles from PDF page */
+        .input-group {
+            margin-bottom: 15px;
+        }
+        .input-label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #ccc;
+            font-size: 0.9em;
+        }
+        .crew-input {
+            width: 100%;
+            padding: 10px 12px;
+            font-size: 1em;
+            color: #ffffff;
+            background: #1e1e1e;
+            border: 1px solid #555;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        .flex-group {
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
+        }
+        .flex-group .crew-input {
+            flex-grow: 1;
+        }
+        .clear-btn {
+            width: auto;
+            flex-shrink: 0;
+            background: #4a4a4a;
+            color: #f0f0f0;
+            font-size: 1em;
+            padding: 10px 12px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .clear-btn:hover {
+            background: #5a5a5a;
+        }
+        
         .info-box { background: #3a3a3a; padding: 10px; border-radius: 5px; margin: 10px 0; text-align: center; font-size: 0.9em; }
         .calendar-grid {
             display: grid;
@@ -168,6 +213,41 @@
             margin: 0 0 5px 0;
             font-size: 1.2em;
         }
+        
+        /* NEW: PDF Download Buttons */
+        .pdf-button-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin: 15px 0;
+        }
+        .pdf-button {
+            background: #555;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 10px;
+            cursor: pointer;
+            font-size: 0.9em;
+            text-align: center;
+        }
+        .pdf-button:hover {
+            background: #666;
+        }
+        .pdf-button.scheduled {
+            background: #444;
+        }
+        .pdf-button.scheduled:hover {
+            background: #555;
+        }
+        
+        /* NEW: Section for the PDF input box */
+        .pdf-section {
+            margin: 15px 0;
+            padding: 10px;
+            background: #3a3a3a;
+            border-radius: 5px;
+        }
     </style>
 </head>
 <body>
@@ -270,13 +350,35 @@
         </div>
         {% endif %}
 
-        {% if last_fetch %}
-        <div class="info-box">
-            <h3>Last updated: {{ last_fetch }}</h3>
-            <p>Flight time: {{ total_actual_hours }}h {{ total_actual_minutes }}m (Scheduled: {{ total_scheduled_hours }}h {{ total_scheduled_minutes }}m) | Total assignments: {{ total_assignments }}</p>
-            <p>Current Crew ID: <strong>{{ current_crew_id }}</strong></p>
+        <!-- NEW: PDF Crew Selector Section -->
+        <div class="pdf-section">
+            <div class="input-group flex-group">
+                <div style="flex-grow: 1;">
+                    <label class="input-label" for="crewSelectorInput">Select Crew Member:</label>
+                    <input type="text" id="crewSelectorInput" list="crewDatalist" class="crew-input" onchange="handleCrewSelect()" placeholder="Start typing a name...">
+                    <datalist id="crewDatalist">
+                        {% for crew_name in crew_names %}
+                        <option value="{{ crew_name }}">
+                        {% endfor %}
+                    </datalist>
+                </div>
+                <button class="clear-btn" onclick="clearDropdown()">Clear</button>
+            </div>
+
+            <div class="pdf-button-group">
+                <button class="pdf-button" onclick="downloadPDF('actual')">📥 Actual PDF</button>
+                <button class="pdf-button scheduled" onclick="downloadPDF('scheduled')">📥 Scheduled PDF</button>
+            </div>
+            
+            <div class="info-box">
+                <p>Current Crew ID: <strong>{{ current_crew_id }}</strong></p>
+                <p>Flight time: {{ total_actual_hours }}h {{ total_actual_minutes }}m (Scheduled: {{ total_scheduled_hours }}h {{ total_scheduled_minutes }}m)</p>
+                {% if last_fetch %}
+                <p>Last updated: {{ last_fetch }}</p>
+                {% endif %}
+            </div>
         </div>
-        {% endif %}
+
     </div>
 
     <!-- Floating Button - refreshes data -->
@@ -286,15 +388,88 @@
     let currentYear = {{ current_calendar_year }};
     let currentMonth = {{ current_calendar_month }};
 
+    // NEW: Crew selector functions from PDF page
+    function handleCrewSelect() {
+        const input = document.getElementById('crewSelectorInput');
+        const selectedValue = input.value.trim();
+        
+        if (selectedValue.length >= 8) {
+            const crewId = selectedValue.slice(-8).trim();
+            updateCrewId(crewId);
+        }
+    }
+
+    function clearDropdown() {
+        document.getElementById("crewSelectorInput").value = "";
+        document.getElementById("crewSelectorInput").focus();
+    }
+
+    function updateCrewId(crewId = null) {
+        if (!crewId) {
+            // Fallback to input field if no crewId provided
+            crewId = document.getElementById('crewSelectorInput').value.trim();
+            // Extract ID from name if it's a full name with ID
+            if (crewId.length >= 8) {
+                crewId = crewId.slice(-8).trim();
+            }
+        }
+        
+        if (!crewId) {
+            alert('Please select or enter a crew member');
+            return;
+        }
+        
+        // Show loading overlay
+        document.getElementById('loadingOverlay').style.display = 'flex';
+        
+        fetch('/update_crew_id?crew_id=' + crewId)
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    // Refresh the page with new crew ID
+                    location.reload();
+                } else {
+                    alert('Failed: ' + (data.error || 'Unknown error'));
+                    document.getElementById('loadingOverlay').style.display = 'none';
+                }
+            })
+            .catch(err => {
+                alert('Error: ' + err);
+                document.getElementById('loadingOverlay').style.display = 'none';
+            });
+    }
+
+    function downloadPDF(type) {
+        const button = event.target;
+        const originalText = button.textContent;
+        button.disabled = true;
+        button.textContent = '⏳';
+        
+        // Get the current crew ID
+        const crewId = '{{ current_crew_id }}';
+        
+        // Download the PDF
+        let url = '/download_pdf?type=' + type;
+        
+        // You could optionally add month/year parameters here if needed
+        // const currentDate = new Date();
+        // url += '&month=' + (currentMonth) + '&year=' + currentYear;
+        
+        // Download in same window/tab
+        window.location.href = url;
+        
+        // Re-enable button after delay
+        setTimeout(() => {
+            button.disabled = false;
+            button.innerHTML = originalText;
+        }, 3000);
+    }
+
     // Check if page was launched from home screen and reload if needed
     function checkForReload() {
-        // Check if we're in standalone mode (launched from home screen)
         if (window.navigator.standalone === true) {
-            // Check if we should reload (only reload once per session)
             if (!sessionStorage.getItem('homeScreenLaunched')) {
                 sessionStorage.setItem('homeScreenLaunched', 'true');
-
-                // Small delay to ensure page is fully loaded, then reload
                 setTimeout(() => {
                     window.location.reload();
                 }, 100);
@@ -304,7 +479,6 @@
 
     // Navigate to previous or next month
     function navigateMonth(direction) {
-        // Calculate new month and year
         let newYear = currentYear;
         let newMonth = currentMonth + direction;
 
@@ -316,10 +490,8 @@
             newYear--;
         }
 
-        // Show loading overlay
         document.getElementById('loadingOverlay').style.display = 'flex';
 
-        // Navigate to new month
         const url = new URL(window.location);
         url.searchParams.set('year', newYear);
         url.searchParams.set('month', newMonth);
@@ -341,7 +513,6 @@
             .then(r => r.json())
             .then(data => {
                 if (data.success) {
-                    // Reload the page to show fresh data
                     const url = new URL(window.location);
                     url.searchParams.set('refresh', 'success');
                     window.location.href = url.toString();
@@ -364,27 +535,22 @@
         }
     }
 
-    // Refresh function for floating button
-    function refreshFromFloatingButton() {
-        refreshCurrentMonth();
-    }
-
     function updateNavigationButtons() {
-        // You can add logic here to disable buttons if needed
-        // For example, disable previous button if we're at the earliest available month
+        // Add logic here to disable buttons if needed
     }
 
     // Initialize on page load
     document.addEventListener('DOMContentLoaded', function() {
         updateNavigationButtons();
-
-        // Check if we should reload (for home screen launches)
         checkForReload();
 
         // Hide loading overlay after page loads
         setTimeout(() => {
             document.getElementById('loadingOverlay').style.display = 'none';
         }, 500);
+
+        // Focus on crew selector when page loads
+        document.getElementById('crewSelectorInput').focus();
     });
     </script>
 </body>

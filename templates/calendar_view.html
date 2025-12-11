@@ -3,6 +3,7 @@
 <head>
     <title>My Crew Schedule - Calendar View</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         html, body {
             height: 100%;
@@ -24,12 +25,29 @@
             position: relative;
             overflow: hidden;
         }
+        
+        /* Calendar section stays at top */
+        .month-section {
+            margin: 0;
+        }
+        
+        /* Header section below calendar */
         .header {
             text-align: center;
             margin-top: 0;
             margin-bottom: 10px;
             padding: 10px;
         }
+        
+        /* PDF controls section */
+        .pdf-controls-section {
+            margin: 15px 0;
+            padding: 10px;
+            background: #3a3a3a;
+            border-radius: 5px;
+        }
+        
+        /* Rest of your existing CSS remains the same */
         .nav-buttons { text-align: center; margin: 8px 0; }
         .nav-button { background: #3a3a3a; color: #f0f0f0; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; margin: 0 3px; text-decoration: none; display: inline-block; font-size: 0.9em; }
         .nav-button:hover { background: #4a4a4a; }
@@ -37,7 +55,7 @@
         .button { background: #555; color: white; padding: 8px 16px; border: none; border-radius: 5px; cursor: pointer; font-size: 0.9em; }
         .button:hover { background: #666; }
         
-        /* NEW: Crew Selector Styles from PDF page */
+        /* Crew Selector Styles */
         .input-group {
             margin-bottom: 15px;
         }
@@ -51,7 +69,7 @@
         .crew-input {
             width: 100%;
             padding: 10px 12px;
-            font-size: 40px;
+            font-size: 16px;
             color: #ffffff;
             background: #1e1e1e;
             border: 1px solid #555;
@@ -130,9 +148,6 @@
             background-color: #e57373;
         }
         .no-assignments { color: #888; text-align: center; font-size: 0.8em; padding: 10px; }
-        .month-section {
-            margin: 0;
-        }
         .month-header {
             background: #333;
             color: white;
@@ -214,7 +229,7 @@
             font-size: 1.2em;
         }
         
-        /* NEW: PDF Download Buttons */
+        /* PDF Download Buttons */
         .pdf-button-group {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -240,14 +255,6 @@
         .pdf-button.scheduled:hover {
             background: #555;
         }
-        
-        /* NEW: Section for the PDF input box */
-        .pdf-section {
-            margin: 15px 0;
-            padding: 10px;
-            background: #3a3a3a;
-            border-radius: 5px;
-        }
     </style>
 </head>
 <body>
@@ -257,7 +264,7 @@
             <div>Loading calendar data...</div>
         </div>
 
-        <!-- CALENDAR AT THE TOP - NOVEMBER SQUARE FIRST -->
+        <!-- 1. CALENDAR AT THE TOP -->
         {% if schedule_data %}
             <div class="month-section" id="month-section">
                 <div class="month-header">
@@ -332,15 +339,40 @@
             </div>
         {% endif %}
 
-        <!-- HEADER AND BUTTONS BELOW THE CALENDAR -->
+        <!-- 2. TITLE BELOW CALENDAR -->
         <div class="header">
             <h1>My Crew Schedule - Calendar View</h1>
+            
+            <!-- 3. PDF CONTROLS (input box + clear button + PDF buttons) -->
+            <div class="pdf-controls-section">
+                <div class="input-group flex-group">
+                    <div style="flex-grow: 1;">
+                        <label class="input-label" for="crewSelectorInput">Select Crew Member:</label>
+                        <input type="text" id="crewSelectorInput" list="crewDatalist" class="crew-input" onchange="handleCrewSelect()" placeholder="Start typing a name...">
+                        <datalist id="crewDatalist">
+                            {% for crew_name in crew_names %}
+                            <option value="{{ crew_name }}">
+                            {% endfor %}
+                        </datalist>
+                    </div>
+                    <button class="clear-btn" onclick="clearDropdown()">Clear</button>
+                </div>
+
+                <div class="pdf-button-group">
+                    <button class="pdf-button" onclick="downloadPDF('actual')">📥 Actual PDF</button>
+                    <button class="pdf-button scheduled" onclick="downloadPDF('scheduled')">📥 Scheduled PDF</button>
+                </div>
+            </div>
+            
+            <!-- 4. NAVIGATION BUTTONS -->
             <div class="nav-buttons">
                 <a href="/" class="nav-button">Schedule View</a>
                 <a href="/calendar" class="nav-button active">Calendar View</a>
                 <a href="/pdf" class="nav-button">PDF Download</a>
                 <a href="/flight_details" class="nav-button">Flight Search</a>
             </div>
+            
+            <!-- 5. REFRESH BUTTON -->
             <button class="button" onclick="refreshCurrentMonth()" id="refreshBtn">Refresh Schedule</button>
         </div>
 
@@ -350,33 +382,13 @@
         </div>
         {% endif %}
 
-        <!-- NEW: PDF Crew Selector Section -->
-        <div class="pdf-section">
-            <div class="input-group flex-group">
-                <div style="flex-grow: 1;">
-                    <label class="input-label" for="crewSelectorInput">Select Crew Member:</label>
-                    <input type="text" id="crewSelectorInput" list="crewDatalist" class="crew-input" onchange="handleCrewSelect()" placeholder="Start typing a name...">
-                    <datalist id="crewDatalist">
-                        {% for crew_name in crew_names %}
-                        <option value="{{ crew_name }}">
-                        {% endfor %}
-                    </datalist>
-                </div>
-                <button class="clear-btn" onclick="clearDropdown()">Clear</button>
-            </div>
-
-            <div class="pdf-button-group">
-                <button class="pdf-button" onclick="downloadPDF('actual')">📥 Actual PDF</button>
-                <button class="pdf-button scheduled" onclick="downloadPDF('scheduled')">📥 Scheduled PDF</button>
-            </div>
-            
-            <div class="info-box">
-                <p>Current Crew ID: <strong>{{ current_crew_id }}</strong></p>
-                <p>Flight time: {{ total_actual_hours }}h {{ total_actual_minutes }}m (Scheduled: {{ total_scheduled_hours }}h {{ total_scheduled_minutes }}m)</p>
-                {% if last_fetch %}
-                <p>Last updated: {{ last_fetch }}</p>
-                {% endif %}
-            </div>
+        <!-- 6. INFO BOX -->
+        <div class="info-box">
+            <p>Current Crew ID: <strong>{{ current_crew_id }}</strong></p>
+            <p>Flight time: {{ total_actual_hours }}h {{ total_actual_minutes }}m (Scheduled: {{ total_scheduled_hours }}h {{ total_scheduled_minutes }}m)</p>
+            {% if last_fetch %}
+            <p>Last updated: {{ last_fetch }}</p>
+            {% endif %}
         </div>
 
     </div>
@@ -388,7 +400,7 @@
     let currentYear = {{ current_calendar_year }};
     let currentMonth = {{ current_calendar_month }};
 
-    // NEW: Crew selector functions from PDF page
+    // Crew selector functions from PDF page
     function handleCrewSelect() {
         const input = document.getElementById('crewSelectorInput');
         const selectedValue = input.value.trim();
@@ -450,10 +462,6 @@
         
         // Download the PDF
         let url = '/download_pdf?type=' + type;
-        
-        // You could optionally add month/year parameters here if needed
-        // const currentDate = new Date();
-        // url += '&month=' + (currentMonth) + '&year=' + currentYear;
         
         // Download in same window/tab
         window.location.href = url;
@@ -548,7 +556,6 @@
         setTimeout(() => {
             document.getElementById('loadingOverlay').style.display = 'none';
         }, 500);
-
     });
     </script>
 </body>

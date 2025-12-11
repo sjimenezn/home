@@ -113,12 +113,24 @@ class CrewAPIClient:
             first_day = datetime(year, month, 1)
             last_day = (datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)) - timedelta(days=1)
             
-            logger.info(f"📅 Requesting {year}-{month:02d}")
+            current_month = datetime(now.year, now.month, 1)
+            requested_month = datetime(year, month, 1)
             
-            # Always request 34 days starting from the 1st of the requested month
-            start_date = first_day
+            # Determine start_date based on whether it's a future month
+            if requested_month > current_month:
+                # Future month: start from last day of current month
+                last_day_of_current = (datetime(now.year + 1, 1, 1) if now.month == 12 
+                                     else datetime(now.year, now.month + 1, 1)) - timedelta(days=1)
+                start_date = last_day_of_current
+                logger.info(f"🔮 Future month: starting from {start_date.strftime('%Y-%m-%d')}")
+            else:
+                # Current or past month: start from 1st of requested month
+                start_date = first_day
+                logger.info(f"📅 Current/Past month: starting from {start_date.strftime('%Y-%m-%d')}")
+            
+            # Unified: always request 34 days
             change_days = 34
-            logger.info(f"📅 Unified request: 34 days from {start_date.strftime('%Y-%m-%d')}")
+            logger.info(f"📊 Unified request: {change_days} days from {start_date.strftime('%Y-%m-%d')}")
             
             if not self._login():
                 return None

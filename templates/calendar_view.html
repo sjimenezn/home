@@ -83,7 +83,7 @@
             margin: 0 3px; 
             text-decoration: none; 
             display: inline-block; 
-            font-size: 0.9em; 
+            font-size: 0.99em; /* was 0.9em */
         }
         .nav-button:hover { background: #4a4a4a; }
         .nav-button.active { background: #f0f0f0; color: #121212; }
@@ -94,7 +94,7 @@
             border: none; 
             border-radius: 5px; 
             cursor: pointer; 
-            font-size: 0.9em; 
+            font-size: 0.99em; /* was 0.9em */
             display: block;
             margin: 10px auto;
         }
@@ -149,7 +149,7 @@
             border-radius: 5px; 
             margin: 10px 0; 
             text-align: center; 
-            font-size: 0.9em;
+            font-size: 0.99em; /* was 0.9em */
             width: 100%;
         }
         
@@ -180,7 +180,7 @@
             margin-bottom: 5px;
             text-align: center;
             font-weight: bold;
-            font-size: 1.3em;
+            font-size: 1.43em; /* was 1.3em */
             line-height: 1.2;
             height: 24px;
             display: flex;
@@ -217,7 +217,7 @@
         .flight-number { 
             font-weight: bold; 
             color: #ffc107; 
-            font-size: 1.6em; 
+            font-size: 1.76em; /* was 1.6em */
             display: inline; 
             cursor: pointer; 
             text-decoration: none; 
@@ -230,18 +230,18 @@
         .departure-stand { 
             font-weight: bold; 
             color: #4fc3f7; 
-            font-size: 1.6em; 
+            font-size: 1.76em; /* was 1.6em */
             display: inline; 
             margin-left: 8px; 
         }
         .route { 
-            font-size: 1.4em; 
+            font-size: 1.54em; /* was 1.4em */
             color: #f0f0f0; 
             font-weight: bold; 
             margin: 3px 0; 
         }
         .flight-times { 
-            font-size: 1.2em; 
+            font-size: 1.32em; /* was 1.2em */
             color: #f0f0f0; 
             font-weight: bold; 
             margin-top: 3px; 
@@ -262,7 +262,7 @@
         .no-assignments { 
             color: #888; 
             text-align: center; 
-            font-size: 0.8em; 
+            font-size: 0.88em; /* was 0.8em */
             padding: 10px; 
         }
         .month-header {
@@ -299,7 +299,7 @@
             cursor: not-allowed; 
         }
         .month-title { 
-            font-size: 1.4em; 
+            font-size: 1.54em; /* was 1.4em */
             margin: 0 15px; 
         }
         .week-days { 
@@ -318,6 +318,7 @@
             background: #555; 
             color: white; 
             border-radius: 4px; 
+            font-size: 1em; 
         }
         .hidden { 
             display: none; 
@@ -386,7 +387,7 @@
             margin: 8px 0; 
             font-weight: 600; 
             text-align: center; 
-            font-size: 0.9em;
+            font-size: 0.99em; /* was 0.9em */
             width: 1080px;
             min-width: 1080px;
             max-width: 1080px;
@@ -399,7 +400,7 @@
             margin: 8px 0; 
             font-weight: 600; 
             text-align: center; 
-            font-size: 0.9em;
+            font-size: 0.99em; /* was 0.9em */
             width: 1080px;
             min-width: 1080px;
             max-width: 1080px;
@@ -407,7 +408,7 @@
 
         h1 {
             margin: 0 0 5px 0;
-            font-size: 1.2em;
+            font-size: 1.32em; /* was 1.2em */
             text-align: center;
         }
         
@@ -425,7 +426,7 @@
             border-radius: 5px;
             padding: 10px;
             cursor: pointer;
-            font-size: 0.9em;
+            font-size: 0.99em; /* was 0.9em */
             text-align: center;
         }
         .pdf-button:hover {
@@ -495,10 +496,10 @@
                                                 {% if assignment.aircraft_registration %} | {{ assignment.aircraft_registration }}{% endif %}
                                             </div>
                                         {% else %}
-                                            <div style="font-weight: bold; color: #f0f0f0; font-size: 1.4em;">
+                                            <div style="font-weight: bold; color: #f0f0f0; font-size: 1.54em;"> <!-- was 1.4em -->
                                                 {{ assignment.activity_code }}
                                             </div>
-                                            <div style="font-size: 1.2em; color: #f0f0f0; font-weight: bold;">
+                                            <div style="font-size: 1.32em; color: #f0f0f0; font-weight: bold;"> <!-- was 1.2em -->
                                                 {{ assignment.start_time }} - {{ assignment.end_time }}
                                             </div>
                                         {% endif %}

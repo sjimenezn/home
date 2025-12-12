@@ -45,7 +45,7 @@
         
         /* Header section - exact 1080px */
         .header {
-            text-align: center;
+            text-align: left;
             margin: 0;
             margin-bottom: 10px;
             padding: 10px;
@@ -55,9 +55,8 @@
         }
         
         /* PDF controls section - exact 1080px */
-        /* PDF controls section - exact 1080px */
         .pdf-controls-section {
-            margin: 15px auto; /* Center horizontally */
+            margin: 15px auto;
             padding: 10px;
             background: #3a3a3a;
             border-radius: 5px;
@@ -70,11 +69,35 @@
             right: 0;
         }
         
-        .nav-buttons { text-align: center; margin: 8px 0; }
-        .nav-button { background: #3a3a3a; color: #f0f0f0; padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; margin: 0 3px; text-decoration: none; display: inline-block; font-size: 0.9em; }
+        .nav-buttons { 
+            text-align: center; 
+            margin: 8px 0; 
+        }
+        .nav-button { 
+            background: #3a3a3a; 
+            color: #f0f0f0; 
+            padding: 6px 12px; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            margin: 0 3px; 
+            text-decoration: none; 
+            display: inline-block; 
+            font-size: 0.9em; 
+        }
         .nav-button:hover { background: #4a4a4a; }
         .nav-button.active { background: #f0f0f0; color: #121212; }
-        .button { background: #555; color: white; padding: 8px 16px; border: none; border-radius: 5px; cursor: pointer; font-size: 0.9em; }
+        .button { 
+            background: #555; 
+            color: white; 
+            padding: 8px 16px; 
+            border: none; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            font-size: 0.9em; 
+            display: block;
+            margin: 10px auto;
+        }
         .button:hover { background: #666; }
         
         /* Crew Selector Styles */
@@ -127,9 +150,7 @@
             margin: 10px 0; 
             text-align: center; 
             font-size: 0.9em;
-            width: 1080px;
-            min-width: 1080px;
-            max-width: 1080px;
+            width: 100%;
         }
         
         /* Calendar grid - exact 1080px */
@@ -144,7 +165,13 @@
             max-width: 1080px;
         }
         
-        .calendar-day { border: 1px solid #444; padding: 5px; border-radius: 5px; min-height: 100px; background: #1e1e1e; }
+        .calendar-day { 
+            border: 1px solid #444; 
+            padding: 5px; 
+            border-radius: 5px; 
+            min-height: 100px; 
+            background: #1e1e1e; 
+        }
         .calendar-day-header {
             background: #555;
             color: white;
@@ -160,17 +187,65 @@
             align-items: center;
             justify-content: center;
         }
-        .calendar-day.current-day { border: 3px solid #ffc107; background: #3a3a3a; }
-        .calendar-day.weekend { background: #2a2a2a; }
-        .calendar-day.empty { background: #1a1a1a; border: 1px dashed #444; }
-        .assignment-item { background: #3a3a3a; padding: 3px; margin: 2px 0; border-radius: 3px; border-left: none; font-size: 0.8em; }
-        .assignment-flight { background: #2a2a2a; border-left: none; }
-        .assignment-ground { background: #3a3a2a; border-left: none; }
-        .flight-number { font-weight: bold; color: #ffc107; font-size: 1.6em; display: inline; cursor: pointer; text-decoration: none; transition: color 0.2s ease; }
-        .flight-number:hover { color: #ffd54f; text-decoration: underline; }
-        .departure-stand { font-weight: bold; color: #4fc3f7; font-size: 1.6em; display: inline; margin-left: 8px; }
-        .route { font-size: 1.4em; color: #f0f0f0; font-weight: bold; margin: 3px 0; }
-        .flight-times { font-size: 1.2em; color: #f0f0f0; font-weight: bold; margin-top: 3px; }
+        .calendar-day.current-day { 
+            border: 3px solid #ffc107; 
+            background: #3a3a3a; 
+        }
+        .calendar-day.weekend { 
+            background: #2a2a2a; 
+        }
+        .calendar-day.empty { 
+            background: #1a1a1a; 
+            border: 1px dashed #444; 
+        }
+        .assignment-item { 
+            background: #3a3a3a; 
+            padding: 3px; 
+            margin: 2px 0; 
+            border-radius: 3px; 
+            border-left: none; 
+            font-size: 0.8em; 
+        }
+        .assignment-flight { 
+            background: #2a2a2a; 
+            border-left: none; 
+        }
+        .assignment-ground { 
+            background: #3a3a2a; 
+            border-left: none; 
+        }
+        .flight-number { 
+            font-weight: bold; 
+            color: #ffc107; 
+            font-size: 1.6em; 
+            display: inline; 
+            cursor: pointer; 
+            text-decoration: none; 
+            transition: color 0.2s ease; 
+        }
+        .flight-number:hover { 
+            color: #ffd54f; 
+            text-decoration: underline; 
+        }
+        .departure-stand { 
+            font-weight: bold; 
+            color: #4fc3f7; 
+            font-size: 1.6em; 
+            display: inline; 
+            margin-left: 8px; 
+        }
+        .route { 
+            font-size: 1.4em; 
+            color: #f0f0f0; 
+            font-weight: bold; 
+            margin: 3px 0; 
+        }
+        .flight-times { 
+            font-size: 1.2em; 
+            color: #f0f0f0; 
+            font-weight: bold; 
+            margin-top: 3px; 
+        }
         .status-dot {
             display: inline-block;
             width: 0.35em;
@@ -184,7 +259,12 @@
         .status-dot.delayed {
             background-color: #e57373;
         }
-        .no-assignments { color: #888; text-align: center; font-size: 0.8em; padding: 10px; }
+        .no-assignments { 
+            color: #888; 
+            text-align: center; 
+            font-size: 0.8em; 
+            padding: 10px; 
+        }
         .month-header {
             background: #333;
             color: white;
@@ -197,11 +277,31 @@
             min-width: 1080px;
             max-width: 1080px;
         }
-        .month-navigation { display: flex; justify-content: center; align-items: center; gap: 15px; }
-        .chevron { background: none; border: none; color: white; font-size: 1.8em; cursor: pointer; padding: 0 10px; }
-        .chevron:hover { color: #ffc107; }
-        .chevron:disabled { color: #666; cursor: not-allowed; }
-        .month-title { font-size: 1.4em; margin: 0 15px; }
+        .month-navigation { 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            gap: 15px; 
+        }
+        .chevron { 
+            background: none; 
+            border: none; 
+            color: white; 
+            font-size: 1.8em; 
+            cursor: pointer; 
+            padding: 0 10px; 
+        }
+        .chevron:hover { 
+            color: #ffc107; 
+        }
+        .chevron:disabled { 
+            color: #666; 
+            cursor: not-allowed; 
+        }
+        .month-title { 
+            font-size: 1.4em; 
+            margin: 0 15px; 
+        }
         .week-days { 
             display: grid; 
             grid-template-columns: repeat(7, 1fr); 
@@ -211,8 +311,17 @@
             min-width: 1080px;
             max-width: 1080px;
         }
-        .week-day { text-align: center; font-weight: bold; padding: 6px; background: #555; color: white; border-radius: 4px; }
-        .hidden { display: none; }
+        .week-day { 
+            text-align: center; 
+            font-weight: bold; 
+            padding: 6px; 
+            background: #555; 
+            color: white; 
+            border-radius: 4px; 
+        }
+        .hidden { 
+            display: none; 
+        }
 
         /* Floating Button Styles */
         .floating-button {
@@ -299,6 +408,7 @@
         h1 {
             margin: 0 0 5px 0;
             font-size: 1.2em;
+            text-align: center;
         }
         
         /* PDF Download Buttons */
@@ -411,32 +521,34 @@
             </div>
         {% endif %}
 
-        <!-- 2. TITLE BELOW CALENDAR -->
+        <!-- 2. HEADER WITH TITLE ONLY -->
         <div class="header">
             <h1>My Crew Schedule - Calendar View</h1>
-            
-            <!-- 3. PDF CONTROLS (input box + clear button + PDF buttons) -->
-            <div class="pdf-controls-section">
-                <div class="input-group flex-group">
-                    <div style="flex-grow: 1;">
-                        <label class="input-label" for="crewSelectorInput">Select Crew Member:</label>
-                        <input type="text" id="crewSelectorInput" list="crewDatalist" class="crew-input" onchange="handleCrewSelect()" placeholder="Start typing a name...">
-                        <datalist id="crewDatalist">
-                            {% for crew_name in crew_names %}
-                            <option value="{{ crew_name }}">
-                            {% endfor %}
-                        </datalist>
-                    </div>
-                    <button class="clear-btn" onclick="clearDropdown()">Clear</button>
-                </div>
+        </div>
 
-                <div class="pdf-button-group">
-                    <button class="pdf-button" onclick="downloadPDF('actual')">📥 Actual PDF</button>
-                    <button class="pdf-button scheduled" onclick="downloadPDF('scheduled')">📥 Scheduled PDF</button>
+        <!-- 3. PDF CONTROLS SECTION -->
+        <div class="pdf-controls-section">
+            <div class="input-group flex-group">
+                <div style="flex-grow: 1;">
+                    <label class="input-label" for="crewSelectorInput">Select Crew Member:</label>
+                    <input type="text" id="crewSelectorInput" list="crewDatalist" class="crew-input" onchange="handleCrewSelect()" placeholder="Start typing a name...">
+                    <datalist id="crewDatalist">
+                        {% for crew_name in crew_names %}
+                        <option value="{{ crew_name }}">
+                        {% endfor %}
+                    </datalist>
                 </div>
+                <button class="clear-btn" onclick="clearDropdown()">Clear</button>
             </div>
-            
-            <!-- 4. NAVIGATION BUTTONS -->
+
+            <div class="pdf-button-group">
+                <button class="pdf-button" onclick="downloadPDF('actual')">📥 Actual PDF</button>
+                <button class="pdf-button scheduled" onclick="downloadPDF('scheduled')">📥 Scheduled PDF</button>
+            </div>
+        </div>
+
+        <!-- 4. NAVIGATION BUTTONS AND REFRESH BUTTON -->
+        <div class="header">
             <div class="nav-buttons">
                 <a href="/" class="nav-button">Schedule View</a>
                 <a href="/calendar" class="nav-button active">Calendar View</a>
@@ -446,20 +558,20 @@
             
             <!-- 5. REFRESH BUTTON -->
             <button class="button" onclick="refreshCurrentMonth()" id="refreshBtn">Refresh Schedule</button>
-        </div>
 
-        {% if refresh_message %}
-        <div class="success">
-            {{ refresh_message }}
-        </div>
-        {% endif %}
+            <!-- 6. INFO BOX -->
+            <div class="info-box">
+                <p>Current Crew ID: <strong>{{ current_crew_id }}</strong></p>
+                <p>Flight time: {{ total_actual_hours }}h {{ total_actual_minutes }}m (Scheduled: {{ total_scheduled_hours }}h {{ total_scheduled_minutes }}m)</p>
+                {% if last_fetch %}
+                <p>Last updated: {{ last_fetch }}</p>
+                {% endif %}
+            </div>
 
-        <!-- 6. INFO BOX -->
-        <div class="info-box">
-            <p>Current Crew ID: <strong>{{ current_crew_id }}</strong></p>
-            <p>Flight time: {{ total_actual_hours }}h {{ total_actual_minutes }}m (Scheduled: {{ total_scheduled_hours }}h {{ total_scheduled_minutes }}m)</p>
-            {% if last_fetch %}
-            <p>Last updated: {{ last_fetch }}</p>
+            {% if refresh_message %}
+            <div class="success">
+                {{ refresh_message }}
+            </div>
             {% endif %}
         </div>
 

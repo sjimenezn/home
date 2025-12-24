@@ -281,7 +281,8 @@
             display: flex; 
             justify-content: center; 
             align-items: center; 
-            gap: 15px; 
+            gap: 10px; 
+            flex-wrap: wrap;
         }
         .chevron { 
             background: none; 
@@ -298,9 +299,31 @@
             color: #666; 
             cursor: not-allowed; 
         }
-        .month-title { 
-            font-size: 1.54em; /* was 1.4em */
-            margin: 0 15px; 
+        /* Month/Year selector styles */
+        .month-selector, .year-selector {
+            background: #1e1e1e;
+            color: #f0f0f0;
+            border: 1px solid #555;
+            border-radius: 4px;
+            padding: 6px 10px;
+            font-size: 1.2em;
+            cursor: pointer;
+            margin: 0 5px;
+            height: 40px;
+        }
+        .month-selector {
+            width: 160px;
+        }
+        .year-selector {
+            width: 100px;
+        }
+        .month-selector:hover, .year-selector:hover {
+            border-color: #ffc107;
+        }
+        .month-selector:focus, .year-selector:focus {
+            outline: none;
+            border-color: #ffc107;
+            box-shadow: 0 0 0 2px rgba(255, 193, 7, 0.2);
         }
         .week-days { 
             display: grid; 
@@ -410,6 +433,13 @@
             margin: 0 0 5px 0;
             font-size: 1.32em; /* was 1.2em */
             text-align: center;
+            cursor: pointer;
+            color: #ffc107;
+            transition: color 0.2s ease;
+        }
+        h1:hover {
+            color: #ffd54f;
+            text-decoration: underline;
         }
         
         /* PDF Download Buttons */
@@ -453,7 +483,23 @@
                 <div class="month-header">
                     <div class="month-navigation">
                         <button class="chevron" onclick="navigateMonth(-1)" id="prevMonth">〈</button>
-                        <div class="month-title">{{ month_names[0] }}</div>
+                        <select class="month-selector" id="monthSelector" onchange="jumpToMonth()">
+                            {% for month_num in range(1, 13) %}
+                            <option value="{{ month_num }}" 
+                                    {% if month_num == current_calendar_month %}selected{% endif %}>
+                                {{ ["January", "February", "March", "April", "May", "June", "July", 
+                                    "August", "September", "October", "November", "December"][month_num-1] }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <select class="year-selector" id="yearSelector" onchange="jumpToMonth()">
+                            {% for year in range(current_calendar_year-2, current_calendar_year+3) %}
+                            <option value="{{ year }}" 
+                                    {% if year == current_calendar_year %}selected{% endif %}>
+                                {{ year }}
+                            </option>
+                            {% endfor %}
+                        </select>
                         <button class="chevron" onclick="navigateMonth(1)" id="nextMonth">〉</button>
                     </div>
                 </div>
@@ -524,7 +570,7 @@
 
         <!-- 2. HEADER WITH TITLE ONLY -->
         <div class="header">
-            <h1>My Crew Schedule - Calendar View</h1>
+            <h1 onclick="reloadWithMyId()">My Crew Schedule - Calendar View</h1>
         </div>
 
         <!-- 3. PDF CONTROLS SECTION -->
@@ -548,7 +594,7 @@
             </div>
         </div>
 
-        <!-- 4. NAVIGATION BUTTONS AND REFRESH BUTTON -->
+        <!-- 4. NAVIGATION BUTTONS -->
         <div class="header">
             <div class="nav-buttons">
                 <a href="/" class="nav-button">Schedule View</a>
@@ -556,11 +602,8 @@
                 <a href="/pdf" class="nav-button">PDF Download</a>
                 <a href="/flight_details" class="nav-button">Flight Search</a>
             </div>
-            
-            <!-- 5. REFRESH BUTTON -->
-            <button class="button" onclick="refreshCurrentMonth()" id="refreshBtn">Refresh Schedule</button>
 
-            <!-- 6. INFO BOX -->
+            <!-- 5. INFO BOX -->
             <div class="info-box">
                 <p>Current Crew ID: <strong>{{ current_crew_id }}</strong></p>
                 <p>Flight time: {{ total_actual_hours }}h {{ total_actual_minutes }}m (Scheduled: {{ total_scheduled_hours }}h {{ total_scheduled_minutes }}m)</p>
@@ -584,6 +627,47 @@
     <script>
     let currentYear = {{ current_calendar_year }};
     let currentMonth = {{ current_calendar_month }};
+
+    // FIX 2: PDF download includes current month/year
+    function downloadPDF(type) {
+        const button = event.target;
+        const originalText = button.textContent;
+        button.disabled = true;
+        button.textContent = '⏳';
+        
+        // Download the PDF WITH current month/year parameters
+        let url = `/download_pdf?type=${type}&month=${currentMonth}&year=${currentYear}`;
+        
+        // Download in same window/tab
+        window.location.href = url;
+        
+        // Re-enable button after delay
+        setTimeout(() => {
+            button.disabled = false;
+            button.innerHTML = originalText;
+        }, 3000);
+    }
+
+    // NEW: Clickable title to reload with your ID
+    function reloadWithMyId() {
+        document.getElementById('loadingOverlay').style.display = 'flex';
+        
+        fetch('/update_crew_id?crew_id=32385184')
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    // Refresh the page with your crew ID
+                    location.reload();
+                } else {
+                    alert('Failed to switch to your ID: ' + (data.error || 'Unknown error'));
+                    document.getElementById('loadingOverlay').style.display = 'none';
+                }
+            })
+            .catch(err => {
+                alert('Error: ' + err);
+                document.getElementById('loadingOverlay').style.display = 'none';
+            });
+    }
 
     // Crew selector functions from PDF page
     function handleCrewSelect() {
@@ -636,26 +720,20 @@
             });
     }
 
-    function downloadPDF(type) {
-        const button = event.target;
-        const originalText = button.textContent;
-        button.disabled = true;
-        button.textContent = '⏳';
+    // NEW: Month/Year dropdown navigation
+    function jumpToMonth() {
+        const monthSelect = document.getElementById('monthSelector');
+        const yearSelect = document.getElementById('yearSelector');
         
-        // Get the current crew ID
-        const crewId = '{{ current_crew_id }}';
+        const selectedMonth = parseInt(monthSelect.value);
+        const selectedYear = parseInt(yearSelect.value);
         
-        // Download the PDF
-        let url = '/download_pdf?type=' + type;
+        document.getElementById('loadingOverlay').style.display = 'flex';
         
-        // Download in same window/tab
-        window.location.href = url;
-        
-        // Re-enable button after delay
-        setTimeout(() => {
-            button.disabled = false;
-            button.innerHTML = originalText;
-        }, 3000);
+        const url = new URL(window.location);
+        url.searchParams.set('year', selectedYear);
+        url.searchParams.set('month', selectedMonth);
+        window.location.href = url.toString();
     }
 
     // Navigate to previous or next month
@@ -681,11 +759,8 @@
 
     // Refresh current month data
     function refreshCurrentMonth() {
-        const button = document.getElementById('refreshBtn');
         const floatingBtn = document.querySelector('.floating-button');
 
-        button.disabled = true;
-        button.textContent = 'Loading...';
         floatingBtn.classList.add('loading');
         floatingBtn.disabled = true;
         document.getElementById('loadingOverlay').style.display = 'flex';
@@ -708,8 +783,6 @@
             });
 
         function resetButtons() {
-            button.disabled = false;
-            button.textContent = 'Refresh Schedule';
             floatingBtn.classList.remove('loading');
             floatingBtn.disabled = false;
             document.getElementById('loadingOverlay').style.display = 'none';

@@ -43,9 +43,25 @@ class CrewAPIClient:
         self.subscription_key = "9d32877073ce403795da2254ae9c2de7"
         self.session = None
         self.auth_token = None
+        self.last_token_time = None  # Track when token was last acquired
         
-    def _login(self):
+    def _should_renew_token(self):
+        """Check if token is older than 5 hours"""
+        if not self.last_token_time or not self.auth_token:
+            return True
+        elapsed_hours = (datetime.utcnow() - self.last_token_time).total_seconds() / 3600
+        logger.info(f"🔍 Token age: {elapsed_hours:.2f} hours")
+        return elapsed_hours >= 5  # 5 hours threshold
+    
+    def _login(self, force=False):
+        """Login only if token is older than 5 hours or forced"""
         try:
+            # Check if we need to renew token
+            if not force and not self._should_renew_token():
+                logger.info("🔄 Using existing token (less than 5 hours old)")
+                return True
+                
+            logger.info("🔄 Token expired or not present, requesting new token...")
             self.session = requests.Session()
             email = os.getenv('CREW_EMAIL', 'sergio.jimenez@avianca.com')
             password = os.getenv('CREW_PASSWORD', 'aLogout.8701')
@@ -64,9 +80,20 @@ class CrewAPIClient:
             response = self.session.post(self.auth_url, data=form_data, headers=headers, timeout=30)
             if response.status_code == 200:
                 self.auth_token = f"Bearer {response.json()['access_token']}"
+                self.last_token_time = datetime.utcnow()  # Store timestamp
+                logger.info(f"✅ New token acquired at {self.last_token_time}")
                 return True
+            else:
+                logger.error(f"❌ Login failed with status: {response.status_code}")
+                # Reset on failed login
+                self.auth_token = None
+                self.last_token_time = None
+                
         except Exception as e:
             logger.error(f"Login error: {e}")
+            # Reset on error
+            self.auth_token = None
+            self.last_token_time = None
         return False
 
     def get_schedule_data(self, crew_id=None):

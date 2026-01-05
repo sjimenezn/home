@@ -350,15 +350,16 @@
             const departureStand = flight.DepartureParkingStand || '';
             const departureTerminal = flight.DepartureTerminal || '';
             
+            // Changed N/A to dash (-)
             let gateInfo = '';
             if (departureStand && departureTerminal) {
                 gateInfo = `GATE: ${departureStand} T: ${departureTerminal}`;
             } else if (departureStand) {
-                gateInfo = `GATE: ${departureStand}`;
+                gateInfo = `GATE: ${departureStand} T: -`;
             } else if (departureTerminal) {
-                gateInfo = `T: ${departureTerminal}`;
+                gateInfo = `GATE: - T: ${departureTerminal}`;
             } else {
-                gateInfo = 'GATE: N/A T: N/A';
+                gateInfo = 'GATE: - T: -';
             }
             
             const fleet = flight.Fleet || '';
@@ -380,7 +381,7 @@
                     <div class="flight-number-line">
                         <div class="flight-info">
                             <div class="flight-number" id="flightNumberTop">
-                                ${flight.Flight?.Airline || 'AV'}${flight.Flight?.CommercialFlightNumber || 'N/A'}
+                                ${flight.Flight?.Airline || 'AV'}${flight.Flight?.CommercialFlightNumber || '-'}
                             </div>
                             <div class="flight-details">${gateInfo ? `<div class="gate-info">${gateInfo}</div>` : ''}</div>
                         </div>
@@ -388,13 +389,13 @@
                             <div class="flight-status ${statusClass}">${flight.FlightStatus || 'Unknown'}</div>
                         </div>
                         <div class="tail-info">
-                            <div class="tail-number">${flight.AircraftRegistrationNumber || 'N/A'}</div>
+                            <div class="tail-number">${flight.AircraftRegistrationNumber || '-'}</div>
                             <div class="fleet-type">${fleet}</div>
                         </div>
                     </div>
                     
                     <div class="route-line">
-                        ${flight.Flight?.OriginAirportIATACode || 'N/A'} → ${flight.Flight?.FinalAirportIATACode || 'N/A'}
+                        ${flight.Flight?.OriginAirportIATACode || '-'} → ${flight.Flight?.FinalAirportIATACode || '-'}
                     </div>
                     
                     <div class="time-comparison">
@@ -460,7 +461,7 @@
                 <ul class="mel-list">
                     ${flight.MELs.map(mel => `
                         <li class="mel-item">
-                            <div class="mel-code">${mel.MELCode || 'N/A'}</div>
+                            <div class="mel-code">${mel.MELCode || '-'}</div>
                             <div class="mel-desc">${mel.MELDesc || 'No description'}</div>
                             ${mel.MELComment ? `<div class="mel-desc">Comment: ${mel.MELComment}</div>` : ''}
                         </li>
@@ -492,7 +493,7 @@
             const html = `
                 <div class="flight-header">
                     <div class="route-line">
-                        ${flight.Flight?.Airline || 'AV'}${flight.Flight?.CommercialFlightNumber || 'N/A'} ${flight.Flight?.OriginAirportIATACode || 'N/A'} → ${flight.Flight?.FinalAirportIATACode || 'N/A'}
+                        ${flight.Flight?.Airline || 'AV'}${flight.Flight?.CommercialFlightNumber || '-'} ${flight.Flight?.OriginAirportIATACode || '-'} → ${flight.Flight?.FinalAirportIATACode || '-'}
                     </div>
                     
                     <div class="time-comparison">
@@ -533,7 +534,7 @@
         }
 
         function formatTime(dateString) {
-            return dateString ? dateString.slice(11, 16) : 'N/A';
+            return dateString ? dateString.slice(11, 16) : '-';
         }
 
         function displayCrewMembers(crewData) {
@@ -543,20 +544,20 @@
             let html = `<div class="section-title">Crew Members</div><div class="crew-list">`;
             crewData.MembersTeamFlight.forEach((member, index) => {
                 const profile = member.Profile || {};
-                const fleet = profile.Qualifications ? profile.Qualifications.join(', ') : (profile.RawQualifications || 'N/A');
+                const fleet = profile.Qualifications ? profile.Qualifications.join(', ') : (profile.RawQualifications || '-');
                 
                 const seniorityText = profile.Superiority || '';
-                const seniorityNumber = seniorityText.replace(/[^0-9]/g, '') || 'N/A';
+                const seniorityNumber = seniorityText.replace(/[^0-9]/g, '') || '-';
                 
-                const crewId = member.CrewMemberUniqueId || 'N/A';
-                const crewIdDisplay = crewId !== 'N/A' ? 
+                const crewId = member.CrewMemberUniqueId || '-';
+                const crewIdDisplay = crewId !== '-' ? 
                     `<a href="#" onclick="setCrewIdAndNavigate('${crewId}')" style="color: #ffc107; text-decoration: none; cursor: pointer;">${crewId}</a>` : 
-                    'N/A';
+                    '-';
                 
                 html += `
                     <div class="crew-member" onclick="toggleCrewDetails(${index})">
                         <div class="crew-name">${member.Names || ''} ${member.LastName || ''}</div>
-                        <div class="crew-position">${member.Position || 'Unknown'} ${seniorityNumber !== 'N/A' ? `(Seniority #${seniorityNumber})` : ''}</div>
+                        <div class="crew-position">${member.Position || 'Unknown'} ${seniorityNumber !== '-' ? `(Seniority #${seniorityNumber})` : ''}</div>
                         <div class="crew-details" id="crew-details-${index}">
                             <div class="crew-detail-item">
                                 <span>Crew ID:</span>
@@ -564,7 +565,7 @@
                             </div>
                             <div class="crew-detail-item">
                                 <span>Base:</span>
-                                <span>${profile.Base || 'N/A'}</span>
+                                <span>${profile.Base || '-'}</span>
                             </div>
                             <div class="crew-detail-item">
                                 <span>Fleet:</span>

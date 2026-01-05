@@ -127,7 +127,7 @@
         .crew-position { color: #ffc107; font-size: 0.576em; }
         .crew-details { margin-top: 8px; padding-top: 8px; border-top: 1px solid #444; font-size: 0.512em; color: #b8b8d0; display: none; }
         .crew-detail-item { display: flex; justify-content: space-between; margin-bottom: 2px; }
-        .crew-email { color: #90caf9; word-break: break-all; margin-top: 4px; font-size: 0.448em; }
+        .crew-email { color: #90caf9; word-break: break-all; margin-top: 4px; font-size: 0.512em; }
         
         .mel-list { list-style: none; margin: 10px 0; }
         .mel-item { background: #5a3a3a; border: 1px solid #7a3a3a; border-radius: 3px; padding: 8px; margin-bottom: 6px; }
@@ -156,7 +156,7 @@
                 <div class="input-group">
                     <label>Flight Number *</label>
                     <div class="input-row">
-                        <input type="text" id="flight_number" class="short-input" required placeholder="210" maxlength="4">
+                        <input type="text" id="flight_number" class="short-input" required placeholder="210" maxlength="4" inputmode="numeric">
                         <button type="button" class="button clear-btn" onclick="clearFlightNumber()">Clear</button>
                         <input type="date" id="departure_date" class="date-input" required>
                     </div>
@@ -181,7 +181,7 @@
     </div>
 
     <script>
-        document.getElementById('departure_date').value = new Date().toISOString().slice(0, 10);
+        document.getElementById('departure_date').value = new Date().toLocaleDateString('en-CA');
         let currentFlightData = null;
 
         const urlParams = new URLSearchParams(window.location.search);
@@ -189,27 +189,23 @@
         const localDate = urlParams.get('local_date');
         const originAirport = urlParams.get('origin_airport');
         
-        // Auto-search immediately if URL parameters are present
         if (flightNumber && localDate && originAirport) {
             document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('flight_number').value = flightNumber;
                 document.getElementById('departure_date').value = localDate;
                 document.getElementById('origin_airport').value = originAirport;
-                // Remove delay - search immediately
                 document.getElementById('flightSearchForm').dispatchEvent(new Event('submit'));
             });
         }
 
         function clearFlightNumber() {
-            const flightInput = document.getElementById('flight_number');
-            flightInput.value = '';
-            flightInput.focus();
+            document.getElementById('flight_number').value = '';
+            document.getElementById('flight_number').focus();
         }
 
         function clearOriginAirport() {
-            const originInput = document.getElementById('origin_airport');
-            originInput.value = '';
-            originInput.focus();
+            document.getElementById('origin_airport').value = '';
+            document.getElementById('origin_airport').focus();
         }
 
         document.getElementById('flightSearchForm').addEventListener('submit', async function(e) {
@@ -246,7 +242,6 @@
                     displayFlightDetails(result.flight_details);
                     resultsSection.classList.remove('hidden');
                     
-                    // Load crew and previous flight in parallel for better performance
                     const loadPromises = [];
                     
                     if (result.flight_details.PreviousFlight) {
@@ -255,9 +250,7 @@
                     
                     loadPromises.push(loadCrewMembers());
                     
-                    // Wait for all parallel loads to complete
                     Promise.all(loadPromises).finally(() => {
-                        // Simple, reliable autoscroll with consistent timing
                         setTimeout(() => {
                             const flightNumberTop = document.getElementById('flightNumberTop');
                             if (flightNumberTop) {
@@ -267,7 +260,7 @@
                                     inline: 'nearest'
                                 });
                             }
-                        }, 300); // Consistent 300ms delay for all cases
+                        }, 300);
                     });
                     
                 } else {
@@ -354,11 +347,9 @@
             const statusClass = flight.FlightStatusCode === 'ARR' ? 'status-arrived' : 
                               flight.TimeDelayed ? 'status-delayed' : 'status-scheduled';
             
-            // Get gate and terminal information
             const departureStand = flight.DepartureParkingStand || '';
             const departureTerminal = flight.DepartureTerminal || '';
             
-            // Format gate info as "GATE: xx T: xx"
             let gateInfo = '';
             if (departureStand && departureTerminal) {
                 gateInfo = `GATE: ${departureStand} T: ${departureTerminal}`;
@@ -366,11 +357,12 @@
                 gateInfo = `GATE: ${departureStand}`;
             } else if (departureTerminal) {
                 gateInfo = `T: ${departureTerminal}`;
+            } else {
+                gateInfo = 'GATE: N/A T: N/A';
             }
             
             const fleet = flight.Fleet || '';
             
-            // Calculate time colors
             const scheduledDeparture = flight.Flight?.ScheduleDepartureDateLOCAL;
             const actualDeparture = flight.Flight?.DepartureDateLOCAL;
             const scheduledArrival = flight.Flight?.ScheduleArrivalDateLOCAL;
@@ -379,10 +371,8 @@
             const departureColor = getTimeColor(actualDeparture, scheduledDeparture);
             const arrivalColor = getTimeColor(actualArrival, scheduledArrival);
             
-            // Create the actual time string with colored spans
             const actualTimeString = `<span class="${departureColor}">${formatTime(actualDeparture)}</span> - <span class="${arrivalColor}">${formatTime(actualArrival)}</span>`;
             
-            // Check if delay info exists - Delays is an array!
             const hasDelayInfo = flight.Delays && flight.Delays.length > 0;
             
             const html = `
@@ -489,7 +479,6 @@
         function displayPreviousFlightDetails(flight) {
             const previousFlightSection = document.getElementById('previousFlightSection');
             
-            // Calculate time colors for previous flight
             const scheduledDeparture = flight.Flight?.ScheduleDepartureDateLOCAL;
             const actualDeparture = flight.Flight?.DepartureDateLOCAL;
             const scheduledArrival = flight.Flight?.ScheduleArrivalDateLOCAL;
@@ -498,7 +487,6 @@
             const departureColor = getTimeColor(actualDeparture, scheduledDeparture);
             const arrivalColor = getTimeColor(actualArrival, scheduledArrival);
             
-            // Create the actual time string with colored spans
             const actualTimeString = `<span class="${departureColor}">${formatTime(actualDeparture)}</span> - <span class="${arrivalColor}">${formatTime(actualArrival)}</span>`;
             
             const html = `
@@ -557,14 +545,22 @@
                 const profile = member.Profile || {};
                 const fleet = profile.Qualifications ? profile.Qualifications.join(', ') : (profile.RawQualifications || 'N/A');
                 
+                const seniorityText = profile.Superiority || '';
+                const seniorityNumber = seniorityText.replace(/[^0-9]/g, '') || 'N/A';
+                
+                const crewId = member.CrewMemberUniqueId || 'N/A';
+                const crewIdDisplay = crewId !== 'N/A' ? 
+                    `<a href="#" onclick="setCrewIdAndNavigate('${crewId}')" style="color: #ffc107; text-decoration: none; cursor: pointer;">${crewId}</a>` : 
+                    'N/A';
+                
                 html += `
                     <div class="crew-member" onclick="toggleCrewDetails(${index})">
                         <div class="crew-name">${member.Names || ''} ${member.LastName || ''}</div>
-                        <div class="crew-position">${member.Position || 'Unknown'}</div>
+                        <div class="crew-position">${member.Position || 'Unknown'} ${seniorityNumber !== 'N/A' ? `(Seniority #${seniorityNumber})` : ''}</div>
                         <div class="crew-details" id="crew-details-${index}">
                             <div class="crew-detail-item">
                                 <span>Crew ID:</span>
-                                <span>${member.CrewMemberUniqueId || 'N/A'}</span>
+                                <span>${crewIdDisplay}</span>
                             </div>
                             <div class="crew-detail-item">
                                 <span>Base:</span>
@@ -573,10 +569,6 @@
                             <div class="crew-detail-item">
                                 <span>Fleet:</span>
                                 <span>${fleet}</span>
-                            </div>
-                            <div class="crew-detail-item">
-                                <span>Seniority:</span>
-                                <span>${profile.Superiority || 'N/A'}</span>
                             </div>
                             ${profile.TelephoneNumber ? `
                             <div class="crew-detail-item">
@@ -606,6 +598,32 @@
                 details.style.display = 'none';
                 crewMember.classList.remove('expanded');
             }
+        }
+
+        function setCrewIdAndNavigate(crewId) {
+            event.preventDefault();
+            
+            const searchBtn = document.getElementById('searchBtn');
+            const originalText = searchBtn.textContent;
+            searchBtn.disabled = true;
+            searchBtn.textContent = 'Switching crew...';
+            
+            fetch('/update_crew_id?crew_id=' + crewId)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.href = '/calendar';
+                    } else {
+                        alert('Failed to switch crew: ' + (data.error || 'Unknown error'));
+                        searchBtn.disabled = false;
+                        searchBtn.textContent = originalText;
+                    }
+                })
+                .catch(err => {
+                    alert('Error: ' + err);
+                    searchBtn.disabled = false;
+                    searchBtn.textContent = originalText;
+                });
         }
 
         function showError(message) {

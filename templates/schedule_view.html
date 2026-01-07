@@ -1,230 +1,84 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>My Crew Schedule</title>
+    <title>Paxlist Test</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background: #121212; color: #f0f0f0; }
-        .container { max-width: 1200px; margin: 0 auto; background: #2a2a2a; padding: 20px; border-radius: 10px; border: 1px solid #444; }
-        .header { text-align: center; margin-bottom: 20px; }
-        .nav-buttons { text-align: center; margin: 15px 0; }
-        .nav-button { background: #3a3a3a; color: #f0f0f0; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; margin: 0 5px; text-decoration: none; display: inline-block; }
-        .nav-button:hover { background: #4a4a4a; }
-        .nav-button.active { background: #f0f0f0; color: #121212; }
-        .button { background: #555; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
-        .button:hover { background: #666; }
-        .button:disabled { background: #444; cursor: not-allowed; }
-        .info-box { background: #3a3a3a; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center; }
-        .month-section { border: 2px solid #555; padding: 15px; margin: 20px 0; border-radius: 8px; }
-        .month-header { background: #555; color: white; padding: 10px; border-radius: 5px; margin-bottom: 15px; }
-        .day-card { border: 1px solid #444; padding: 15px; margin: 10px 0; border-radius: 5px; background: #1e1e1e; }
-        .day-header { background: #666; color: white; padding: 8px; border-radius: 3px; margin-bottom: 10px; }
-        .assignment { background: #2a2a2a; padding: 15px; margin: 10px 0; border-left: 4px solid #555; border-radius: 5px; }
-        .assignment-header { display: flex; justify-content: between; align-items: center; margin-bottom: 10px; }
-        .activity-code { font-weight: bold; font-size: 1.1em; color: #4fc3f7; }
-        .activity-desc { color: #ccc; margin-left: 10px; }
-        .assignment-category { background: #555; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; margin-left: 10px; }
-        .assignment-type { background: #666; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; margin-left: 5px; }
-        .time-info { color: #ccc; font-size: 0.9em; margin: 5px 0; }
-        .flight-info { background: #3a3a3a; padding: 10px; margin: 8px 0; border-radius: 4px; border-left: 3px solid #4fc3f7; }
-        .flight-header { font-weight: bold; color: #4fc3f7; margin-bottom: 5px; }
-        .flight-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; font-size: 0.85em; }
-        .flight-detail { padding: 3px 0; }
-        .flight-detail strong { color: #ccc; }
-        .status-advanced { color: #81c784; font-weight: bold; }
-        .status-delayed { color: #e57373; font-weight: bold; }
-        .no-data { color: #888; text-align: center; padding: 10px; }
-        .error { color: #e57373; text-align: center; padding: 20px; }
-        .success { color: #81c784; background: #2e4b2e; padding: 10px; border-radius: 5px; margin: 10px 0; text-align: center; }
-        .assignment-id { color: #888; font-size: 0.7em; float: right; }
-        .current-day { border: 3px solid #ffc107; background: #3a3a3a; }
-        .actual-time { color: #ffc107; font-weight: bold; }
-        .scheduled-time { color: #888; }
+        body { font-family: Arial; margin: 20px; }
+        input, button { padding: 10px; margin: 5px; }
+        .result { margin-top: 20px; padding: 15px; }
+        .success { background: #d4edda; }
+        .error { background: #f8d7da; }
+        .raw { background: #f1f1f1; padding: 10px; font-family: monospace; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>✈️ My Crew Schedule</h1>
-            <div class="nav-buttons">
-                <a href="/" class="nav-button active">📋 Schedule View</a>
-                <a href="/calendar" class="nav-button">📅 Calendar View</a>
-                <a href="/pdf" class="nav-button">📄 PDF Download</a>
-            </div>
-            <button class="button" onclick="fetchData()" id="refreshBtn">🔄 Refresh Schedule</button>
-        </div>
-
-        {% if refresh_message %}
-        <div class="success">
-            {{ refresh_message }}
-        </div>
-        {% endif %}
-
-        {% if last_fetch %}
-        <div class="info-box">
-            <h3>Last updated: {{ last_fetch }}</h3>
-            <p>Total days: {{ total_days }} | Total assignments: {{ total_assignments }}</p>
-            <p>Current Crew ID: <strong>{{ current_crew_id }}</strong></p>
-        </div>
-        {% endif %}
-
-        {% if schedule_data %}
-            {% for month in schedule_data %}
-            <div class="month-section">
-                <div class="month-header">
-                    <h3>📅 {{ month_names[loop.index0] }}</h3>
-                </div>
-                {% for day in month %}
-                    {% if day and day is mapping %}
-                    <div class="day-card {% if day.StartDate[:10] == current_date %}current-day{% endif %}" id="day-{{ day.StartDate[:10] }}">
-                        <div class="day-header">
-                            <strong>{{ day.StartDate[:10] if day.StartDate else 'Unknown' }}</strong>
-                            <span style="float: right;">DEM: {{ day.Dem }}</span>
-                        </div>
-                        
-                        {% if day.AssignementList and day.AssignementList|length > 0 %}
-                            {% for assignment in day.AssignementList %}
-                            <div class="assignment">
-                                <div class="assignment-header">
-                                    <div>
-                                        <span class="activity-code">{{ assignment.ActivityCode.strip() if assignment.ActivityCode else 'FLIGHT' }}</span>
-                                        <span class="activity-desc">{{ assignment.ActivityDesc.strip() if assignment.ActivityDesc else 'Flight Duty' }}</span>
-                                        {% if assignment.AssignementCategory %}
-                                        <span class="assignment-category">{{ assignment.AssignementCategory }}</span>
-                                        {% endif %}
-                                        {% if assignment.ActivityType %}
-                                        <span class="assignment-type">{{ assignment.ActivityType }}</span>
-                                        {% endif %}
-                                    </div>
-                                    <span class="assignment-id">#{{ assignment.Id }}</span>
-                                </div>
-                                
-                                <div class="time-info">
-                                    <strong>🕐 Time:</strong> 
-                                    <span class="actual-time">{{ assignment.StartDateLocal[11:16] if assignment.StartDateLocal else 'N/A' }}</span> 
-                                    to <span class="actual-time">{{ assignment.EndDateLocal[11:16] if assignment.EndDateLocal else 'N/A' }}</span>
-                                    ({{ assignment.StartDateLocal[:10] if assignment.StartDateLocal else '' }})
-                                </div>
-
-                                {% if assignment.AircraftRegistrationNumber %}
-                                <div class="time-info">
-                                    <strong>✈️ Aircraft:</strong> {{ assignment.AircraftRegistrationNumber }}
-                                    {% if assignment.Fleet %}({{ assignment.Fleet }}){% endif %}
-                                </div>
-                                {% elif assignment.Fleet %}
-                                <div class="time-info">
-                                    <strong>✈️ Fleet:</strong> {{ assignment.Fleet }}
-                                </div>
-                                {% endif %}
-
-                                {% if assignment.FlighAssignement and assignment.FlighAssignement.CommercialFlightNumber != "XXX" %}
-                                <div class="flight-info">
-                                    <div class="flight-header">
-                                        🛫 Flight: {{ assignment.FlighAssignement.Airline }} {{ assignment.FlighAssignement.CommercialFlightNumber }}
-                                    </div>
-                                    
-                                    <div class="flight-details">
-                                        <div class="flight-detail">
-                                            <strong>Route:</strong> {{ assignment.FlighAssignement.OriginAirportIATACode }} → {{ assignment.FlighAssignement.FinalAirportIATACode }}
-                                        </div>
-                                        <div class="flight-detail">
-                                            <strong>Duration:</strong> {{ assignment.FlighAssignement.Duration }} min (Scheduled: {{ assignment.FlighAssignement.ScheduledDuration }} min)
-                                        </div>
-                                        <div class="flight-detail">
-                                            <strong>Departure:</strong> 
-                                            <span class="scheduled-time">{{ assignment.FlighAssignement.ScheduledDepartureDate[11:16] if assignment.FlighAssignement.ScheduledDepartureDate else 'N/A' }}</span>
-                                            {% if assignment.FlighAssignement.DepartureDate %}
-                                            → <span class="actual-time">{{ assignment.FlighAssignement.DepartureDate[11:16] if assignment.FlighAssignement.DepartureDate else 'N/A' }}</span>
-                                            {% endif %}
-                                            {% if assignment.FlighAssignement.DepartureStand %}
-                                            | Stand: {{ assignment.FlighAssignement.DepartureStand }}
-                                            {% endif %}
-                                        </div>
-                                        <div class="flight-detail">
-                                            <strong>Arrival:</strong> 
-                                            <span class="scheduled-time">{{ assignment.FlighAssignement.ScheduledArrivalDate[11:16] if assignment.FlighAssignement.ScheduledArrivalDate else 'N/A' }}</span>
-                                            {% if assignment.FlighAssignement.ArrivalDate %}
-                                            → <span class="actual-time">{{ assignment.FlighAssignement.ArrivalDate[11:16] if assignment.FlighAssignement.ArrivalDate else 'N/A' }}</span>
-                                            {% endif %}
-                                            {% if assignment.FlighAssignement.ArrivalStand %}
-                                            | Stand: {{ assignment.FlighAssignement.ArrivalStand }}
-                                            {% endif %}
-                                        </div>
-                                        {% if assignment.FlighAssignement.TimeAdvanced or assignment.FlighAssignement.TimeDelayed %}
-                                        <div class="flight-detail">
-                                            <strong>Status:</strong>
-                                            {% if assignment.FlighAssignement.TimeAdvanced %}
-                                            <span class="status-advanced">Advanced</span>
-                                            {% endif %}
-                                            {% if assignment.FlighAssignement.TimeDelayed %}
-                                            <span class="status-delayed">Delayed</span>
-                                            {% endif %}
-                                        </div>
-                                        {% endif %}
-                                        {% if assignment.FlighAssignement.OriginAirportICAOCode or assignment.FlighAssignement.FinalAirportICAOCode %}
-                                        <div class="flight-detail">
-                                            <strong>ICAO Codes:</strong>
-                                            {% if assignment.FlighAssignement.OriginAirportICAOCode %}
-                                            {{ assignment.FlighAssignement.OriginAirportICAOCode }}
-                                            {% endif %}
-                                            {% if assignment.FlighAssignement.FinalAirportICAOCode %}
-                                            → {{ assignment.FlighAssignement.FinalAirportICAOCode }}
-                                            {% endif %}
-                                        </div>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                                {% endif %}
-                            </div>
-                            {% endfor %}
-                        {% else %}
-                            <div class="no-data">No assignments for this day</div>
-                        {% endif %}
-                    </div>
-                    {% endif %}
-                {% endfor %}
-            </div>
-            {% endfor %}
-        {% else %}
-            <div class="error">
-                <h3>No schedule data available</h3>
-                <p>Click "Refresh Schedule" to load your schedule.</p>
-            </div>
-        {% endif %}
+    <h2>Paxlist Test</h2>
+    
+    <div>
+        <input type="text" id="flight_number" placeholder="Flight Number (e.g., 120)" value="120">
+        <input type="text" id="departure" placeholder="Departure (e.g., BOG)" value="BOG">
+        <input type="date" id="date" value="2026-01-05">
+        <button onclick="test()">Test</button>
     </div>
-
+    
+    <div id="result" class="result"></div>
+    
     <script>
-    function fetchData() {
-        const button = document.getElementById('refreshBtn');
-        button.disabled = true;
-        button.textContent = '⏳ Loading...';
+        const token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6IlBjWDk4R1g0MjBUMVg2c0JEa3poUW1xZ3dNVSIsImtpZCI6IlBjWDk4R1g0MjBUMVg2c0JEa3poUW1xZ3dNVSJ9.eyJhdWQiOiJhcGk6Ly8xZDg2NmVkMy1iZGIwLTQ3ZDEtYmZhYy04ZWJmZDQ3MzYwZDMiLCJpc3MiOiJodHRwczovL3N0cy53aW5kb3dzLm5ldC9hMmFkZGQzZS04Mzk3LTQ1NzktYmEzMC03YTM4ODAzZmMzYmYvIiwiaWF0IjoxNzY3NzYzMTI3LCJuYmYiOjE3Njc3NjMxMjcsImV4cCI6MTc2Nzc2ODAwMCwiYWNyIjoiMSIsImFpbyI6IkFVUUF1LzhhQUFBQVBnZTZxWDRYVTU4UTNLN25PUkxzS2p5aTZIMll4VDFFZFBCWjI2OGd1eUJaUHVQNTFLMkV1dUdxKzlHSFA3ZkFnMmhTOXVGMUtIYmpQQTZreFIxdXV3PT0iLCJhbXIiOlsicHdkIl0sImFwcGlkIjoiMWQ4NjZlZDMtYmRiMC00N2QxLWJmYWMtOGViZmQ0NzM2MGQzIiwiYXBwaWRhY3IiOiIwIiwiZmFtaWx5X25hbWUiOiJKaW1lbmV6IE51bmV6IiwiZ2l2ZW5fbmFtZSI6IlNlcmdpbyBJdmFuIiwiaXBhZGRyIjoiMTkxLjE1Ni41MC4yMCIsIm5hbWUiOiJTZXJnaW8gSXZhbiBKaW1lbmV6IE51bmV6Iiwib2lkIjoiMjYzMDI2YTgtYTY3Zi00YTRhLTgxMWMtNWZlODhmYTUwZThiIiwib25wcmVtX3NpZCI6IlMtMS01LTIxLTEzMDA2MDM0OTMtMzQxOTU1MDAwLTMyMDE0NjM1MzAtMjc5MjU4IiwicmgiOiIxLkFTVUFQdDJ0b3BlRGVVVzZNSG80Z0RfRHY5TnVoaDJ3dmRGSHY2eU92OVJ6WU5NbEFBRWxBQS4iLCJyb2xlcyI6WyJwYXhsaXN0LnJlYWQiXSwic2NwIjoiYWNjZXNzX2FzX3VzZXIiLCJzaWQiOiIwMDEwMzQ4YS03OWUyLTZmNjctZmFjYS1iMDE0YjRjNzk0NGQiLCJzdWIiOiJiQ3ZaYnJoanFxZnV3QURZSmRLYWRGbWFLSkZCdWVUb00wRzVTRko5N05nIiwidGlkIjoiYTJhZGRkM2UtODM5Ny00NTc5LWJhMzAtN2EzODgwM2ZjM2JmIiwidW5pcXVlX25hbWUiOiJzZXJnaW8uamltZW5lekBhdmlhbmNhLmNvbSIsInVwbiI6InNlcmdpby5qaW1lbmV6QGF2aWFuY2EuY29tIiwidXRpIjoiME5GMElBZl92VU80NDJsbDBVaWZBUSIsInZlciI6IjEuMCIsInhtc19mdGQiOiI5eGpncmo2UmlrN0xvX1pqWjV5c0M4SnlxbmcxbEh2WFhUdHN2SUFnRTQ4QmRYTmxZWE4wTFdSemJYTSJ9.Y8pvc_iEggcmhB5NE7gOz1WdumVGNUY-dZ_7IFcKHF21eic74NKSJkGji2k-1Hq76H3eMmGhVhnC2GMmdaqQXnJVcY39DhqogW5zYaEPgNEu6lo-KbVNIp55miJbUWVKOsxC7au3RFEvmTPlCS7EoqE0U-MU58UXfK73wtg3-662ZjDSUfPP3JYeCjjtrCg99-3_XSkXIzG5QF93nzAa2N9g6-QiNAl3ed83pCMvasuioYTYGTD87Zcdl9Y0NQVv7VW5j6UgVP8K7K52KqkdEFt8bnZ9fSULKsCEV85oPSw_8_oCbLNeEsMIGiBH0aO5b7IFbA8Dv-AdwunL_eIeIQ";
         
-        fetch('/fetch?refresh=true')
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    const url = new URL(window.location);
-                    url.searchParams.set('refresh', 'success');
-                    window.location.href = url.toString();
+        async function test() {
+            const flight = document.getElementById('flight_number').value;
+            const departure = document.getElementById('departure').value;
+            const date = document.getElementById('date').value;
+            
+            const payload = {
+                flight_carrier: "AV",
+                flight_number: flight,
+                flight_departure_station: departure,
+                flight_date: date
+            };
+            
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = "Calling API...";
+            
+            try {
+                const response = await fetch('https://paxlist.avianca.com/crew_devices/consulta_pasajeros', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+                        <h3>✅ Success</h3>
+                        <p>Flight: AV${flight} from ${departure} on ${date}</p>
+                        <p>Passengers: ${data.passengers?.length || 0}</p>
+                        <div class="raw">${JSON.stringify(data, null, 2)}</div>
+                    `;
                 } else {
-                    alert('Failed: ' + (data.error || 'Unknown error'));
-                    button.disabled = false;
-                    button.textContent = '🔄 Refresh Schedule';
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `
+                        <h3>❌ Error ${response.status}</h3>
+                        <div class="raw">${JSON.stringify(data, null, 2)}</div>
+                    `;
                 }
-            })
-            .catch(err => {
-                alert('Error: ' + err);
-                button.disabled = false;
-                button.textContent = '🔄 Refresh Schedule';
-            });
-    }
-
-    // Scroll to current date on page load
-    document.addEventListener('DOMContentLoaded', function() {
-        const currentDayElement = document.querySelector('.current-day');
-        if (currentDayElement) {
-            currentDayElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `<h3>❌ Network Error</h3><p>${error.message}</p>`;
+            }
         }
-    });
+        
+        // Set tomorrow as default date
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        document.getElementById('date').value = tomorrow.toISOString().split('T')[0];
     </script>
 </body>
 </html>

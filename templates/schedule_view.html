@@ -1,6 +1,3 @@
-Here's the simple HTML with token display and update:
-
-```html
 <!DOCTYPE html>
 <html>
 <head>
@@ -43,7 +40,6 @@ Here's the simple HTML with token display and update:
     <div id="result" class="result"></div>
     
     <script>
-        // Full token from your request
         let token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6IlBjWDk4R1g0MjBUMVg2c0JEa3poUW1xZ3dNVSIsImtpZCI6IlBjWDk4R1g0MjBUMVg2c0JEa3poUW1xZ3dNVSJ9.eyJhdWQiOiJhcGk6Ly8xZDg2NmVkMy1iZGIwLTQ3ZDEtYmZhYy04ZWJmZDQ3MzYwZDMiLCJpc3MiOiJodHRwczovL3N0cy53aW5kb3dzLm5ldC9hMmFkZGQzZS04Mzk3LTQ1NzktYmEzMC03YTM4ODAzZmMzYmYvIiwiaWF0IjoxNzY3NzYzMTI3LCJuYmYiOjE3Njc3NjMxMjcsImV4cCI6MTc2Nzc2ODAwMCwiYWNyIjoiMSIsImFpbyI6IkFVUUF1LzhhQUFBQVBnZTZxWDRYVTU4UTNLN25PUkxzS2p5aTZIMll4VDFFZFBCWjI2OGd1eUJaUHVQNTFLMkV1dUdxKzlHSFA3ZkFnMmhTOXVGMUtIYmpQQTZreFIxdXV3PT0iLCJhbXIiOlsicHdkIl0sImFwcGlkIjoiMWQ4NjZlZDMtYmRiMC00N2QxLWJmYWMtOGViZmQ0NzM2MGQzIiwiYXBwaWRhY3IiOiIwIiwiZmFtaWx5X25hbWUiOiJKaW1lbmV6IE51bmV6IiwiZ2l2ZW5fbmFtZSI6IlNlcmdpbyBJdmFuIiwiaXBhZGRyIjoiMTkxLjE1Ni41MC4yMCIsIm5hbWUiOiJTZXJnaW8gSXZhbiBKaW1lbmV6IE51bmV6Iiwib2lkIjoiMjYzMDI2YTgtYTY3Zi00YTRhLTgxMWMtNWZlODhmYTUwZThiIiwib25wcmVtX3NpZCI6IlMtMS01LTIxLTEzMDA2MDM0OTMtMzQxOTU1MDAwLTMyMDE0NjM1MzAtMjc5MjU4IiwicmgiOiIxLkFTVUFQdDJ0b3BlRGVVVzZNSG80Z0RfRHY5TnVoaDJ3dmRGSHY2eU92OVJ6WU5NbEFBRWxBQS4iLCJyb2xlcyI6WyJwYXhsaXN0LnJlYWQiXSwic2NwIjoiYWNjZXNzX2FzX3VzZXIiLCJzaWQiOiIwMDEwMzQ4YS03OWUyLTZmNjctZmFjYS1iMDE0YjRjNzk0NGQiLCJzdWIiOiJiQ3ZaYnJoanFxZnV3QURZSmRLYWRGbWFLSkZCdWVUb00wRzVTRko5N05nIiwidGlkIjoiYTJhZGRkM2UtODM5Ny00NTc5LWJhMzAtN2EzODgwM2ZjM2JmIiwidW5pcXVlX25hbWUiOiJzZXJnaW8uamltZW5lekBhdmlhbmNhLmNvbSIsInVwbiI6InNlcmdpby5qaW1lbmV6QGF2aWFuY2EuY29tIiwidXRpIjoiME5GMElBZl92VU80NDJsbDBVaWZBUSIsInZlciI6IjEuMCIsInhtc19mdGQiOiI5eGpncmo2UmlrN0xvX1pqWjV5c0M4SnlxbmcxbEh2WFhUdHN2SUFnRTQ4QmRYTmxZWE4wTFdSemJYTSJ9.Y8pvc_iEggcmhB5NE7gOz1WdumVGNUY-dZ_7IFcKHF21eic74NKSJkGji2k-1Hq76H3eMmGhVhnC2GMmdaqQXnJVcY39DhqogW5zYaEPgNEu6lo-KbVNIp55miJbUWVKOsxC7au3RFEvmTPlCS7EoqE0U-MU58UXfK73wtg3-662ZjDSUfPP3JYeCjjtrCg99-3_XSkXIzG5QF93nzAa2N9g6-QiNAl3ed83pCMvasuioYTYGTD87Zcdl9Y0NQVv7VW5j6UgVP8K7K52KqkdEFt8bnZ9fSULKsCEV85oPSw_8_oCbLNeEsMIGiBH0aO5b7IFbA8Dv-AdwunL_eIeIQ";
         
         function updateTokenPreview() {
@@ -62,7 +58,6 @@ Here's the simple HTML with token display and update:
         function updateToken() {
             const newToken = document.getElementById('newToken').value.trim();
             if (newToken) {
-                // Remove "Bearer " prefix if present
                 if (newToken.startsWith('Bearer ')) {
                     token = newToken.substring(7);
                 } else {
@@ -97,7 +92,16 @@ Here's the simple HTML with token display and update:
                     headers: {
                         'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json',
-                        'Accept': 'application/json'
+                        'Accept': 'application/json, text/plain, */*',
+                        'Origin': 'https://paxlist.avianca.com',
+                        'Referer': 'https://paxlist.avianca.com/',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36',
+                        'sec-ch-ua': '"Not_A Brand";v="99", "Google Chrome";v="109", "Chromium";v="109"',
+                        'sec-ch-ua-mobile': '?0',
+                        'sec-ch-ua-platform': '"Windows"',
+                        'Sec-Fetch-Site': 'same-origin',
+                        'Sec-Fetch-Mode': 'cors',
+                        'Sec-Fetch-Dest': 'empty'
                     },
                     body: JSON.stringify(payload)
                 });
@@ -135,13 +139,3 @@ Here's the simple HTML with token display and update:
     </script>
 </body>
 </html>
-```
-
-**Features:**
-1. Shows current token preview
-2. Button to view full token
-3. Textarea to update token (strips "Bearer " prefix automatically)
-4. Same simple test form
-5. Raw JSON output or error display
-
-Test with your current token first, then you can update it when needed.

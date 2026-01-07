@@ -1,3 +1,6 @@
+Here's the simple HTML with token display and update:
+
+```html
 <!DOCTYPE html>
 <html>
 <head>
@@ -5,14 +8,30 @@
     <style>
         body { font-family: Arial; margin: 20px; }
         input, button { padding: 10px; margin: 5px; }
+        textarea { width: 100%; height: 100px; padding: 10px; margin: 5px; }
         .result { margin-top: 20px; padding: 15px; }
         .success { background: #d4edda; }
         .error { background: #f8d7da; }
         .raw { background: #f1f1f1; padding: 10px; font-family: monospace; }
+        .token-display { background: #e8f4fc; padding: 10px; margin: 10px 0; }
+        .token-preview { font-family: monospace; font-size: 12px; }
     </style>
 </head>
 <body>
     <h2>Paxlist Test</h2>
+    
+    <div class="token-display">
+        <strong>Current Token:</strong>
+        <div class="token-preview" id="tokenPreview">Loading...</div>
+        <button onclick="showFullToken()">Show Full Token</button>
+    </div>
+    
+    <div>
+        <textarea id="newToken" placeholder="Paste new token here..."></textarea>
+        <button onclick="updateToken()">Update Token</button>
+    </div>
+    
+    <hr>
     
     <div>
         <input type="text" id="flight_number" placeholder="Flight Number (e.g., 120)" value="120">
@@ -24,7 +43,38 @@
     <div id="result" class="result"></div>
     
     <script>
-        const token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6IlBjWDk4R1g0MjBUMVg2c0JEa3poUW1xZ3dNVSIsImtpZCI6IlBjWDk4R1g0MjBUMVg2c0JEa3poUW1xZ3dNVSJ9.eyJhdWQiOiJhcGk6Ly8xZDg2NmVkMy1iZGIwLTQ3ZDEtYmZhYy04ZWJmZDQ3MzYwZDMiLCJpc3MiOiJodHRwczovL3N0cy53aW5kb3dzLm5ldC9hMmFkZGQzZS04Mzk3LTQ1NzktYmEzMC03YTM4ODAzZmMzYmYvIiwiaWF0IjoxNzY3NzYzMTI3LCJuYmYiOjE3Njc3NjMxMjcsImV4cCI6MTc2Nzc2ODAwMCwiYWNyIjoiMSIsImFpbyI6IkFVUUF1LzhhQUFBQVBnZTZxWDRYVTU4UTNLN25PUkxzS2p5aTZIMll4VDFFZFBCWjI2OGd1eUJaUHVQNTFLMkV1dUdxKzlHSFA3ZkFnMmhTOXVGMUtIYmpQQTZreFIxdXV3PT0iLCJhbXIiOlsicHdkIl0sImFwcGlkIjoiMWQ4NjZlZDMtYmRiMC00N2QxLWJmYWMtOGViZmQ0NzM2MGQzIiwiYXBwaWRhY3IiOiIwIiwiZmFtaWx5X25hbWUiOiJKaW1lbmV6IE51bmV6IiwiZ2l2ZW5fbmFtZSI6IlNlcmdpbyBJdmFuIiwiaXBhZGRyIjoiMTkxLjE1Ni41MC4yMCIsIm5hbWUiOiJTZXJnaW8gSXZhbiBKaW1lbmV6IE51bmV6Iiwib2lkIjoiMjYzMDI2YTgtYTY3Zi00YTRhLTgxMWMtNWZlODhmYTUwZThiIiwib25wcmVtX3NpZCI6IlMtMS01LTIxLTEzMDA2MDM0OTMtMzQxOTU1MDAwLTMyMDE0NjM1MzAtMjc5MjU4IiwicmgiOiIxLkFTVUFQdDJ0b3BlRGVVVzZNSG80Z0RfRHY5TnVoaDJ3dmRGSHY2eU92OVJ6WU5NbEFBRWxBQS4iLCJyb2xlcyI6WyJwYXhsaXN0LnJlYWQiXSwic2NwIjoiYWNjZXNzX2FzX3VzZXIiLCJzaWQiOiIwMDEwMzQ4YS03OWUyLTZmNjctZmFjYS1iMDE0YjRjNzk0NGQiLCJzdWIiOiJiQ3ZaYnJoanFxZnV3QURZSmRLYWRGbWFLSkZCdWVUb00wRzVTRko5N05nIiwidGlkIjoiYTJhZGRkM2UtODM5Ny00NTc5LWJhMzAtN2EzODgwM2ZjM2JmIiwidW5pcXVlX25hbWUiOiJzZXJnaW8uamltZW5lekBhdmlhbmNhLmNvbSIsInVwbiI6InNlcmdpby5qaW1lbmV6QGF2aWFuY2EuY29tIiwidXRpIjoiME5GMElBZl92VU80NDJsbDBVaWZBUSIsInZlciI6IjEuMCIsInhtc19mdGQiOiI5eGpncmo2UmlrN0xvX1pqWjV5c0M4SnlxbmcxbEh2WFhUdHN2SUFnRTQ4QmRYTmxZWE4wTFdSemJYTSJ9.Y8pvc_iEggcmhB5NE7gOz1WdumVGNUY-dZ_7IFcKHF21eic74NKSJkGji2k-1Hq76H3eMmGhVhnC2GMmdaqQXnJVcY39DhqogW5zYaEPgNEu6lo-KbVNIp55miJbUWVKOsxC7au3RFEvmTPlCS7EoqE0U-MU58UXfK73wtg3-662ZjDSUfPP3JYeCjjtrCg99-3_XSkXIzG5QF93nzAa2N9g6-QiNAl3ed83pCMvasuioYTYGTD87Zcdl9Y0NQVv7VW5j6UgVP8K7K52KqkdEFt8bnZ9fSULKsCEV85oPSw_8_oCbLNeEsMIGiBH0aO5b7IFbA8Dv-AdwunL_eIeIQ";
+        // Full token from your request
+        let token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6IlBjWDk4R1g0MjBUMVg2c0JEa3poUW1xZ3dNVSIsImtpZCI6IlBjWDk4R1g0MjBUMVg2c0JEa3poUW1xZ3dNVSJ9.eyJhdWQiOiJhcGk6Ly8xZDg2NmVkMy1iZGIwLTQ3ZDEtYmZhYy04ZWJmZDQ3MzYwZDMiLCJpc3MiOiJodHRwczovL3N0cy53aW5kb3dzLm5ldC9hMmFkZGQzZS04Mzk3LTQ1NzktYmEzMC03YTM4ODAzZmMzYmYvIiwiaWF0IjoxNzY3NzYzMTI3LCJuYmYiOjE3Njc3NjMxMjcsImV4cCI6MTc2Nzc2ODAwMCwiYWNyIjoiMSIsImFpbyI6IkFVUUF1LzhhQUFBQVBnZTZxWDRYVTU4UTNLN25PUkxzS2p5aTZIMll4VDFFZFBCWjI2OGd1eUJaUHVQNTFLMkV1dUdxKzlHSFA3ZkFnMmhTOXVGMUtIYmpQQTZreFIxdXV3PT0iLCJhbXIiOlsicHdkIl0sImFwcGlkIjoiMWQ4NjZlZDMtYmRiMC00N2QxLWJmYWMtOGViZmQ0NzM2MGQzIiwiYXBwaWRhY3IiOiIwIiwiZmFtaWx5X25hbWUiOiJKaW1lbmV6IE51bmV6IiwiZ2l2ZW5fbmFtZSI6IlNlcmdpbyBJdmFuIiwiaXBhZGRyIjoiMTkxLjE1Ni41MC4yMCIsIm5hbWUiOiJTZXJnaW8gSXZhbiBKaW1lbmV6IE51bmV6Iiwib2lkIjoiMjYzMDI2YTgtYTY3Zi00YTRhLTgxMWMtNWZlODhmYTUwZThiIiwib25wcmVtX3NpZCI6IlMtMS01LTIxLTEzMDA2MDM0OTMtMzQxOTU1MDAwLTMyMDE0NjM1MzAtMjc5MjU4IiwicmgiOiIxLkFTVUFQdDJ0b3BlRGVVVzZNSG80Z0RfRHY5TnVoaDJ3dmRGSHY2eU92OVJ6WU5NbEFBRWxBQS4iLCJyb2xlcyI6WyJwYXhsaXN0LnJlYWQiXSwic2NwIjoiYWNjZXNzX2FzX3VzZXIiLCJzaWQiOiIwMDEwMzQ4YS03OWUyLTZmNjctZmFjYS1iMDE0YjRjNzk0NGQiLCJzdWIiOiJiQ3ZaYnJoanFxZnV3QURZSmRLYWRGbWFLSkZCdWVUb00wRzVTRko5N05nIiwidGlkIjoiYTJhZGRkM2UtODM5Ny00NTc5LWJhMzAtN2EzODgwM2ZjM2JmIiwidW5pcXVlX25hbWUiOiJzZXJnaW8uamltZW5lekBhdmlhbmNhLmNvbSIsInVwbiI6InNlcmdpby5qaW1lbmV6QGF2aWFuY2EuY29tIiwidXRpIjoiME5GMElBZl92VU80NDJsbDBVaWZBUSIsInZlciI6IjEuMCIsInhtc19mdGQiOiI5eGpncmo2UmlrN0xvX1pqWjV5c0M4SnlxbmcxbEh2WFhUdHN2SUFnRTQ4QmRYTmxZWE4wTFdSemJYTSJ9.Y8pvc_iEggcmhB5NE7gOz1WdumVGNUY-dZ_7IFcKHF21eic74NKSJkGji2k-1Hq76H3eMmGhVhnC2GMmdaqQXnJVcY39DhqogW5zYaEPgNEu6lo-KbVNIp55miJbUWVKOsxC7au3RFEvmTPlCS7EoqE0U-MU58UXfK73wtg3-662ZjDSUfPP3JYeCjjtrCg99-3_XSkXIzG5QF93nzAa2N9g6-QiNAl3ed83pCMvasuioYTYGTD87Zcdl9Y0NQVv7VW5j6UgVP8K7K52KqkdEFt8bnZ9fSULKsCEV85oPSw_8_oCbLNeEsMIGiBH0aO5b7IFbA8Dv-AdwunL_eIeIQ";
+        
+        function updateTokenPreview() {
+            const preview = document.getElementById('tokenPreview');
+            if (token.length > 50) {
+                preview.textContent = token.substring(0, 50) + '...';
+            } else {
+                preview.textContent = token;
+            }
+        }
+        
+        function showFullToken() {
+            alert("Full Token:\n\n" + token);
+        }
+        
+        function updateToken() {
+            const newToken = document.getElementById('newToken').value.trim();
+            if (newToken) {
+                // Remove "Bearer " prefix if present
+                if (newToken.startsWith('Bearer ')) {
+                    token = newToken.substring(7);
+                } else {
+                    token = newToken;
+                }
+                updateTokenPreview();
+                alert("✅ Token updated!");
+                document.getElementById('newToken').value = '';
+            } else {
+                alert("Please enter a token");
+            }
+        }
         
         async function test() {
             const flight = document.getElementById('flight_number').value;
@@ -75,6 +125,9 @@
             }
         }
         
+        // Initialize
+        updateTokenPreview();
+        
         // Set tomorrow as default date
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
@@ -82,3 +135,13 @@
     </script>
 </body>
 </html>
+```
+
+**Features:**
+1. Shows current token preview
+2. Button to view full token
+3. Textarea to update token (strips "Bearer " prefix automatically)
+4. Same simple test form
+5. Raw JSON output or error display
+
+Test with your current token first, then you can update it when needed.

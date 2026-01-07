@@ -44,7 +44,7 @@ class CrewAPIClient:
         self.subscription_key = "9d32877073ce403795da2254ae9c2de7"
         self.session = None
         self.auth_token = None
-        self.last_token_time = None  # Track when token was last acquired
+        self.last_token_time = None
         
     def _should_renew_token(self):
         """Check if token is older than 5 hours"""
@@ -52,12 +52,11 @@ class CrewAPIClient:
             return True
         elapsed_hours = (datetime.utcnow() - self.last_token_time).total_seconds() / 3600
         logger.info(f"🔍 Token age: {elapsed_hours:.2f} hours")
-        return elapsed_hours >= 5  # 5 hours threshold
+        return elapsed_hours >= 5
     
     def _login(self, force=False):
         """Login only if token is older than 5 hours or forced"""
         try:
-            # Check if we need to renew token
             if not force and not self._should_renew_token():
                 logger.info("🔄 Using existing token (less than 5 hours old)")
                 return True
@@ -81,18 +80,16 @@ class CrewAPIClient:
             response = self.session.post(self.auth_url, data=form_data, headers=headers, timeout=30)
             if response.status_code == 200:
                 self.auth_token = f"Bearer {response.json()['access_token']}"
-                self.last_token_time = datetime.utcnow()  # Store timestamp
+                self.last_token_time = datetime.utcnow()
                 logger.info(f"✅ New token acquired at {self.last_token_time}")
                 return True
             else:
                 logger.error(f"❌ Login failed with status: {response.status_code}")
-                # Reset on failed login
                 self.auth_token = None
                 self.last_token_time = None
                 
         except Exception as e:
             logger.error(f"Login error: {e}")
-            # Reset on error
             self.auth_token = None
             self.last_token_time = None
         return False
@@ -144,19 +141,15 @@ class CrewAPIClient:
             current_month = datetime(now.year, now.month, 1)
             requested_month = datetime(year, month, 1)
             
-            # Determine start_date based on whether it's a future month
             if requested_month > current_month:
-                # Future month: start from last day of current month
                 last_day_of_current = (datetime(now.year + 1, 1, 1) if now.month == 12 
                                      else datetime(now.year, now.month + 1, 1)) - timedelta(days=1)
                 start_date = last_day_of_current
                 logger.info(f"🔮 Future month: starting from {start_date.strftime('%Y-%m-%d')}")
             else:
-                # Current or past month: start from 1st of requested month
                 start_date = first_day
                 logger.info(f"📅 Current/Past month: starting from {start_date.strftime('%Y-%m-%d')}")
             
-            # Unified: always request 34 days
             change_days = 34
             logger.info(f"📊 Unified request: {change_days} days from {start_date.strftime('%Y-%m-%d')}")
             
@@ -330,60 +323,203 @@ class CrewAPIClient:
 class PaxlistClient:
     def __init__(self):
         self.base_url = "https://paxlist.avianca.com"
+        self.token_url = "https://login.microsoftonline.com/a2addd3e-8397-4579-ba30-7a38803fc3bf/oauth2/v2.0/token"
+        self.client_id = "1d866ed3-bdb0-47d1-bfac-8ebfd47360d3"
+        self.redirect_uri = "https://paxlist.avianca.com/dashboard"
+        self.scope = "api://1d866ed3-bdb0-47d1-bfac-8ebfd47360d3/access_as_user openid profile offline_access"
+        
         self.session = None
-        self.token = None
-        self.token_file = "paxlist_token.txt"
-        self.load_token()
+        self.access_token = None
+        self.refresh_token = None
+        self.token_expiry = None
+        self.refresh_expiry = None
+        self.token_file = "paxlist_tokens.json"
+        
+        self.load_tokens()
+        self.create_session()
     
-    def load_token(self):
-        """Load token from file"""
+    def create_session(self):
+        """Create requests session"""
+        self.session = requests.Session()
+        self.session.headers.update({
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36",
+            "Accept": "application/json, text/plain, */*",
+            "Accept-Language": "en-US,en;q=0.9,es-419;q=0.8,es;q=0.7",
+            "Origin": "https://paxlist.avianca.com",
+            "Referer": "https://paxlist.avianca.com/",
+        })
+    
+    def load_tokens(self):
+        """Load saved tokens from file"""
         try:
             if os.path.exists(self.token_file):
                 with open(self.token_file, 'r') as f:
                     data = json.load(f)
-                    self.token = data.get('token')
-                    logger.info("✅ Loaded Paxlist token from file")
-                    return True
+                
+                self.access_token = data.get('access_token')
+                self.refresh_token = data.get('refresh_token')
+                self.token_expiry = data.get('token_expiry')
+                self.refresh_expiry = data.get('refresh_expiry')
+                
+                current_time = time.time()
+                
+                if self.refresh_token:
+                    if self.refresh_expiry and current_time < self.refresh_expiry:
+                        hours_left = int((self.refresh_expiry - current_time) / 3600)
+                        logger.info(f"✅ Paxlist refresh token valid for {hours_left} hours")
+                    else:
+                        logger.warning("⚠️ Paxlist refresh token expired")
+                
+                if self.access_token:
+                    if self.token_expiry and current_time < self.token_expiry:
+                        minutes_left = int((self.token_expiry - current_time) / 60)
+                        logger.info(f"✅ Paxlist access token valid for {minutes_left} minutes")
+                    else:
+                        logger.info("🔄 Paxlist access token needs refresh")
+                        if self.refresh_token and self.refresh_expiry and current_time < self.refresh_expiry:
+                            self.refresh_access_token()
+                
+                return True
+                    
         except Exception as e:
-            logger.error(f"Error loading Paxlist token: {e}")
+            logger.error(f"Error loading Paxlist tokens: {e}")
+        
         return False
     
-    def save_token(self):
-        """Save token to file"""
+    def save_tokens(self, access_token=None, refresh_token=None, expires_in=3700, refresh_expires_in=86399):
+        """Save tokens to file"""
         try:
+            current_time = time.time()
+            
+            if access_token:
+                self.access_token = access_token
+                self.token_expiry = current_time + expires_in
+            
+            if refresh_token:
+                self.refresh_token = refresh_token
+                self.refresh_expiry = current_time + refresh_expires_in
+            
+            data = {
+                'access_token': self.access_token,
+                'refresh_token': self.refresh_token,
+                'token_expiry': self.token_expiry,
+                'refresh_expiry': self.refresh_expiry,
+                'last_updated': current_time
+            }
+            
             with open(self.token_file, 'w') as f:
-                json.dump({'token': self.token}, f)
-            logger.info("💾 Paxlist token saved")
+                json.dump(data, f, indent=2)
+            
+            logger.info("💾 Paxlist tokens saved")
+            return True
+            
         except Exception as e:
-            logger.error(f"Error saving Paxlist token: {e}")
+            logger.error(f"Error saving Paxlist tokens: {e}")
+            return False
     
-    def set_token(self, token):
-        """Set new token"""
-        if token.startswith('Bearer '):
-            self.token = token[7:]  # Remove 'Bearer ' prefix
-        else:
-            self.token = token
-        self.save_token()
-        return True
+    def refresh_access_token(self):
+        """Refresh access token using refresh token"""
+        try:
+            if not self.refresh_token:
+                logger.error("❌ No Paxlist refresh token available")
+                return False
+            
+            current_time = time.time()
+            if self.refresh_expiry and current_time >= self.refresh_expiry:
+                logger.error("❌ Paxlist refresh token expired")
+                return False
+            
+            headers = {
+                "Content-Type": "application/x-www-form-urlencoded;charset=utf-8",
+                "Accept": "*/*",
+                "Origin": "https://paxlist.avianca.com",
+                "Referer": "https://paxlist.avianca.com/",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36"
+            }
+            
+            data = {
+                "client_id": self.client_id,
+                "scope": self.scope,
+                "refresh_token": self.refresh_token,
+                "grant_type": "refresh_token",
+                "client_info": "1"
+            }
+            
+            logger.info("🔄 Refreshing Paxlist access token...")
+            
+            response = requests.post(self.token_url, data=data, headers=headers, timeout=30)
+            
+            if response.status_code == 200:
+                token_data = response.json()
+                
+                new_access_token = token_data.get('access_token')
+                new_refresh_token = token_data.get('refresh_token', self.refresh_token)
+                expires_in = token_data.get('expires_in', 3700)
+                refresh_expires_in = token_data.get('refresh_token_expires_in', 86399)
+                
+                success = self.save_tokens(
+                    access_token=new_access_token,
+                    refresh_token=new_refresh_token,
+                    expires_in=expires_in,
+                    refresh_expires_in=refresh_expires_in
+                )
+                
+                if success:
+                    logger.info(f"✅ Paxlist access token refreshed (valid {expires_in//60} minutes)")
+                    return True
+            else:
+                logger.error(f"❌ Paxlist token refresh failed: {response.status_code}")
+                if response.text:
+                    logger.error(f"Response: {response.text[:200]}")
+                
+        except Exception as e:
+            logger.error(f"❌ Error refreshing Paxlist token: {e}")
+        
+        return False
+    
+    def set_initial_tokens(self, access_token, refresh_token):
+        """Set initial tokens from browser extraction"""
+        try:
+            success = self.save_tokens(
+                access_token=access_token,
+                refresh_token=refresh_token,
+                expires_in=3700,
+                refresh_expires_in=86399
+            )
+            
+            if success:
+                logger.info("✅ Paxlist initial tokens set successfully")
+                return True
+                
+        except Exception as e:
+            logger.error(f"Error setting Paxlist initial tokens: {e}")
+        
+        return False
     
     def get_passenger_list(self, flight_carrier, flight_number, flight_departure_station, flight_date):
-        """Get passenger list for a flight"""
+        """Get passenger list with automatic token refresh"""
         try:
-            if not self.token:
-                logger.error("❌ No Paxlist token available")
-                return None
+            current_time = time.time()
+            
+            if not self.access_token or not self.token_expiry or current_time >= self.token_expiry:
+                if not self.refresh_access_token():
+                    return {
+                        "error": "token_expired",
+                        "message": "Token expired and could not refresh",
+                        "needs_new_tokens": True
+                    }
             
             url = f"{self.base_url}/crew_devices/consulta_pasajeros"
             
             headers = {
-                "Authorization": f"Bearer {self.token}",
+                "Authorization": f"Bearer {self.access_token}",
                 "Content-Type": "application/json",
                 "Accept": "application/json, text/plain, */*",
                 "Origin": "https://paxlist.avianca.com",
                 "Referer": "https://paxlist.avianca.com/",
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36",
                 "sec-ch-ua": '"Not_A Brand";v="99", "Google Chrome";v="109", "Chromium";v="109"',
-                "sec-ch-ua-mobile": '?0',
+                "sec-ch-ua-mobile": "?0",
                 "sec-ch-ua-platform": '"Windows"',
                 "Sec-Fetch-Site": "same-origin",
                 "Sec-Fetch-Mode": "cors",
@@ -397,21 +533,69 @@ class PaxlistClient:
                 "flight_date": flight_date
             }
             
-            logger.info(f"🛫 Requesting passenger list: {flight_carrier}{flight_number} from {flight_departure_station} on {flight_date}")
+            logger.info(f"🛫 Requesting passenger list: {flight_carrier}{flight_number}")
             
-            response = requests.post(url, json=payload, headers=headers, timeout=30)
+            response = self.session.post(url, json=payload, headers=headers, timeout=30)
             
             if response.status_code == 200:
                 data = response.json()
-                logger.info(f"✅ Got passenger list: {len(data.get('passengers', []))} passengers")
+                passenger_count = len(data.get('passengers', []))
+                logger.info(f"✅ Got {passenger_count} passengers")
                 return data
+            elif response.status_code == 401:
+                logger.warning("🔄 Got 401, forcing token refresh...")
+                if self.refresh_access_token():
+                    headers["Authorization"] = f"Bearer {self.access_token}"
+                    response = self.session.post(url, json=payload, headers=headers, timeout=30)
+                    if response.status_code == 200:
+                        data = response.json()
+                        logger.info("✅ Request succeeded after token refresh")
+                        return data
+                
+                return {
+                    "error": "authentication_failed",
+                    "message": "Authentication failed",
+                    "status_code": 401
+                }
             else:
-                logger.error(f"❌ Paxlist API error: {response.status_code}")
-                return None
+                logger.error(f"❌ Paxlist API error {response.status_code}")
+                return {
+                    "error": "api_error",
+                    "status_code": response.status_code,
+                    "message": response.text[:500] if response.text else "No response"
+                }
                 
         except Exception as e:
             logger.error(f"❌ Error in Paxlist request: {e}")
-            return None
+            return {"error": "request_error", "message": str(e)}
+    
+    def get_token_status(self):
+        """Get current token status"""
+        current_time = time.time()
+        
+        access_valid = False
+        refresh_valid = False
+        access_expires_in = 0
+        refresh_expires_in = 0
+        
+        if self.access_token and self.token_expiry:
+            access_valid = current_time < self.token_expiry
+            access_expires_in = max(0, int(self.token_expiry - current_time))
+        
+        if self.refresh_token and self.refresh_expiry:
+            refresh_valid = current_time < self.refresh_expiry
+            refresh_expires_in = max(0, int(self.refresh_expiry - current_time))
+        
+        return {
+            "has_access_token": bool(self.access_token),
+            "has_refresh_token": bool(self.refresh_token),
+            "access_token_valid": access_valid,
+            "refresh_token_valid": refresh_valid,
+            "access_expires_in_seconds": access_expires_in,
+            "refresh_expires_in_seconds": refresh_expires_in,
+            "access_expires_in_minutes": access_expires_in // 60,
+            "refresh_expires_in_hours": refresh_expires_in // 3600
+        }
 
 
 def create_empty_month_data(year, month):
@@ -495,8 +679,7 @@ def create_calendar_view_data(month_data):
                 for assignment in day_data.get('AssignementList', []):
                     flight_data = assignment.get('FlighAssignement')
                     if flight_data and flight_data.get('CommercialFlightNumber') != "XXX":
-                        # Extract local date from assignment for flight details link
-                        local_date = assignment.get('StartDateLocal', '')[:10]  # YYYY-MM-DD
+                        local_date = assignment.get('StartDateLocal', '')[:10]
                         assignments.append({
                             'is_flight': True,
                             'flight_number': flight_data.get('CommercialFlightNumber', ''),
@@ -509,7 +692,7 @@ def create_calendar_view_data(month_data):
                             'time_delayed': flight_data.get('TimeDelayed', False),
                             'aircraft_registration': assignment.get('AircraftRegistrationNumber', '').strip() if assignment.get('AircraftRegistrationNumber') else '',
                             'operational_number': flight_data.get('OperationalNumber', ''),
-                            'local_date': local_date  # Added for flight details link
+                            'local_date': local_date
                         })
                     else:
                         assignments.append({
@@ -639,7 +822,6 @@ def calendar_view():
     total_days = len(schedule_data[0]) if schedule_data else 0
     total_assignments = sum(len(day.get('AssignementList', [])) for day in schedule_data[0]) if schedule_data else 0
     
-    # Calculate total flight durations
     total_actual_minutes = 0
     total_scheduled_minutes = 0
     
@@ -648,17 +830,14 @@ def calendar_view():
             for assignment in day.get('AssignementList', []):
                 flight_data = assignment.get('FlighAssignement', {})
                 if flight_data and flight_data.get('CommercialFlightNumber') != "XXX":
-                    # Sum actual duration
                     actual_duration = flight_data.get('Duration')
                     if actual_duration is not None:
                         total_actual_minutes += actual_duration
                     
-                    # Sum scheduled duration
                     scheduled_duration = flight_data.get('ScheduledDuration')
                     if scheduled_duration is not None:
                         total_scheduled_minutes += scheduled_duration
     
-    # Convert to hours and minutes
     total_actual_hours = total_actual_minutes // 60
     total_actual_minutes_remainder = total_actual_minutes % 60
     
@@ -682,25 +861,21 @@ def calendar_view():
         current_month_index=0,
         current_calendar_year=current_calendar_year,
         current_calendar_month=current_calendar_month,
-        # Pass duration data to template
         total_actual_hours=total_actual_hours,
         total_actual_minutes=total_actual_minutes_remainder,
         total_scheduled_hours=total_scheduled_hours,
         total_scheduled_minutes=total_scheduled_minutes_remainder,
-        # ADDED: Pass crew names for the dropdown
         crew_names=crew_names
     )
     
 @app.route('/flight_details')
 def flight_details_page():
-    # Simply render the template without auto-fetching
-    # Let the client-side JavaScript handle all data fetching
     return render_template('flight_details.html',
         current_crew_id=current_crew_id,
         crew_names=crew_names,
-        flight_details=None,  # Don't auto-fetch
-        crew_data=None,       # Don't auto-fetch
-        auto_fetch=False,     # Always false
+        flight_details=None,
+        crew_data=None,
+        auto_fetch=False,
         flight_number=None,
         local_date=None,
         origin_airport=None
@@ -712,21 +887,47 @@ def paxlist_page():
     return render_template('paxlist.html',
         current_crew_id=current_crew_id,
         crew_names=crew_names,
-        has_token=bool(paxlist_client.token)
+        has_token=bool(paxlist_client.access_token)
     )
 
-@app.route('/api/paxlist/set_token', methods=['POST'])
-def set_paxlist_token():
-    """Set Paxlist token"""
+@app.route('/api/paxlist/set_initial_tokens', methods=['POST'])
+def set_paxlist_initial_tokens():
+    """Set initial tokens from browser extraction"""
     try:
         data = request.get_json()
-        token = data.get('token')
-        if token:
-            paxlist_client.set_token(token)
-            return jsonify({'success': True, 'message': 'Token updated'})
+        access_token = data.get('access_token')
+        refresh_token = data.get('refresh_token')
+        
+        if access_token and refresh_token:
+            success = paxlist_client.set_initial_tokens(access_token, refresh_token)
+            if success:
+                return jsonify({
+                    'success': True, 
+                    'message': 'Tokens set successfully. Will auto-refresh for 24 hours.'
+                })
     except Exception as e:
-        logger.error(f"Error setting token: {e}")
-    return jsonify({'success': False, 'message': 'Failed to set token'}), 400
+        logger.error(f"Error setting Paxlist tokens: {e}")
+    return jsonify({'success': False, 'message': 'Failed to set tokens'}), 400
+
+@app.route('/api/paxlist/refresh_token', methods=['POST'])
+def refresh_paxlist_token():
+    """Manually refresh token"""
+    try:
+        success = paxlist_client.refresh_access_token()
+        if success:
+            return jsonify({'success': True, 'message': 'Token refreshed'})
+    except Exception as e:
+        logger.error(f"Error refreshing Paxlist token: {e}")
+    return jsonify({'success': False, 'message': 'Failed to refresh token'}), 400
+
+@app.route('/api/paxlist/token_status')
+def paxlist_token_status():
+    """Get token status"""
+    status = paxlist_client.get_token_status()
+    return jsonify({
+        'success': True,
+        'status': status
+    })
 
 @app.route('/api/paxlist/search', methods=['POST'])
 def paxlist_search():
@@ -745,12 +946,6 @@ def paxlist_search():
                 'message': 'Missing required fields'
             }), 400
         
-        if not paxlist_client.token:
-            return jsonify({
-                'success': False,
-                'message': 'No Paxlist token configured. Please set a token first.'
-            }), 401
-        
         result = paxlist_client.get_passenger_list(
             flight_carrier=flight_carrier,
             flight_number=flight_number,
@@ -758,7 +953,14 @@ def paxlist_search():
             flight_date=flight_date
         )
         
-        if result:
+        if isinstance(result, dict) and 'error' in result:
+            return jsonify({
+                'success': False,
+                'message': result.get('message', 'Failed to fetch passenger data'),
+                'needs_new_tokens': result.get('needs_new_tokens', False),
+                'data': result
+            })
+        elif result:
             return jsonify({
                 'success': True,
                 'data': result
@@ -949,5 +1151,5 @@ def fetch_data():
     return {"success": False, "error": "Failed to fetch data"}
 
 if __name__ == "__main__":
-    logger.info("Starting Crew Schedule Application with Paxlist Integration...")
+    logger.info("🚀 Starting Crew Schedule Application with Paxlist Integration...")
     app.run(host='0.0.0.0', port=8000, debug=False)

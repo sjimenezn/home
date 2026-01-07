@@ -6,57 +6,178 @@
         body { font-family: Arial; margin: 20px; }
         .container { max-width: 800px; margin: auto; }
         input, button { padding: 10px; margin: 5px; }
-        textarea { width: 100%; height: 100px; padding: 10px; }
+        textarea { width: 100%; height: 100px; padding: 10px; font-family: monospace; }
         .result { margin-top: 20px; padding: 15px; }
         .success { background: #d4edda; }
         .error { background: #f8d7da; }
         .raw { background: #f1f1f1; padding: 10px; font-family: monospace; }
-        .token-section { background: #e8f4fc; padding: 15px; margin: 15px 0; }
+        .token-section { background: #e8f4fc; padding: 15px; margin: 15px 0; border-radius: 5px; }
+        .status-section { background: #f0f8ff; padding: 15px; margin: 15px 0; border-radius: 5px; }
+        .token-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .token-preview { font-family: monospace; font-size: 12px; background: white; padding: 5px; border: 1px solid #ddd; }
+        .status-item { margin: 10px 0; }
+        .valid { color: green; }
+        .expired { color: red; }
+        .warning { color: orange; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>📋 Paxlist Passenger Lookup</h1>
         
-        <div class="token-section">
-            <h3>Token Status: <span id="tokenStatus">{{ '✅ Configured' if has_token else '❌ Not Configured' }}</span></h3>
-            <textarea id="tokenInput" placeholder="Paste Bearer token here..."></textarea>
-            <button onclick="setToken()">Set Token</button>
-            <small>Get token from browser DevTools → Network → Request Headers → Authorization</small>
+        <div class="status-section" id="statusSection">
+            <h3>Token Status</h3>
+            <div id="statusContent">
+                Loading status...
+            </div>
+            <button onclick="refreshStatus()">Refresh Status</button>
         </div>
+        
+        <div class="token-section">
+            <h3>Set Tokens (From Browser)</h3>
+            <p><small>Extract from Network → POST to /token → Response tab</small></p>
+            
+            <div class="token-group">
+                <label for="accessToken">Access Token (Bearer Token):</label>
+                <textarea id="accessToken" placeholder="Paste access_token here (starts with eyJ...)"></textarea>
+            </div>
+            
+            <div class="token-group">
+                <label for="refreshToken">Refresh Token:</label>
+                <textarea id="refreshToken" placeholder="Paste refresh_token here (starts with 1.ASUAP...)" style="height: 80px;"></textarea>
+            </div>
+            
+            <button onclick="setTokens()">💾 Set Both Tokens</button>
+            <button onclick="refreshToken()" style="margin-left: 10px;">🔄 Refresh Token Now</button>
+            
+            <div style="margin-top: 15px; font-size: 12px; color: #666;">
+                <strong>Note:</strong> Set both tokens once, they'll auto-refresh for 24 hours.
+            </div>
+        </div>
+        
+        <hr>
         
         <h3>Search Flight</h3>
         <div>
             <input type="text" id="flightNumber" placeholder="Flight Number" value="120">
             <input type="text" id="departure" placeholder="Departure Airport" value="BOG">
             <input type="date" id="flightDate" value="2026-01-05">
-            <button onclick="search()">Search</button>
+            <button onclick="search()">🔍 Search Passengers</button>
         </div>
         
         <div id="result" class="result"></div>
     </div>
 
     <script>
-        async function setToken() {
-            const token = document.getElementById('tokenInput').value.trim();
-            if (!token) {
-                alert('Please enter a token');
+        // Set default date to tomorrow
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        document.getElementById('flightDate').value = tomorrow.toISOString().split('T')[0];
+        
+        // Load status on page load
+        document.addEventListener('DOMContentLoaded', refreshStatus);
+        
+        async function refreshStatus() {
+            const response = await fetch('/api/paxlist/token_status');
+            const data = await response.json();
+            
+            if (data.success) {
+                const status = data.status;
+                let html = '';
+                
+                // Access token status
+                html += `<div class="status-item">`;
+                html += `<strong>Access Token:</strong> `;
+                if (status.has_access_token) {
+                    if (status.access_token_valid) {
+                        html += `<span class="valid">✅ Valid for ${status.access_expires_in_minutes} minutes</span>`;
+                    } else {
+                        html += `<span class="expired">❌ Expired</span>`;
+                    }
+                } else {
+                    html += `<span class="warning">⚠️ Not set</span>`;
+                }
+                html += `</div>`;
+                
+                // Refresh token status
+                html += `<div class="status-item">`;
+                html += `<strong>Refresh Token:</strong> `;
+                if (status.has_refresh_token) {
+                    if (status.refresh_token_valid) {
+                        html += `<span class="valid">✅ Valid for ${status.refresh_expires_in_hours} hours</span>`;
+                    } else {
+                        html += `<span class="expired">❌ Expired (needs new tokens)</span>`;
+                    }
+                } else {
+                    html += `<span class="warning">⚠️ Not set</span>`;
+                }
+                html += `</div>`;
+                
+                // Auto-refresh info
+                if (status.has_refresh_token && status.refresh_token_valid) {
+                    html += `<div style="margin-top: 10px; font-size: 12px; color: green;">`;
+                    html += `✅ Will auto-refresh for ${status.refresh_expires_in_hours} more hours`;
+                    html += `</div>`;
+                } else if (status.has_access_token && !status.has_refresh_token) {
+                    html += `<div style="margin-top: 10px; font-size: 12px; color: orange;">`;
+                    html += `⚠️ No refresh token - will expire in ${status.access_expires_in_minutes} minutes`;
+                    html += `</div>`;
+                }
+                
+                document.getElementById('statusContent').innerHTML = html;
+            }
+        }
+        
+        async function setTokens() {
+            const accessToken = document.getElementById('accessToken').value.trim();
+            const refreshToken = document.getElementById('refreshToken').value.trim();
+            
+            if (!accessToken) {
+                alert('Please enter access token');
                 return;
             }
             
-            const response = await fetch('/api/paxlist/set_token', {
+            if (!refreshToken) {
+                if (!confirm('No refresh token provided. Without it, token will expire in ~1 hour. Continue?')) {
+                    return;
+                }
+            }
+            
+            const response = await fetch('/api/paxlist/set_initial_tokens', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({token: token})
+                body: JSON.stringify({
+                    access_token: accessToken,
+                    refresh_token: refreshToken
+                })
             });
             
             const data = await response.json();
             if (data.success) {
-                document.getElementById('tokenStatus').textContent = '✅ Configured';
-                document.getElementById('tokenStatus').style.color = 'green';
-                alert('Token saved!');
+                alert('✅ Tokens saved! ' + data.message);
+                refreshStatus();
+                
+                // Clear fields
+                document.getElementById('accessToken').value = '';
+                document.getElementById('refreshToken').value = '';
             } else {
-                alert('Failed to save token');
+                alert('❌ Failed to save tokens: ' + data.message);
+            }
+        }
+        
+        async function refreshToken() {
+            const response = await fetch('/api/paxlist/refresh_token', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'}
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                alert('✅ Token refreshed!');
+                refreshStatus();
+            } else {
+                alert('❌ Failed to refresh token: ' + data.message);
             }
         }
         
@@ -88,26 +209,51 @@
             
             if (data.success) {
                 resultDiv.className = 'result success';
+                const passengerCount = data.data.passengers?.length || 0;
                 resultDiv.innerHTML = `
                     <h3>✅ Success</h3>
                     <p>Flight: AV${flightNumber} from ${departure} on ${flightDate}</p>
-                    <p>Passengers: ${data.data.passengers?.length || 0}</p>
-                    <div class="raw">${JSON.stringify(data.data, null, 2)}</div>
+                    <p>Passengers: ${passengerCount}</p>
+                    <button onclick="toggleRaw()" style="margin: 10px 0;">Show/Hide Raw Data</button>
+                    <div id="rawData" class="raw" style="display: none;">
+                        ${JSON.stringify(data.data, null, 2)}
+                    </div>
                 `;
             } else {
                 resultDiv.className = 'result error';
-                resultDiv.innerHTML = `
-                    <h3>❌ Error</h3>
-                    <p>${data.message}</p>
-                    ${data.data ? `<div class="raw">${JSON.stringify(data.data, null, 2)}</div>` : ''}
-                `;
+                let errorHtml = `<h3>❌ Error</h3><p>${data.message}</p>`;
+                
+                if (data.needs_new_tokens) {
+                    errorHtml += `<p style="color: red; margin-top: 10px;">
+                        ⚠️ Tokens expired! Please extract fresh tokens from browser.
+                    </p>`;
+                }
+                
+                if (data.data) {
+                    errorHtml += `<button onclick="toggleRaw()" style="margin: 10px 0;">Show/Hide Details</button>
+                    <div id="rawData" class="raw" style="display: none;">
+                        ${JSON.stringify(data.data, null, 2)}
+                    </div>`;
+                }
+                
+                resultDiv.innerHTML = errorHtml;
+            }
+            
+            // Refresh status after search
+            refreshStatus();
+        }
+        
+        function toggleRaw() {
+            const rawDiv = document.getElementById('rawData');
+            if (rawDiv.style.display === 'none') {
+                rawDiv.style.display = 'block';
+            } else {
+                rawDiv.style.display = 'none';
             }
         }
         
-        // Set default date to tomorrow
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        document.getElementById('flightDate').value = tomorrow.toISOString().split('T')[0];
+        // Auto-refresh status every 30 seconds
+        setInterval(refreshStatus, 30000);
     </script>
 </body>
 </html>

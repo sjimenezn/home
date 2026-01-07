@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Paxlist Passenger Lookup</title>
+    <style>
+        body { font-family: Arial; margin: 20px; }
+        .container { max-width: 800px; margin: auto; }
+        input, button { padding: 10px; margin: 5px; }
+        textarea { width: 100%; height: 100px; padding: 10px; }
+        .result { margin-top: 20px; padding: 15px; }
+        .success { background: #d4edda; }
+        .error { background: #f8d7da; }
+        .raw { background: #f1f1f1; padding: 10px; font-family: monospace; }
+        .token-section { background: #e8f4fc; padding: 15px; margin: 15px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📋 Paxlist Passenger Lookup</h1>
+        
+        <div class="token-section">
+            <h3>Token Status: <span id="tokenStatus">{{ '✅ Configured' if has_token else '❌ Not Configured' }}</span></h3>
+            <textarea id="tokenInput" placeholder="Paste Bearer token here..."></textarea>
+            <button onclick="setToken()">Set Token</button>
+            <small>Get token from browser DevTools → Network → Request Headers → Authorization</small>
+        </div>
+        
+        <h3>Search Flight</h3>
+        <div>
+            <input type="text" id="flightNumber" placeholder="Flight Number" value="120">
+            <input type="text" id="departure" placeholder="Departure Airport" value="BOG">
+            <input type="date" id="flightDate" value="2026-01-05">
+            <button onclick="search()">Search</button>
+        </div>
+        
+        <div id="result" class="result"></div>
+    </div>
+
+    <script>
+        async function setToken() {
+            const token = document.getElementById('tokenInput').value.trim();
+            if (!token) {
+                alert('Please enter a token');
+                return;
+            }
+            
+            const response = await fetch('/api/paxlist/set_token', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({token: token})
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                document.getElementById('tokenStatus').textContent = '✅ Configured';
+                document.getElementById('tokenStatus').style.color = 'green';
+                alert('Token saved!');
+            } else {
+                alert('Failed to save token');
+            }
+        }
+        
+        async function search() {
+            const flightNumber = document.getElementById('flightNumber').value;
+            const departure = document.getElementById('departure').value;
+            const flightDate = document.getElementById('flightDate').value;
+            
+            if (!flightNumber || !departure || !flightDate) {
+                alert('Please fill all fields');
+                return;
+            }
+            
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Searching...';
+            
+            const response = await fetch('/api/paxlist/search', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    flight_carrier: 'AV',
+                    flight_number: flightNumber,
+                    flight_departure_station: departure,
+                    flight_date: flightDate
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = `
+                    <h3>✅ Success</h3>
+                    <p>Flight: AV${flightNumber} from ${departure} on ${flightDate}</p>
+                    <p>Passengers: ${data.data.passengers?.length || 0}</p>
+                    <div class="raw">${JSON.stringify(data.data, null, 2)}</div>
+                `;
+            } else {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    <h3>❌ Error</h3>
+                    <p>${data.message}</p>
+                    ${data.data ? `<div class="raw">${JSON.stringify(data.data, null, 2)}</div>` : ''}
+                `;
+            }
+        }
+        
+        // Set default date to tomorrow
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        document.getElementById('flightDate').value = tomorrow.toISOString().split('T')[0];
+    </script>
+</body>
+</html>

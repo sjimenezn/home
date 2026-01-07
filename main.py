@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
-My Crew Schedule Monitor - Optimized Version
+My Crew Schedule Monitor - Optimized Version with Paxlist Integration
 """
 
 import os
 import time
+import json
 import logging
 import requests
 from datetime import datetime, timedelta
@@ -325,6 +326,94 @@ class CrewAPIClient:
             logger.error(f"PDF download error: {e}")
         return None
 
+
+class PaxlistClient:
+    def __init__(self):
+        self.base_url = "https://paxlist.avianca.com"
+        self.session = None
+        self.token = None
+        self.token_file = "paxlist_token.txt"
+        self.load_token()
+    
+    def load_token(self):
+        """Load token from file"""
+        try:
+            if os.path.exists(self.token_file):
+                with open(self.token_file, 'r') as f:
+                    data = json.load(f)
+                    self.token = data.get('token')
+                    logger.info("✅ Loaded Paxlist token from file")
+                    return True
+        except Exception as e:
+            logger.error(f"Error loading Paxlist token: {e}")
+        return False
+    
+    def save_token(self):
+        """Save token to file"""
+        try:
+            with open(self.token_file, 'w') as f:
+                json.dump({'token': self.token}, f)
+            logger.info("💾 Paxlist token saved")
+        except Exception as e:
+            logger.error(f"Error saving Paxlist token: {e}")
+    
+    def set_token(self, token):
+        """Set new token"""
+        if token.startswith('Bearer '):
+            self.token = token[7:]  # Remove 'Bearer ' prefix
+        else:
+            self.token = token
+        self.save_token()
+        return True
+    
+    def get_passenger_list(self, flight_carrier, flight_number, flight_departure_station, flight_date):
+        """Get passenger list for a flight"""
+        try:
+            if not self.token:
+                logger.error("❌ No Paxlist token available")
+                return None
+            
+            url = f"{self.base_url}/crew_devices/consulta_pasajeros"
+            
+            headers = {
+                "Authorization": f"Bearer {self.token}",
+                "Content-Type": "application/json",
+                "Accept": "application/json, text/plain, */*",
+                "Origin": "https://paxlist.avianca.com",
+                "Referer": "https://paxlist.avianca.com/",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36",
+                "sec-ch-ua": '"Not_A Brand";v="99", "Google Chrome";v="109", "Chromium";v="109"',
+                "sec-ch-ua-mobile": '?0',
+                "sec-ch-ua-platform": '"Windows"',
+                "Sec-Fetch-Site": "same-origin",
+                "Sec-Fetch-Mode": "cors",
+                "Sec-Fetch-Dest": "empty"
+            }
+            
+            payload = {
+                "flight_carrier": flight_carrier,
+                "flight_number": flight_number,
+                "flight_departure_station": flight_departure_station,
+                "flight_date": flight_date
+            }
+            
+            logger.info(f"🛫 Requesting passenger list: {flight_carrier}{flight_number} from {flight_departure_station} on {flight_date}")
+            
+            response = requests.post(url, json=payload, headers=headers, timeout=30)
+            
+            if response.status_code == 200:
+                data = response.json()
+                logger.info(f"✅ Got passenger list: {len(data.get('passengers', []))} passengers")
+                return data
+            else:
+                logger.error(f"❌ Paxlist API error: {response.status_code}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"❌ Error in Paxlist request: {e}")
+            return None
+
+
 def create_empty_month_data(year, month):
     first_day = datetime(year, month, 1)
     last_day = (datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)) - timedelta(days=1)
@@ -467,13 +556,21 @@ def get_month_name_from_data(month_data):
                 continue
     return "Unknown Month"
 
+
+# Initialize clients
 client = CrewAPIClient()
+paxlist_client = PaxlistClient()
+
+# Global variables
 schedule_data = None
 last_fetch_time = None
 current_crew_id = DEFAULT_CREW_ID
 current_calendar_year = get_utc_minus_5().year
 current_calendar_month = get_utc_minus_5().month
 crew_names = load_crew_names()
+
+
+# ========== FLASK ROUTES ==========
 
 @app.route('/')
 def index():
@@ -608,6 +705,76 @@ def flight_details_page():
         local_date=None,
         origin_airport=None
     )
+
+@app.route('/paxlist')
+def paxlist_page():
+    """Paxlist search page"""
+    return render_template('paxlist.html',
+        current_crew_id=current_crew_id,
+        crew_names=crew_names,
+        has_token=bool(paxlist_client.token)
+    )
+
+@app.route('/api/paxlist/set_token', methods=['POST'])
+def set_paxlist_token():
+    """Set Paxlist token"""
+    try:
+        data = request.get_json()
+        token = data.get('token')
+        if token:
+            paxlist_client.set_token(token)
+            return jsonify({'success': True, 'message': 'Token updated'})
+    except Exception as e:
+        logger.error(f"Error setting token: {e}")
+    return jsonify({'success': False, 'message': 'Failed to set token'}), 400
+
+@app.route('/api/paxlist/search', methods=['POST'])
+def paxlist_search():
+    """Search for passengers"""
+    try:
+        data = request.get_json()
+        
+        flight_carrier = data.get('flight_carrier', 'AV')
+        flight_number = data.get('flight_number')
+        flight_departure_station = data.get('flight_departure_station')
+        flight_date = data.get('flight_date')
+        
+        if not all([flight_number, flight_departure_station, flight_date]):
+            return jsonify({
+                'success': False,
+                'message': 'Missing required fields'
+            }), 400
+        
+        if not paxlist_client.token:
+            return jsonify({
+                'success': False,
+                'message': 'No Paxlist token configured. Please set a token first.'
+            }), 401
+        
+        result = paxlist_client.get_passenger_list(
+            flight_carrier=flight_carrier,
+            flight_number=flight_number,
+            flight_departure_station=flight_departure_station,
+            flight_date=flight_date
+        )
+        
+        if result:
+            return jsonify({
+                'success': True,
+                'data': result
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Failed to fetch passenger data'
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Paxlist search error: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
 
 @app.route('/api/flight_details', methods=['POST'])
 def get_flight_details_api():
@@ -782,5 +949,5 @@ def fetch_data():
     return {"success": False, "error": "Failed to fetch data"}
 
 if __name__ == "__main__":
-    logger.info("Starting Crew Schedule Application...")
+    logger.info("Starting Crew Schedule Application with Paxlist Integration...")
     app.run(host='0.0.0.0', port=8000, debug=False)

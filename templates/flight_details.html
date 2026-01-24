@@ -66,9 +66,9 @@
         .gate-info { font-size: 1.1em; color: #ffffff; font-weight: bold; margin-bottom: 5px; }
         .route-line { font-size: 1.2em; font-weight: bold; text-align: center; margin: 10px 0; }
         .time-comparison { text-align: center; margin: 10px 0; }
-        .time-line { display: flex; justify-content: center; margin-bottom: 3px; font-size: 0.9em; }
+        .time-line { display: flex; justify-content: center; align-items: center; margin-bottom: 3px; font-size: 0.9em; white-space: nowrap; }
         .time-label { width: 80px; color: #b8b8d0; text-align: right; margin-right: 10px; }
-        .time-value { text-align: left; width: 120px; }
+        .time-value { text-align: left; width: 180px; white-space: nowrap; }
         .time-early { color: #81c784; }
         .time-late { color: #f44336; }
         
@@ -370,20 +370,24 @@
             const scheduledArrival = flight.Flight?.ScheduleArrivalDateLOCAL;
             const actualArrival = flight.Flight?.ArrivalDateLOCAL;
             
-            // Calculate durations
-            const scheduledDuration = flight.Flight?.ScheduleLengthTime || 0;
+            // Calculate durations - CORRECT VARIABLE NAMES
+            const scheduledDuration = flight.ScheduledDuration || 0;
             const actualDuration = flight.Duration || 0;
             
+            // Ensure they're numbers
+            const scheduledDurationNum = parseFloat(scheduledDuration);
+            const actualDurationNum = parseFloat(actualDuration);
+            
             // Format durations as hh:mm
-            const scheduledDurationFormatted = formatDuration(scheduledDuration);
-            const actualDurationFormatted = formatDuration(actualDuration);
+            const scheduledDurationFormatted = formatDuration(scheduledDurationNum);
+            const actualDurationFormatted = formatDuration(actualDurationNum);
             
             const departureColor = getTimeColor(actualDeparture, scheduledDeparture);
             const arrivalColor = getTimeColor(actualArrival, scheduledArrival);
             
-            // FIXED: Duration at the end of the line, in yellow color
-            const scheduledTimeString = `${formatTime(scheduledDeparture)} - ${formatTime(scheduledArrival)} <span style="color: #ffc107;">${scheduledDurationFormatted}</span>`;
-            const actualTimeString = `<span class="${departureColor}">${formatTime(actualDeparture)}</span> - <span class="${arrivalColor}">${formatTime(actualArrival)}</span> <span style="color: #ffc107;">${actualDurationFormatted}</span>`;
+            // FIXED: Duration at the END of the line, in yellow color, FORCED to stay on same line
+            const scheduledTimeString = formatTime(scheduledDeparture) + ' - ' + formatTime(scheduledArrival) + ' <span style="color:#ffc107;display:inline;">' + scheduledDurationFormatted + '</span>';
+            const actualTimeString = '<span class="' + departureColor + '">' + formatTime(actualDeparture) + '</span> - <span class="' + arrivalColor + '">' + formatTime(actualArrival) + '</span> <span style="color:#ffc107;display:inline;">' + actualDurationFormatted + '</span>';
             
             const hasDelayInfo = flight.Delays && flight.Delays.length > 0;
             
@@ -406,7 +410,7 @@
                     </div>
                     
                     <div class="route-line">
-                        ${departureStand ? `(${departureStand})` : ''}  ${flight.Flight?.OriginAirportIATACode || '-'} → ${flight.Flight?.FinalAirportIATACode || '-'}  ${arrivalStand ? `(${arrivalStand})` : ''}
+                        ${departureStand ? `<span style="color: #ffc107;">(${departureStand})</span>` : ''}  ${flight.Flight?.OriginAirportIATACode || '-'} → ${flight.Flight?.FinalAirportIATACode || '-'}  ${arrivalStand ? `<span style="color: #ffc107;">(${arrivalStand})</span>` : ''}
                     </div>
                     
                     <div class="time-comparison">
@@ -524,15 +528,13 @@
         }
 
         function formatDuration(minutes) {
-            if (!minutes || minutes <= 0) return '';
-            
-            const hours = Math.floor(minutes / 60);
-            const mins = Math.round(minutes % 60);
-            
-            // Format as hh:mm
+            if (minutes === undefined || minutes === null || minutes === '') return '';
+            const numMinutes = parseFloat(minutes);
+            if (isNaN(numMinutes) || numMinutes <= 0) return '';
+            const hours = Math.floor(numMinutes / 60);
+            const mins = Math.round(numMinutes % 60);
             const formattedHours = hours.toString().padStart(2, '0');
             const formattedMinutes = mins.toString().padStart(2, '0');
-            
             return `(${formattedHours}:${formattedMinutes})`;
         }
 

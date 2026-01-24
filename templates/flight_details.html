@@ -381,9 +381,9 @@
             const departureColor = getTimeColor(actualDeparture, scheduledDeparture);
             const arrivalColor = getTimeColor(actualArrival, scheduledArrival);
             
-            // Add durations to time strings
-            const scheduledTimeString = `${formatTime(scheduledDeparture)} - ${formatTime(scheduledArrival)} ${scheduledDurationFormatted}`;
-            const actualTimeString = `<span class="${departureColor}">${formatTime(actualDeparture)}</span> - <span class="${arrivalColor}">${formatTime(actualArrival)}</span> ${actualDurationFormatted}`;
+            // FIXED: Duration at the end of the line, in yellow color
+            const scheduledTimeString = `${formatTime(scheduledDeparture)} - ${formatTime(scheduledArrival)} <span style="color: #ffc107;">${scheduledDurationFormatted}</span>`;
+            const actualTimeString = `<span class="${departureColor}">${formatTime(actualDeparture)}</span> - <span class="${arrivalColor}">${formatTime(actualArrival)}</span> <span style="color: #ffc107;">${actualDurationFormatted}</span>`;
             
             const hasDelayInfo = flight.Delays && flight.Delays.length > 0;
             

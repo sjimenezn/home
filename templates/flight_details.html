@@ -371,8 +371,8 @@
             const actualArrival = flight.Flight?.ArrivalDateLOCAL;
             
             // Calculate durations - CORRECT VARIABLE NAMES
-            const scheduledDuration = flight.ScheduledDuration || 0;
-            const actualDuration = flight.Duration || 0;
+            const scheduledDuration = flight.Flight?.ScheduledDuration || 0;
+            const actualDuration = flight.Flight?.Duration || 0;
             
             // Ensure they're numbers
             const scheduledDurationNum = parseFloat(scheduledDuration);

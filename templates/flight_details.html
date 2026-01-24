@@ -349,6 +349,7 @@
             
             const departureStand = flight.DepartureParkingStand || '';
             const departureTerminal = flight.DepartureTerminal || '';
+            const arrivalStand = flight.ArrivalParkingStand || '';
             
             // Changed N/A to dash (-)
             let gateInfo = '';
@@ -369,10 +370,20 @@
             const scheduledArrival = flight.Flight?.ScheduleArrivalDateLOCAL;
             const actualArrival = flight.Flight?.ArrivalDateLOCAL;
             
+            // Calculate durations
+            const scheduledDuration = flight.Flight?.ScheduleLengthTime || 0;
+            const actualDuration = flight.Duration || 0;
+            
+            // Format durations as hh:mm
+            const scheduledDurationFormatted = formatDuration(scheduledDuration);
+            const actualDurationFormatted = formatDuration(actualDuration);
+            
             const departureColor = getTimeColor(actualDeparture, scheduledDeparture);
             const arrivalColor = getTimeColor(actualArrival, scheduledArrival);
             
-            const actualTimeString = `<span class="${departureColor}">${formatTime(actualDeparture)}</span> - <span class="${arrivalColor}">${formatTime(actualArrival)}</span>`;
+            // Add durations to time strings
+            const scheduledTimeString = `${formatTime(scheduledDeparture)} - ${formatTime(scheduledArrival)} ${scheduledDurationFormatted}`;
+            const actualTimeString = `<span class="${departureColor}">${formatTime(actualDeparture)}</span> - <span class="${arrivalColor}">${formatTime(actualArrival)}</span> ${actualDurationFormatted}`;
             
             const hasDelayInfo = flight.Delays && flight.Delays.length > 0;
             
@@ -395,13 +406,13 @@
                     </div>
                     
                     <div class="route-line">
-                        ${flight.Flight?.OriginAirportIATACode || '-'} → ${flight.Flight?.FinalAirportIATACode || '-'}
+                        ${departureStand ? `(${departureStand})` : ''}  ${flight.Flight?.OriginAirportIATACode || '-'} → ${flight.Flight?.FinalAirportIATACode || '-'}  ${arrivalStand ? `(${arrivalStand})` : ''}
                     </div>
                     
                     <div class="time-comparison">
                         <div class="time-line">
                             <span class="time-label">Scheduled:</span>
-                            <span class="time-value">${formatTime(scheduledDeparture)} - ${formatTime(scheduledArrival)}</span>
+                            <span class="time-value">${scheduledTimeString}</span>
                         </div>
                         <div class="time-line">
                             <span class="time-label">Actual:</span>
@@ -512,6 +523,19 @@
             previousFlightSection.innerHTML = html;
         }
 
+        function formatDuration(minutes) {
+            if (!minutes || minutes <= 0) return '';
+            
+            const hours = Math.floor(minutes / 60);
+            const mins = Math.round(minutes % 60);
+            
+            // Format as hh:mm
+            const formattedHours = hours.toString().padStart(2, '0');
+            const formattedMinutes = mins.toString().padStart(2, '0');
+            
+            return `(${formattedHours}:${formattedMinutes})`;
+        }
+
         function toggleDelayDetails() {
             const details = document.getElementById('delayDetails');
             if (details.style.display === 'none') {
@@ -549,6 +573,10 @@
                 const seniorityText = profile.Superiority || '';
                 const seniorityNumber = seniorityText.replace(/[^0-9]/g, '') || '-';
                 
+                // Get FlightRole from member object (not profile)
+                const flightRole = member.FlightRole || '';
+                const roleText = flightRole ? ` ${flightRole}` : '';
+                
                 const crewId = member.CrewMemberUniqueId || '-';
                 const crewIdDisplay = crewId !== '-' ? 
                     `<a href="#" onclick="setCrewIdAndNavigate('${crewId}')" style="color: #ffc107; text-decoration: none; cursor: pointer;">${crewId}</a>` : 
@@ -557,7 +585,7 @@
                 html += `
                     <div class="crew-member" onclick="toggleCrewDetails(${index})">
                         <div class="crew-name">${member.Names || ''} ${member.LastName || ''}</div>
-                        <div class="crew-position">${member.Position || 'Unknown'} ${seniorityNumber !== '-' ? `(Seniority #${seniorityNumber})` : ''}</div>
+                        <div class="crew-position">${member.Position || 'Unknown'} ${seniorityNumber !== '-' ? `(${seniorityNumber})` : ''}${roleText}</div>
                         <div class="crew-details" id="crew-details-${index}">
                             <div class="crew-detail-item">
                                 <span>Crew ID:</span>
@@ -577,9 +605,7 @@
                                 <span>${profile.TelephoneNumber}</span>
                             </div>
                             ` : ''}
-                            ${profile.CorporateEmail ? `
-                            <div class="crew-email">${profile.CorporateEmail}</div>
-                            ` : ''}
+                            <!-- EMAIL REMOVED -->
                         </div>
                     </div>
                 `;

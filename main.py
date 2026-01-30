@@ -47,15 +47,15 @@ class CrewAPIClient:
         self.last_token_time = None
         
     def _should_renew_token(self):
-        """Check if token is older than 5 hours"""
+        """Check if token is older than 11 hours"""
         if not self.last_token_time or not self.auth_token:
             return True
         elapsed_hours = (datetime.utcnow() - self.last_token_time).total_seconds() / 3600
         logger.info(f"🔍 Token age: {elapsed_hours:.2f} hours")
-        return elapsed_hours >= 5
+        return elapsed_hours >= 10
     
     def _login(self, force=False):
-        """Login only if token is older than 5 hours or forced"""
+        """Login only if token is older than 11 hours or forced"""
         try:
             if not force and not self._should_renew_token():
                 logger.info("🔄 Using existing token (less than 5 hours old)")

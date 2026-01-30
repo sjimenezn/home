@@ -52,13 +52,13 @@ class CrewAPIClient:
             return True
         elapsed_hours = (datetime.utcnow() - self.last_token_time).total_seconds() / 3600
         logger.info(f"🔍 Token age: {elapsed_hours:.2f} hours")
-        return elapsed_hours >= 10
+        return elapsed_hours >= 11
     
     def _login(self, force=False):
         """Login only if token is older than 11 hours or forced"""
         try:
             if not force and not self._should_renew_token():
-                logger.info("🔄 Using existing token (less than 5 hours old)")
+                logger.info("🔄 Using existing token (less than 11 hours old)")
                 return True
                 
             logger.info("🔄 Token expired or not present, requesting new token...")

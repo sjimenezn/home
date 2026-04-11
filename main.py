@@ -854,10 +854,13 @@ def flight_details_page():
 @app.route('/paxlist')
 def paxlist_page():
     """Paxlist search page"""
+    token_status = paxlist_client.get_token_status() if paxlist_client else None
+    
     return render_template('paxlist.html',
         current_crew_id=current_crew_id,
         crew_names=crew_names,
-        has_token=bool(paxlist_client.access_token)
+        token_status=token_status,  # Add this
+        has_token=bool(paxlist_client and paxlist_client.access_token)
     )
 
 @app.route('/api/paxlist/set_initial_tokens', methods=['POST'])

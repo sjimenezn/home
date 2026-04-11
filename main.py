@@ -757,44 +757,14 @@ crew_names = load_crew_names()
 
 @app.route('/')
 def index():
-    global schedule_data, last_fetch_time
+    """Main page - Paxlist passenger search"""
+    token_status = paxlist_client.get_token_status() if paxlist_client else None
     
-    logger.info("🔄 Auto-fetching fresh data...")
-    new_data = client.get_schedule_data(current_crew_id)
-    if new_data is not None:
-        schedule_data = new_data
-        last_fetch_time = get_utc_minus_5().strftime("%Y-%m-%d %H:%M:%S")
-        logger.info("✅ Auto-fetch completed!")
-    elif schedule_data is None:
-        logger.warning("⚠️ Auto-fetch failed")
-    
-    total_days = 0
-    total_assignments = 0
-    month_names = []
-    current_date = get_utc_minus_5().strftime('%Y-%m-%d')
-    
-    if schedule_data and isinstance(schedule_data, list):
-        month_names = [get_month_name_from_data(month) for month in schedule_data]
-        
-        for month in schedule_data:
-            if isinstance(month, list):
-                total_days += len(month)
-                for day in month:
-                    if isinstance(day, dict):
-                        assignments = day.get('AssignementList', [])
-                        total_assignments += len(assignments)
-    
-    refresh_message = "Data refreshed successfully!" if request.args.get('refresh') == 'success' else None
-    
-    return render_template('schedule_view.html',
-        schedule_data=schedule_data,
-        last_fetch=last_fetch_time,
-        total_days=total_days,
-        total_assignments=total_assignments,
-        refresh_message=refresh_message,
+    return render_template('paxlist.html',
         current_crew_id=current_crew_id,
-        month_names=month_names,
-        current_date=current_date
+        crew_names=crew_names,
+        token_status=token_status,
+        has_token=bool(paxlist_client and paxlist_client.access_token)
     )
 
 @app.route('/calendar')

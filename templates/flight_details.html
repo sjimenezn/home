@@ -347,7 +347,7 @@
 
             const previousFlightSection = document.getElementById('previousFlightSection');
             
-            // Find the section title - there might be multiple, find the one without onclick
+            // Find the section title
             let title = null;
             const sectionTitles = document.querySelectorAll('.section-title');
             for (let i = 0; i < sectionTitles.length; i++) {
@@ -369,51 +369,24 @@
             title.appendChild(statsSpan);
 
             try {
-                // Try multiple possible field names for previous flight data
-                let flightNumber = previousFlightData.Prv_commercialFlightNumber || 
-                                  previousFlightData.CommercialFlightNumber || 
-                                  previousFlightData.Prv_flightNumber ||
-                                  previousFlightData.flightNumber;
+                // IMPORTANT: Use CURRENT FLIGHT data for Paxlist stats (not previous flight)
+                const currentFlightNum = document.getElementById('flight_number').value;
+                const currentOrigin = document.getElementById('origin_airport').value.toUpperCase();
+                const currentDate = document.getElementById('departure_date').value;
                 
-                let originAirport = previousFlightData.Prv_departureAirportIATACode || 
-                                   previousFlightData.OriginAirportIATACode ||
-                                   previousFlightData.Prv_origin ||
-                                   previousFlightData.origin;
+                console.log('Fetching Paxlist stats for CURRENT flight:', currentFlightNum, currentOrigin, currentDate);
                 
-                let departureDateLocal = previousFlightData.Prv_departureDateLOCAL || 
-                                        previousFlightData.DepartureDateLOCAL ||
-                                        previousFlightData.Prv_date ||
-                                        previousFlightData.date;
-                
-                // Debug log to see what we have
-                console.log('Previous Flight Data:', previousFlightData);
-                console.log('Extracted - Flight:', flightNumber, 'Origin:', originAirport, 'Date:', departureDateLocal);
-                
-                // Validate we have valid data
-                if (!flightNumber || flightNumber === '0' || flightNumber === '' || flightNumber === 'undefined') {
-                    console.warn('Invalid flight number:', flightNumber);
-                    throw new Error('Invalid flight number');
-                }
-                
-                if (!originAirport || originAirport === '' || originAirport === 'undefined') {
-                    console.warn('Invalid origin:', originAirport);
-                    throw new Error('Invalid origin');
-                }
-                
-                if (!departureDateLocal) {
-                    console.warn('Invalid date');
-                    throw new Error('Invalid date');
-                }
-
-                const dateString = departureDateLocal.split('T')[0];
-                
-                // Fetch Paxlist stats for previous flight
-                const paxStats = await fetchPaxlistStats(flightNumber, originAirport, dateString);
+                // Fetch Paxlist stats for CURRENT flight
+                const paxStats = await fetchPaxlistStats(currentFlightNum, currentOrigin, currentDate);
                 
                 // Update title with stats
                 if (paxStats.success && paxStats.total > 0) {
                     statsSpan.className = 'paxlist-stats';
                     statsSpan.innerHTML = ` T:${paxStats.total} C:${paxStats.cClass} Y:${paxStats.yClass} S:${paxStats.staff}`;
+                    statsSpan.style.pointerEvents = 'none';
+                } else if (paxStats.success && paxStats.total === 0) {
+                    statsSpan.className = 'paxlist-stats';
+                    statsSpan.innerHTML = ` T:0 C:0 Y:0 S:0`;
                     statsSpan.style.pointerEvents = 'none';
                 } else {
                     statsSpan.className = 'paxlist-stats error';
@@ -421,6 +394,25 @@
                     statsSpan.style.pointerEvents = 'none';
                 }
 
+                // Now load the previous flight details (using previous flight data)
+                let flightNumber = previousFlightData.Prv_commercialFlightNumber || 
+                                  previousFlightData.CommercialFlightNumber;
+                
+                let originAirport = previousFlightData.Prv_departureAirportIATACode || 
+                                   previousFlightData.OriginAirportIATACode;
+                
+                let departureDateLocal = previousFlightData.Prv_departureDateLOCAL || 
+                                        previousFlightData.DepartureDateLOCAL;
+                
+                if (!flightNumber || !originAirport || !departureDateLocal) {
+                    // If no previous flight data, just show stats and don't load previous flight
+                    title.classList.remove('loading');
+                    previousFlightSection.innerHTML = '<div style="color: #b8b8d0; font-size: 0.9em; margin: 10px 0;">No previous flight data</div>';
+                    return;
+                }
+
+                const dateString = departureDateLocal.split('T')[0];
+                
                 const searchData = {
                     airline: 'AV',
                     flight_number: flightNumber.toString(),

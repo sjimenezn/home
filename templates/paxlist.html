@@ -16,7 +16,7 @@
         .stat span { font-size: 24px; font-weight: bold; display: block; }
         .stat.active { background: #007bff; color: white; }
         .passenger-list { margin-top: 15px; max-height: 400px; overflow-y: auto; }
-        .passenger-item { padding: 8px; border-bottom: 1px solid #eee; font-size: 12px; cursor: pointer; }
+        .passenger-item { padding: 8px; border-bottom: 1px solid #eee; font-size: 11px; cursor: pointer; }
         .passenger-item:hover { background: #f0f0f0; }
         .passenger-item.selected { background: #007bff; color: white; }
         .details { background: #f5f5f5; padding: 10px; border-radius: 4px; font-size: 12px; margin-top: 15px; }
@@ -29,10 +29,11 @@
         button { padding: 6px 12px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-family: monospace; }
         button:hover { background: #0056b3; }
         .loading { text-align: center; padding: 20px; font-size: 12px; color: #666; }
-        .badge { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 10px; margin-left: 8px; }
+        .badge { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 9px; margin-left: 8px; }
         .badge-c { background: #f093fb; color: #fff; }
         .badge-y { background: #4facfe; color: #fff; }
-        .badge-staff { background: #ffc107; color: #000; }
+        .badge-staff { background: #ff9800; color: #fff; }
+        .lfm { font-size: 10px; color: #666; }
     </style>
 </head>
 <body>
@@ -40,8 +41,8 @@
 <div id="status" class="status"></div>
 
 <div class="search-row">
-    <input type="text" id="flightNum" placeholder="Flight" value="120" size="8">
-    <input type="text" id="dep" placeholder="From" value="BOG" size="5">
+    <input type="text" id="flightNum" placeholder="Flight" value="124" size="8">
+    <input type="text" id="dep" placeholder="From" value="UIO" size="5">
     <input type="date" id="date">
     <button onclick="search()">Search</button>
 </div>
@@ -55,6 +56,23 @@ document.getElementById('date').value = tomorrow.toISOString().split('T')[0];
 
 let currentPassengers = [];
 let currentFilter = null;
+
+function isStaff(passenger) {
+    // Staff if value_staff is not empty
+    return passenger.value_staff && passenger.value_staff.trim() !== '';
+}
+
+function getStaffValue(passenger) {
+    return passenger.value_staff || '';
+}
+
+function getLfm(passenger) {
+    if (passenger.lfm && passenger.lfm.length > 0) {
+        const lfmData = passenger.lfm[0];
+        return lfmData.tierDescription || lfmData.tierLevel || 'LifeMiles';
+    }
+    return '';
+}
 
 // Auto-detect paste and save tokens
 document.getElementById('tokenInput').addEventListener('paste', function(e) {
@@ -112,11 +130,6 @@ async function checkTokenStatus() {
             setTimeout(() => { statusDiv.classList.remove('show'); }, 1500);
         }
     } catch(e) {}
-}
-
-function isStaff(passenger) {
-    return passenger.value_staff === 'Y' || passenger.value_staff === 'S' || 
-           (passenger.lfm && passenger.lfm.some(lfm => lfm.tierLevel === 'STAFF'));
 }
 
 async function search() {
@@ -193,7 +206,6 @@ function displayStats() {
 function showByType(type) {
     currentFilter = type;
     
-    // Highlight active stat
     document.querySelectorAll('.stat').forEach(stat => stat.classList.remove('active'));
     if (type === 'all') document.getElementById('statAll')?.classList.add('active');
     else if (type === 'c') document.getElementById('statC')?.classList.add('active');
@@ -212,7 +224,6 @@ function showByType(type) {
         filtered = currentPassengers.filter(p => isStaff(p));
     }
     
-    // Sort by seat number
     filtered.sort((a, b) => {
         const seatA = a.seat || 'ZZZ';
         const seatB = b.seat || 'ZZZ';
@@ -234,12 +245,16 @@ function showByType(type) {
         const name = `${p.lastname || ''}, ${p.firstname || ''}`.trim() || 'Unknown';
         const seat = p.seat || '???';
         const cabin = p.cabin || 'Y';
-        const staffBadge = isStaff(p) ? '<span class="badge badge-staff">Staff</span>' : '';
+        const lfm = getLfm(p);
+        const staffValue = getStaffValue(p);
+        
         const cabinBadge = cabin === 'C' ? '<span class="badge badge-c">C</span>' : '<span class="badge badge-y">Y</span>';
+        const staffBadge = staffValue ? `<span class="badge badge-staff">${staffValue}</span>` : '';
+        const lfmText = lfm ? `<span class="lfm">⭐${lfm}</span>` : '';
         
         html += `
             <div class="passenger-item" onclick="showPassengerDetails(${currentPassengers.indexOf(p)})">
-                <strong>${seat}</strong> - ${name} ${cabinBadge} ${staffBadge}
+                <strong>${seat}</strong> - ${name} ${cabinBadge} ${staffBadge} ${lfmText}
             </div>
         `;
     }
@@ -251,7 +266,6 @@ function showPassengerDetails(index) {
     const p = currentPassengers[index];
     const detailsDiv = document.getElementById('details');
     
-    // Highlight selected passenger
     document.querySelectorAll('.passenger-item').forEach((item, i) => {
         item.classList.remove('selected');
         if (i === index) item.classList.add('selected');
@@ -260,15 +274,18 @@ function showPassengerDetails(index) {
     let lfm = '-';
     if (p.lfm && p.lfm.length > 0) {
         const lfmData = p.lfm[0];
-        lfm = `${lfmData.carrier || ''} ${lfmData.number || ''} (${lfmData.tierDescription || 'LifeMiles'})`;
+        lfm = `${lfmData.carrier || ''} ${lfmData.number || ''} (${lfmData.tierDescription || lfmData.tierLevel || 'LifeMiles'})`;
     }
     
     let special = [];
     if (p.meal_code) special.push(`🍽️ Meal: ${p.meal_code}`);
     if (p.value_chd === 'CHD') special.push('👶 Child');
     if (p.value_inf === 'INF') special.push('🍼 Infant');
-    if (isStaff(p)) special.push('👔 Staff');
+    if (p.ssr_code) special.push(`♿ ${p.ssr_code}`);
     const specialStr = special.length ? special.join(' | ') : '-';
+    
+    const staffValue = getStaffValue(p);
+    const staffDisplay = staffValue ? `<div class="row"><div class="label">Staff:</div><div>✅ ${staffValue}</div></div>` : '';
     
     detailsDiv.style.display = 'block';
     detailsDiv.innerHTML = `
@@ -277,6 +294,7 @@ function showPassengerDetails(index) {
         <div class="row"><div class="label">Frequent Flyer:</div><div>${lfm}</div></div>
         <div class="row"><div class="label">Special Services:</div><div>${specialStr}</div></div>
         <div class="row"><div class="label">Destination:</div><div>${p.arrival_station || 'N/A'}</div></div>
+        ${staffDisplay}
     `;
 }
 

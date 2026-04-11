@@ -434,7 +434,7 @@
                     // SECOND SCROLL: After Paxlist stats update (to correct any shift)
                     setTimeout(() => {
                         scrollToFlightNumber();
-                    }, 200);
+                    }, 100);
                     
                 } catch (error) {
                     console.error('Error fetching Paxlist stats:', error);
@@ -592,7 +592,7 @@
             // FIRST SCROLL: After flight details render
             setTimeout(() => {
                 scrollToFlightNumber();
-            }, 300);
+            }, 150);
         }
 
         function displayPreviousFlightDetails(flight) {

@@ -8,6 +8,7 @@ import time
 import json
 import logging
 import requests
+import jwt  # Added for JWT decoding
 from datetime import datetime, timedelta
 from flask import Flask, render_template, request, send_file, jsonify
 
@@ -349,6 +350,44 @@ class PaxlistClient:
             "Referer": "https://paxlist.avianca.com/",
         })
     
+    def decode_jwt_token(self, token):
+        """Decode JWT token to extract claims without verification"""
+        try:
+            # Decode without verifying signature (just to read the data)
+            payload = jwt.decode(token, options={"verify_signature": False})
+            return payload
+        except Exception as e:
+            logger.error(f"Failed to decode JWT: {e}")
+            return None
+    
+    def get_expiry_from_token(self, token):
+        """Extract expiration time from JWT token"""
+        try:
+            payload = self.decode_jwt_token(token)
+            if payload and 'exp' in payload:
+                exp_timestamp = payload['exp']
+                current_time = time.time()
+                seconds_left = max(0, int(exp_timestamp - current_time))
+                
+                # Also get issued time if available
+                iat_timestamp = payload.get('iat', 0)
+                if iat_timestamp:
+                    total_lifetime = exp_timestamp - iat_timestamp
+                    logger.info(f"📊 JWT Analysis:")
+                    logger.info(f"   - Issued at: {datetime.fromtimestamp(iat_timestamp).strftime('%Y-%m-%d %H:%M:%S')}")
+                    logger.info(f"   - Expires at: {datetime.fromtimestamp(exp_timestamp).strftime('%Y-%m-%d %H:%M:%S')}")
+                    logger.info(f"   - Total lifetime: {total_lifetime//60} minutes ({total_lifetime} seconds)")
+                    logger.info(f"   - Time left: {seconds_left//60} minutes ({seconds_left} seconds)")
+                
+                return seconds_left
+            else:
+                logger.warning("⚠️ No 'exp' claim found in token")
+                return None
+                
+        except Exception as e:
+            logger.error(f"❌ Failed to get expiry from JWT: {e}")
+            return None
+    
     def load_tokens(self):
         """Load saved tokens from file"""
         try:
@@ -374,6 +413,19 @@ class PaxlistClient:
                     if self.token_expiry and current_time < self.token_expiry:
                         minutes_left = int((self.token_expiry - current_time) / 60)
                         logger.info(f"✅ Paxlist access token valid for {minutes_left} minutes")
+                        # Double-check with JWT decoding
+                        jwt_time_left = self.get_expiry_from_token(self.access_token)
+                        if jwt_time_left:
+                            logger.info(f"🔍 JWT says {jwt_time_left//60} minutes left, stored says {minutes_left} minutes left")
+                            if abs(jwt_time_left - (self.token_expiry - current_time)) > 60:
+                                logger.warning(f"⚠️ Token expiry mismatch! Updating with JWT value")
+                                self.token_expiry = current_time + jwt_time_left
+                                self.save_tokens(
+                                    access_token=self.access_token,
+                                    refresh_token=self.refresh_token,
+                                    expires_in=jwt_time_left,
+                                    refresh_expires_in=86399
+                                )
                     else:
                         logger.info("🔄 Paxlist access token needs refresh")
                         if self.refresh_token and self.refresh_expiry and current_time < self.refresh_expiry:
@@ -393,6 +445,11 @@ class PaxlistClient:
             
             if access_token:
                 self.access_token = access_token
+                # Try to get accurate expiry from JWT first
+                jwt_expiry = self.get_expiry_from_token(access_token)
+                if jwt_expiry:
+                    expires_in = jwt_expiry
+                    logger.info(f"📊 Using JWT expiry: {expires_in//60} minutes")
                 self.token_expiry = current_time + expires_in
             
             if refresh_token:
@@ -410,7 +467,7 @@ class PaxlistClient:
             with open(self.token_file, 'w') as f:
                 json.dump(data, f, indent=2)
             
-            logger.info("💾 Paxlist tokens saved")
+            logger.info(f"💾 Paxlist tokens saved (access valid for {expires_in//60} minutes)")
             return True
             
         except Exception as e:
@@ -457,6 +514,13 @@ class PaxlistClient:
                 expires_in = token_data.get('expires_in', 3700)
                 refresh_expires_in = token_data.get('refresh_token_expires_in', 86399)
                 
+                # Verify with JWT decoding
+                jwt_expiry = self.get_expiry_from_token(new_access_token)
+                if jwt_expiry:
+                    logger.info(f"📊 Response says {expires_in//60} min, JWT says {jwt_expiry//60} min")
+                    # Use the more accurate JWT value
+                    expires_in = jwt_expiry
+                
                 success = self.save_tokens(
                     access_token=new_access_token,
                     refresh_token=new_refresh_token,
@@ -478,12 +542,22 @@ class PaxlistClient:
         return False
     
     def set_initial_tokens(self, access_token, refresh_token):
-        """Set initial tokens from browser extraction"""
+        """Set initial tokens from browser extraction with JWT decoding"""
         try:
+            # First, try to get expiry from JWT
+            jwt_expiry = self.get_expiry_from_token(access_token)
+            
+            if jwt_expiry:
+                logger.info(f"📊 Using JWT decoding to set token expiry: {jwt_expiry//60} minutes")
+                expires_in = jwt_expiry
+            else:
+                logger.warning("⚠️ Could not decode JWT, using default 3700 seconds")
+                expires_in = 3700
+            
             success = self.save_tokens(
                 access_token=access_token,
                 refresh_token=refresh_token,
-                expires_in=3700,
+                expires_in=expires_in,
                 refresh_expires_in=86399
             )
             
@@ -570,17 +644,27 @@ class PaxlistClient:
             return {"error": "request_error", "message": str(e)}
     
     def get_token_status(self):
-        """Get current token status"""
+        """Get current token status with JWT verification"""
         current_time = time.time()
         
         access_valid = False
         refresh_valid = False
         access_expires_in = 0
         refresh_expires_in = 0
+        jwt_verified = False
+        jwt_expires_in = 0
         
         if self.access_token and self.token_expiry:
             access_valid = current_time < self.token_expiry
             access_expires_in = max(0, int(self.token_expiry - current_time))
+            
+            # Verify with JWT
+            jwt_time_left = self.get_expiry_from_token(self.access_token)
+            if jwt_time_left:
+                jwt_verified = True
+                jwt_expires_in = jwt_time_left
+                if abs(jwt_time_left - access_expires_in) > 60:
+                    logger.warning(f"⚠️ Token expiry mismatch! Stored: {access_expires_in//60} min, JWT: {jwt_time_left//60} min")
         
         if self.refresh_token and self.refresh_expiry:
             refresh_valid = current_time < self.refresh_expiry
@@ -594,7 +678,10 @@ class PaxlistClient:
             "access_expires_in_seconds": access_expires_in,
             "refresh_expires_in_seconds": refresh_expires_in,
             "access_expires_in_minutes": access_expires_in // 60,
-            "refresh_expires_in_hours": refresh_expires_in // 3600
+            "refresh_expires_in_hours": refresh_expires_in // 3600,
+            "jwt_verified": jwt_verified,
+            "jwt_expires_in_seconds": jwt_expires_in,
+            "jwt_expires_in_minutes": jwt_expires_in // 60
         }
 
 
@@ -859,13 +946,13 @@ def paxlist_page():
     return render_template('paxlist.html',
         current_crew_id=current_crew_id,
         crew_names=crew_names,
-        token_status=token_status,  # Add this
+        token_status=token_status,
         has_token=bool(paxlist_client and paxlist_client.access_token)
     )
 
 @app.route('/api/paxlist/set_initial_tokens', methods=['POST'])
 def set_paxlist_initial_tokens():
-    """Set initial tokens from browser extraction"""
+    """Set initial tokens from browser extraction with JWT decoding"""
     try:
         data = request.get_json()
         access_token = data.get('access_token')
@@ -876,7 +963,7 @@ def set_paxlist_initial_tokens():
             if success:
                 return jsonify({
                     'success': True, 
-                    'message': 'Tokens set successfully. Will auto-refresh for 24 hours.'
+                    'message': 'Tokens set successfully with JWT validation. Will auto-refresh for 24 hours.'
                 })
     except Exception as e:
         logger.error(f"Error setting Paxlist tokens: {e}")
@@ -895,7 +982,7 @@ def refresh_paxlist_token():
 
 @app.route('/api/paxlist/token_status')
 def paxlist_token_status():
-    """Get token status"""
+    """Get token status with JWT verification"""
     status = paxlist_client.get_token_status()
     return jsonify({
         'success': True,
@@ -1125,4 +1212,5 @@ def fetch_data():
 
 if __name__ == "__main__":
     logger.info("🚀 Starting Crew Schedule Application with Paxlist Integration...")
+    logger.info("📊 JWT Decoding Enabled - Token expiry will be read from the token itself")
     app.run(host='0.0.0.0', port=8000, debug=False)

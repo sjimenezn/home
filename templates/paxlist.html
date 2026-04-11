@@ -1,365 +1,300 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Paxlist - Passenger Information System</title>
+    <title>Paxlist - Passenger Information</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
-        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; }
-        .crew-info { background: #e8f4f8; padding: 10px; border-radius: 5px; margin-bottom: 20px; font-size: 14px; }
-        .token-status { padding: 10px; border-radius: 5px; margin-bottom: 20px; }
-        .token-valid { background: #d4edda; color: #155724; border-left: 4px solid #28a745; }
-        .token-invalid { background: #f8d7da; color: #721c24; border-left: 4px solid #dc3545; }
-        .token-warning { background: #fff3cd; color: #856404; border-left: 4px solid #ffc107; }
-        .token-setup { background: #e9ecef; padding: 20px; border-radius: 10px; margin-bottom: 20px; }
-        .token-setup h3 { margin-top: 0; }
-        .token-setup textarea { width: 100%; font-family: monospace; font-size: 12px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
-        .token-setup button { background: #28a745; color: white; border: none; padding: 10px 20px; cursor: pointer; border-radius: 5px; margin-right: 10px; }
-        .token-setup button:hover { background: #218838; }
-        .search-form { background: #e9ecef; padding: 20px; border-radius: 5px; margin-bottom: 20px; }
-        .form-group { margin-bottom: 15px; }
-        label { display: inline-block; width: 150px; font-weight: bold; }
-        input, select { padding: 8px; width: 200px; border: 1px solid #ddd; border-radius: 4px; }
-        button { background: #007bff; color: white; border: none; padding: 10px 20px; cursor: pointer; border-radius: 5px; margin-right: 10px; }
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; margin: 0; padding: 20px; background: #f0f2f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        h1 { margin: 0 0 5px 0; font-size: 24px; }
+        .subtitle { color: #666; margin-bottom: 20px; font-size: 14px; }
+        
+        /* Token Section */
+        .token-section { background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .token-section textarea { width: 100%; font-family: monospace; font-size: 11px; padding: 8px; border: 1px solid #ddd; border-radius: 5px; margin: 10px 0; }
+        .token-status { padding: 8px 12px; border-radius: 5px; margin-bottom: 10px; font-size: 13px; }
+        .status-ok { background: #d4edda; color: #155724; }
+        .status-expired { background: #f8d7da; color: #721c24; }
+        
+        /* Search Section */
+        .search-section { background: #e9ecef; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .search-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+        .search-field { flex: 1; min-width: 120px; }
+        .search-field label { display: block; font-size: 12px; font-weight: bold; margin-bottom: 4px; color: #555; }
+        .search-field input, .search-field select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px; }
+        button { background: #007bff; color: white; border: none; padding: 8px 20px; border-radius: 5px; cursor: pointer; font-size: 14px; }
         button:hover { background: #0056b3; }
-        .results { margin-top: 20px; }
-        .passenger-list { background: white; border: 1px solid #ddd; border-radius: 5px; overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
-        th { background: #f8f9fa; font-weight: bold; }
-        .loading { display: none; text-align: center; padding: 20px; }
+        
+        /* Stats Section */
+        .stats { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+        .stat-card { flex: 1; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; border-radius: 10px; text-align: center; }
+        .stat-card.c { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        .stat-card.y { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+        .stat-number { font-size: 32px; font-weight: bold; }
+        .stat-label { font-size: 14px; opacity: 0.9; }
+        
+        /* Passenger Dropdown */
+        .passenger-section { margin-bottom: 20px; }
+        .passenger-section select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; }
+        
+        /* Passenger Details */
+        .passenger-details { background: #f8f9fa; padding: 15px; border-radius: 8px; margin-top: 15px; }
+        .detail-row { display: flex; padding: 8px 0; border-bottom: 1px solid #eee; }
+        .detail-label { font-weight: bold; width: 120px; color: #555; }
+        .detail-value { flex: 1; }
+        
+        .loading { text-align: center; padding: 20px; color: #666; }
         .error { background: #f8d7da; color: #721c24; padding: 10px; border-radius: 5px; margin: 10px 0; }
-        .nav-links { margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; }
-        .nav-links a { margin: 0 10px; color: #007bff; text-decoration: none; }
-        .flight-info { background: #d1ecf1; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
-        .status-badge { display: inline-block; padding: 3px 8px; border-radius: 3px; font-size: 12px; }
-        .status-normal { background: #28a745; color: white; }
-        .status-special { background: #ffc107; color: #000; }
-        .helper-text { font-size: 12px; color: #666; margin-top: 5px; }
-        .json-preview { background: #f8f9fa; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 11px; margin-top: 10px; max-height: 100px; overflow: auto; }
+        .flight-info { background: #d1ecf1; padding: 10px; border-radius: 5px; margin-bottom: 15px; font-size: 14px; }
+        
+        button.small { background: #6c757d; padding: 5px 10px; font-size: 12px; margin-left: 10px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>🛫 Paxlist - Passenger Information System</h1>
-            <p>Crew Portal - Real-time passenger data</p>
+        <h1>🛫 Paxlist</h1>
+        <div class="subtitle">Passenger Information System</div>
+        
+        <!-- Token Section -->
+        <div class="token-section">
+            <div id="tokenStatus" class="token-status status-expired">❌ No tokens configured</div>
+            <textarea id="tokenJson" rows="2" placeholder='{"access_token":"eyJ0eXAi...","refresh_token":"1.ASUAPt..."}'></textarea>
+            <button onclick="setTokens()">💾 Save Tokens</button>
+            <button onclick="checkTokenStatus()" class="small">Check Status</button>
         </div>
         
-        <div class="crew-info">
-            <strong>Current Crew ID:</strong> {{ current_crew_id }} | 
-            <strong>Crew Name:</strong> {{ crew_names[0] if crew_names else 'N/A' }}
-            <button onclick="changeCrewId()" style="margin-left: 20px; padding: 5px 10px; background: #6c757d;">Change Crew</button>
-        </div>
-        
-        <div id="tokenStatus" class="token-status">
-            {% if token_status and token_status.access_token_valid %}
-            <div class="token-valid">✅ Access Token: Valid for {{ token_status.access_expires_in_minutes }} minutes | Refresh Token: Valid for {{ token_status.refresh_expires_in_hours }} hours</div>
-            {% elif token_status and token_status.refresh_token_valid %}
-            <div class="token-warning">⚠️ Access token expired, refresh token valid. <button onclick="refreshToken()">Refresh Now</button></div>
-            {% else %}
-            <div class="token-invalid">❌ No valid tokens. Please paste tokens below.</div>
-            {% endif %}
-        </div>
-        
-        <!-- Token Setup Section with JSON paste -->
-        <div class="token-setup">
-            <h3>🔐 Set Tokens (Copy from bookmarklet)</h3>
-            <p>Paste the JSON output from the bookmarklet extractor:</p>
-            <textarea id="tokenJson" rows="5" placeholder='{"access_token":"eyJ0eXAi...","refresh_token":"1.ASUAPt..."}'></textarea>
-            <div class="helper-text">💡 Tip: Use the bookmarklet on Paxlist page to copy tokens automatically</div>
-            <button onclick="setTokensFromJson()">📋 Set Tokens from JSON</button>
-            <button onclick="clearTokenJson()">🗑️ Clear</button>
-            <div id="jsonPreview" class="json-preview" style="display:none;"></div>
-        </div>
-        
-        <div class="search-form">
-            <h3>🔍 Search Passengers</h3>
-            <form id="paxlistForm">
-                <div class="form-group">
-                    <label>Flight Carrier:</label>
-                    <select name="flight_carrier">
-                        <option value="AV">AV - Avianca</option>
-                        <option value="TA">TA - Avianca El Salvador</option>
-                        <option value="LR">LR - Avianca Costa Rica</option>
-                    </select>
+        <!-- Search Section -->
+        <div class="search-section">
+            <div class="search-row">
+                <div class="search-field">
+                    <label>Flight #</label>
+                    <input type="text" id="flightNumber" value="120" placeholder="e.g., 120">
                 </div>
-                <div class="form-group">
-                    <label>Flight Number:</label>
-                    <input type="text" name="flight_number" required placeholder="e.g., 120" value="120">
+                <div class="search-field">
+                    <label>From</label>
+                    <input type="text" id="departure" value="BOG" placeholder="e.g., BOG">
                 </div>
-                <div class="form-group">
-                    <label>Departure Station:</label>
-                    <input type="text" name="flight_departure_station" required placeholder="e.g., BOG, MDE, SJO" value="BOG">
+                <div class="search-field">
+                    <label>Date</label>
+                    <input type="date" id="flightDate">
                 </div>
-                <div class="form-group">
-                    <label>Flight Date:</label>
-                    <input type="date" name="flight_date" required>
+                <div>
+                    <label>&nbsp;</label><br>
+                    <button onclick="searchPassengers()">🔍 Search</button>
                 </div>
-                <button type="submit">🔍 Search Passengers</button>
-                <button type="button" onclick="clearResults()">Clear Results</button>
-            </form>
+            </div>
         </div>
         
-        <div class="loading" id="loading">
-            <p>Loading passenger list...</p>
-        </div>
-        
-        <div id="results" class="results"></div>
-        
-        <div class="nav-links">
-            <a href="/calendar">📅 Calendar View</a>
-            <a href="/flight_details">✈️ Flight Details</a>
-            <a href="/pdf">📄 Download Schedule</a>
-        </div>
+        <!-- Results Area -->
+        <div id="results"></div>
     </div>
     
     <script>
         // Set default date to tomorrow
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
-        document.querySelector('[name="flight_date"]').value = tomorrow.toISOString().split('T')[0];
+        document.getElementById('flightDate').value = tomorrow.toISOString().split('T')[0];
         
-        async function setTokensFromJson() {
+        async function setTokens() {
             const jsonInput = document.getElementById('tokenJson').value.trim();
-            const previewDiv = document.getElementById('jsonPreview');
-            
-            if (!jsonInput) {
-                alert('Please paste the JSON tokens first');
-                return;
-            }
+            if (!jsonInput) { alert('Please paste JSON tokens'); return; }
             
             try {
-                // Parse the JSON
                 let tokens = JSON.parse(jsonInput);
+                if (typeof tokens === 'string') tokens = JSON.parse(tokens);
                 
-                // Handle if it's a string that needs parsing again
-                if (typeof tokens === 'string') {
-                    tokens = JSON.parse(tokens);
-                }
-                
-                // Extract tokens (handle both formats)
                 let access_token = tokens.access_token;
                 let refresh_token = tokens.refresh_token;
-                
-                // If tokens are arrays, take first element
                 if (Array.isArray(access_token)) access_token = access_token[0];
                 if (Array.isArray(refresh_token)) refresh_token = refresh_token[0];
                 
-                if (!access_token || !refresh_token) {
-                    throw new Error('Missing access_token or refresh_token in JSON');
-                }
-                
-                // Show preview
-                previewDiv.style.display = 'block';
-                previewDiv.innerHTML = `
-                    <strong>📋 Parsed Tokens:</strong><br>
-                    Access Token: ${access_token.substring(0, 50)}...<br>
-                    Refresh Token: ${refresh_token.substring(0, 50)}...<br>
-                    <span style="color: green;">✅ Valid JSON format detected</span>
-                `;
-                
-                // Send to server
                 const response = await fetch('/api/paxlist/set_initial_tokens', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({access_token, refresh_token})
                 });
-                
                 const result = await response.json();
                 
                 if (result.success) {
-                    alert('✅ ' + result.message);
-                    setTimeout(() => location.reload(), 1500);
+                    alert('✅ Tokens saved!');
+                    location.reload();
                 } else {
-                    alert('❌ Failed: ' + result.message);
+                    alert('❌ ' + result.message);
                 }
-            } catch (error) {
-                previewDiv.style.display = 'block';
-                previewDiv.style.backgroundColor = '#f8d7da';
-                previewDiv.style.color = '#721c24';
-                previewDiv.innerHTML = `<strong>❌ Invalid JSON:</strong> ${error.message}<br><br>Make sure you paste valid JSON like:<br>{"access_token":"...","refresh_token":"..."}`;
-                console.error('Parse error:', error);
+            } catch(e) {
+                alert('Invalid JSON: ' + e.message);
             }
         }
         
-        function clearTokenJson() {
-            document.getElementById('tokenJson').value = '';
-            document.getElementById('jsonPreview').style.display = 'none';
+        async function checkTokenStatus() {
+            try {
+                const response = await fetch('/api/paxlist/token_status');
+                const data = await response.json();
+                const statusDiv = document.getElementById('tokenStatus');
+                
+                if (data.status.access_token_valid) {
+                    statusDiv.className = 'token-status status-ok';
+                    statusDiv.innerHTML = `✅ Token valid for ${data.status.access_expires_in_minutes} min | Refresh: ${data.status.refresh_expires_in_hours}h`;
+                } else if (data.status.refresh_token_valid) {
+                    statusDiv.className = 'token-status status-expired';
+                    statusDiv.innerHTML = `⚠️ Access expired. <button onclick="refreshToken()" class="small">Refresh</button>`;
+                } else {
+                    statusDiv.className = 'token-status status-expired';
+                    statusDiv.innerHTML = '❌ No valid tokens. Paste JSON above.';
+                }
+            } catch(e) { console.error(e); }
         }
         
         async function refreshToken() {
-            const statusDiv = document.getElementById('tokenStatus');
-            statusDiv.innerHTML = '<div class="token-warning">🔄 Refreshing token...</div>';
-            
-            try {
-                const response = await fetch('/api/paxlist/refresh_token', {method: 'POST'});
-                const data = await response.json();
-                
-                if (data.success) {
-                    statusDiv.innerHTML = '<div class="token-valid">✅ Token refreshed successfully!</div>';
-                    setTimeout(() => location.reload(), 1500);
-                } else {
-                    statusDiv.innerHTML = '<div class="token-invalid">❌ Failed to refresh token. Please paste tokens again.</div>';
-                }
-            } catch (error) {
-                statusDiv.innerHTML = '<div class="token-invalid">❌ Error refreshing token</div>';
-            }
+            const response = await fetch('/api/paxlist/refresh_token', {method: 'POST'});
+            const data = await response.json();
+            if (data.success) location.reload();
+            else alert('Refresh failed');
         }
         
-        function changeCrewId() {
-            const newCrewId = prompt('Enter new Crew ID:', '{{ current_crew_id }}');
-            if (newCrewId) {
-                fetch(`/update_crew_id?crew_id=${newCrewId}`)
-                    .then(() => location.reload());
-            }
-        }
-        
-        function clearResults() {
-            document.getElementById('results').innerHTML = '';
-            document.getElementById('paxlistForm').reset();
-            document.querySelector('[name="flight_date"]').value = tomorrow.toISOString().split('T')[0];
-        }
-        
-        // Handle form submission using Flask API
-        document.getElementById('paxlistForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
+        async function searchPassengers() {
+            const flightNumber = document.getElementById('flightNumber').value;
+            const departure = document.getElementById('departure').value.toUpperCase();
+            const flightDate = document.getElementById('flightDate').value;
             
-            const formData = new FormData(e.target);
-            const data = {
-                flight_carrier: formData.get('flight_carrier'),
-                flight_number: formData.get('flight_number'),
-                flight_departure_station: formData.get('flight_departure_station').toUpperCase(),
-                flight_date: formData.get('flight_date')
-            };
-            
-            const loading = document.getElementById('loading');
             const resultsDiv = document.getElementById('results');
-            
-            loading.style.display = 'block';
-            resultsDiv.innerHTML = '';
+            resultsDiv.innerHTML = '<div class="loading">Loading passengers...</div>';
             
             try {
                 const response = await fetch('/api/paxlist/search', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(data)
+                    body: JSON.stringify({
+                        flight_carrier: 'AV',
+                        flight_number: flightNumber,
+                        flight_departure_station: departure,
+                        flight_date: flightDate
+                    })
                 });
                 
                 const result = await response.json();
-                loading.style.display = 'none';
                 
                 if (result.success && result.data) {
-                    displayPassengers(result.data);
+                    displayResults(result.data, flightNumber, departure, flightDate);
                 } else if (result.needs_new_tokens) {
-                    resultsDiv.innerHTML = `
-                        <div class="error">
-                            ❌ ${result.message || 'Authentication failed'}<br>
-                            Please paste your tokens in the setup section above.
-                        </div>
-                    `;
+                    resultsDiv.innerHTML = '<div class="error">❌ Token expired. Please paste new tokens above.</div>';
                 } else {
-                    resultsDiv.innerHTML = `<div class="error">❌ ${result.message || 'Failed to fetch passenger data'}</div>`;
+                    resultsDiv.innerHTML = `<div class="error">❌ ${result.message || 'Search failed'}</div>`;
                 }
-            } catch (error) {
-                loading.style.display = 'none';
-                resultsDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            } catch(e) {
+                resultsDiv.innerHTML = `<div class="error">❌ Error: ${e.message}</div>`;
             }
-        });
+        }
         
-        function displayPassengers(data) {
-            const resultsDiv = document.getElementById('results');
+        function displayResults(data, flightNumber, departure, flightDate) {
+            const passengers = data.passengers || [];
             
-            if (!data.passengers || data.passengers.length === 0) {
-                resultsDiv.innerHTML = '<div class="flight-info">ℹ️ No passengers found for this flight.</div>';
-                return;
+            // Count passengers by cabin
+            let cClass = 0, yClass = 0;
+            for (const p of passengers) {
+                if (p.cabin === 'C') cClass++;
+                else yClass++;
+            }
+            
+            // Build dropdown options
+            let dropdownOptions = '<option value="">-- Select passenger --</option>';
+            for (let i = 0; i < passengers.length; i++) {
+                const p = passengers[i];
+                const name = `${p.lastname || ''}, ${p.firstname || ''}`.trim() || 'Unknown';
+                dropdownOptions += `<option value="${i}">${p.seat || '???'} - ${name} (${p.cabin || 'Y'})</option>`;
             }
             
             let html = `
                 <div class="flight-info">
-                    <strong>✈️ Flight:</strong> ${data.flight_carrier_number || 'N/A'} &nbsp;|&nbsp;
-                    <strong>📅 Date:</strong> ${data.flight_date || 'N/A'} &nbsp;|&nbsp;
-                    <strong>🛫 Departure:</strong> ${data.flight_departure_station || 'N/A'} &nbsp;|&nbsp;
-                    <strong>🛬 Destination:</strong> ${data.passengers[0]?.arrival_station || 'N/A'} &nbsp;|&nbsp;
-                    <strong>👥 Total Passengers:</strong> ${data.passengers.length}
+                    ✈️ AV${flightNumber} | ${departure} → ${passengers[0]?.arrival_station || '???'} | 📅 ${flightDate}
                 </div>
-                <div class="passenger-list">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Seat</th>
-                                <th>Name</th>
-                                <th>Cabin</th>
-                                <th>Frequent Flyer</th>
-                                <th>Special Meals</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-            
-            for (const passenger of data.passengers) {
-                const lfmStatus = passenger.lfm && passenger.lfm.length > 0 ? passenger.lfm[0].tierDescription || 'LifeMiles' : '';
-                const mealCode = passenger.meal_code || '';
                 
-                html += `
-                    <tr>
-                        <td><strong>${passenger.seat || 'N/A'}</strong></td>
-                        <td>${passenger.lastname || ''}, ${passenger.firstname || ''}</td>
-                        <td>${passenger.cabin || 'Y'}</td>
-                        <td>${lfmStatus ? `⭐ ${lfmStatus}` : '-'}</td>
-                        <td>${mealCode || '-'}</td>
-                    </tr>
-                `;
-            }
-            
-            html += `
-                        </tbody>
-                    </table>
+                <div class="stats">
+                    <div class="stat-card">
+                        <div class="stat-number">${passengers.length}</div>
+                        <div class="stat-label">Total Passengers</div>
+                    </div>
+                    <div class="stat-card c">
+                        <div class="stat-number">${cClass}</div>
+                        <div class="stat-label">Business (C)</div>
+                    </div>
+                    <div class="stat-card y">
+                        <div class="stat-number">${yClass}</div>
+                        <div class="stat-label">Economy (Y)</div>
+                    </div>
                 </div>
+                
+                <div class="passenger-section">
+                    <select id="passengerSelect" onchange="showPassengerDetails(${JSON.stringify(passengers).replace(/"/g, '&quot;')})">
+                        ${dropdownOptions}
+                    </select>
+                </div>
+                
+                <div id="passengerDetails" class="passenger-details" style="display:none;"></div>
             `;
             
-            resultsDiv.innerHTML = html;
+            document.getElementById('results').innerHTML = html;
+            
+            // Update token status in background
+            checkTokenStatus();
         }
         
-        // Check token status on load
-        async function checkTokenStatus() {
-            try {
-                const response = await fetch('/api/paxlist/token_status');
-                const data = await response.json();
-                
-                const statusDiv = document.getElementById('tokenStatus');
-                if (data.status.access_token_valid) {
-                    statusDiv.innerHTML = `
-                        <div class="token-valid">
-                            ✅ Access Token: Valid for ${data.status.access_expires_in_minutes} minutes | 
-                            Refresh Token: Valid for ${data.status.refresh_expires_in_hours} hours
-                            <button onclick="refreshToken()" style="margin-left: 20px; padding: 5px 10px;">🔄 Refresh Now</button>
-                        </div>
-                    `;
-                } else if (data.status.refresh_token_valid) {
-                    statusDiv.innerHTML = `
-                        <div class="token-warning">
-                            ⚠️ Access token expired, refresh token valid. 
-                            <button onclick="refreshToken()" style="margin-left: 20px; padding: 5px 10px;">🔄 Refresh Now</button>
-                        </div>
-                    `;
-                } else {
-                    statusDiv.innerHTML = `
-                        <div class="token-invalid">
-                            ❌ No valid tokens. Please paste tokens in the setup section above.
-                        </div>
-                    `;
-                }
-            } catch (error) {
-                console.error('Error checking token status:', error);
+        function showPassengerDetails(passengers) {
+            const select = document.getElementById('passengerSelect');
+            const index = select.value;
+            const detailsDiv = document.getElementById('passengerDetails');
+            
+            if (!index || index === '') {
+                detailsDiv.style.display = 'none';
+                return;
             }
+            
+            const p = passengers[parseInt(index)];
+            
+            // Get frequent flyer info
+            let lfmInfo = '-';
+            if (p.lfm && p.lfm.length > 0) {
+                const lfm = p.lfm[0];
+                lfmInfo = `${lfm.carrier || ''} ${lfm.number || ''} (${lfm.tierDescription || 'LifeMiles'})`;
+            }
+            
+            // Get special services
+            let specialServices = [];
+            if (p.meal_code) specialServices.push(`🍽️ Meal: ${p.meal_code}`);
+            if (p.value_chd === 'CHD') specialServices.push('👶 Child');
+            if (p.value_inf === 'INF') specialServices.push('🍼 Infant');
+            if (p.value_staff) specialServices.push('👔 Staff');
+            
+            const specialHtml = specialServices.length > 0 ? specialServices.join(' | ') : 'None';
+            
+            detailsDiv.style.display = 'block';
+            detailsDiv.innerHTML = `
+                <div class="detail-row">
+                    <div class="detail-label">Passenger:</div>
+                    <div class="detail-value"><strong>${p.lastname || ''}, ${p.firstname || ''}</strong></div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Seat:</div>
+                    <div class="detail-value"><strong>${p.seat || 'N/A'}</strong> (${p.cabin || 'Y'} Class)</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Frequent Flyer:</div>
+                    <div class="detail-value">${lfmInfo}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Special Services:</div>
+                    <div class="detail-value">${specialHtml}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Destination:</div>
+                    <div class="detail-value">${p.arrival_station || 'N/A'}</div>
+                </div>
+            `;
         }
         
         // Initial check
         checkTokenStatus();
-        
-        // Check token status every minute
-        setInterval(checkTokenStatus, 60000);
     </script>
 </body>
 </html>

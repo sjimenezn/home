@@ -72,7 +72,6 @@
         .time-early { color: #81c784; }
         .time-late { color: #f44336; }
         
-        /* Delay Info Styling */
         .delay-section { margin: 0; }
         .delay-title { 
             color: #ffffff; 
@@ -118,6 +117,15 @@
             cursor: pointer; 
         }
         .section-title:hover { color: #ffc107; }
+        .section-title.loading { color: #ffc107; }
+        .section-title .paxlist-stats { 
+            color: #4fc3f7; 
+            font-size: 0.85em; 
+            margin-left: 10px;
+            font-weight: normal;
+        }
+        .section-title .paxlist-stats.loading { color: #ffc107; }
+        .section-title .paxlist-stats.error { color: #f44336; }
         .previous-flight-number { color: #b0b0b0 !important; font-size: 1.6em; }
         
         .crew-list { display: grid; grid-template-columns: 1fr; gap: 5px; margin: 10px 0; }
@@ -206,6 +214,41 @@
         function clearOriginAirport() {
             document.getElementById('origin_airport').value = '';
             document.getElementById('origin_airport').focus();
+        }
+
+        // Function to fetch Paxlist stats for a flight
+        async function fetchPaxlistStats(flightNumber, origin, date) {
+            try {
+                const response = await fetch('/api/paxlist/search', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        flight_carrier: 'AV',
+                        flight_number: flightNumber,
+                        flight_departure_station: origin,
+                        flight_date: date
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success && result.data) {
+                    const passengers = result.data.passengers || [];
+                    let total = passengers.length;
+                    let cClass = 0, yClass = 0, staff = 0;
+                    
+                    for (const p of passengers) {
+                        if (p.cabin === 'C') cClass++;
+                        else yClass++;
+                        if (p.value_staff && p.value_staff.trim() !== '') staff++;
+                    }
+                    
+                    return { success: true, total, cClass, yClass, staff };
+                }
+                return { success: false };
+            } catch(e) {
+                return { success: false };
+            }
         }
 
         document.getElementById('flightSearchForm').addEventListener('submit', async function(e) {
@@ -298,7 +341,12 @@
             if (!previousFlightSection || !title) return;
 
             title.classList.add('loading');
-            title.textContent = 'Previous Flight - Loading...';
+            
+            // Add loading stats indicator
+            const statsSpan = document.createElement('span');
+            statsSpan.className = 'paxlist-stats loading';
+            statsSpan.innerHTML = ' 🔄 loading stats...';
+            title.appendChild(statsSpan);
 
             try {
                 const flightNumber = previousFlightData.Prv_commercialFlightNumber || previousFlightData.CommercialFlightNumber;
@@ -311,6 +359,19 @@
                 }
 
                 const dateString = departureDateLocal.split('T')[0];
+                
+                // Fetch Paxlist stats for previous flight
+                const paxStats = await fetchPaxlistStats(flightNumber, originAirport, dateString);
+                
+                // Update title with stats
+                if (paxStats.success) {
+                    statsSpan.className = 'paxlist-stats';
+                    statsSpan.innerHTML = ` T:${paxStats.total} C:${paxStats.cClass} Y:${paxStats.yClass} S:${paxStats.staff}`;
+                } else {
+                    statsSpan.className = 'paxlist-stats error';
+                    statsSpan.innerHTML = ' ❌ stats unavailable';
+                }
+
                 const searchData = {
                     airline: airline,
                     flight_number: flightNumber,
@@ -329,16 +390,16 @@
 
                 if (result.success) {
                     displayPreviousFlightDetails(result.flight_details);
-                    title.textContent = 'Previous Flight';
+                    title.classList.remove('loading');
                 } else {
                     throw new Error(result.error || 'Failed to load previous flight');
                 }
 
             } catch (error) {
-                title.textContent = 'Previous Flight - Click to retry';
-                previousFlightSection.innerHTML = `<div class="error-message">Failed to load previous flight</div>`;
-            } finally {
+                statsSpan.className = 'paxlist-stats error';
+                statsSpan.innerHTML = ' ❌ stats failed';
                 title.classList.remove('loading');
+                previousFlightSection.innerHTML = `<div class="error-message">Failed to load previous flight</div>`;
             }
         }
 
@@ -351,7 +412,6 @@
             const departureTerminal = flight.DepartureTerminal || '';
             const arrivalStand = flight.ArrivalParkingStand || '';
             
-            // Changed N/A to dash (-)
             let gateInfo = '';
             if (departureStand && departureTerminal) {
                 gateInfo = `GATE: ${departureStand} T: ${departureTerminal}`;
@@ -370,22 +430,18 @@
             const scheduledArrival = flight.Flight?.ScheduleArrivalDateLOCAL;
             const actualArrival = flight.Flight?.ArrivalDateLOCAL;
             
-            // Calculate durations - CORRECT VARIABLE NAMES
             const scheduledDuration = flight.Flight?.ScheduledDuration || 0;
             const actualDuration = flight.Flight?.Duration || 0;
             
-            // Ensure they're numbers
             const scheduledDurationNum = parseFloat(scheduledDuration);
             const actualDurationNum = parseFloat(actualDuration);
             
-            // Format durations as hh:mm
             const scheduledDurationFormatted = formatDuration(scheduledDurationNum);
             const actualDurationFormatted = formatDuration(actualDurationNum);
             
             const departureColor = getTimeColor(actualDeparture, scheduledDeparture);
             const arrivalColor = getTimeColor(actualArrival, scheduledArrival);
             
-            // FIXED: Duration at the END of the line, in yellow color, FORCED to stay on same line
             const scheduledTimeString = formatTime(scheduledDeparture) + ' - ' + formatTime(scheduledArrival) + ' <span style="color:#ffc107;display:inline;">' + scheduledDurationFormatted + '</span>';
             const actualTimeString = '<span class="' + departureColor + '">' + formatTime(actualDeparture) + '</span> - <span class="' + arrivalColor + '">' + formatTime(actualArrival) + '</span> <span style="color:#ffc107;display:inline;">' + actualDurationFormatted + '</span>';
             
@@ -575,7 +631,6 @@
                 const seniorityText = profile.Superiority || '';
                 const seniorityNumber = seniorityText.replace(/[^0-9]/g, '') || '-';
                 
-                // Get FlightRole from member object (not profile)
                 const flightRole = member.FlightRole || '';
                 const roleText = flightRole ? ` ${flightRole}` : '';
                 
@@ -607,7 +662,6 @@
                                 <span>${profile.TelephoneNumber}</span>
                             </div>
                             ` : ''}
-                            <!-- EMAIL REMOVED -->
                         </div>
                     </div>
                 `;

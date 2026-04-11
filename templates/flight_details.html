@@ -292,17 +292,12 @@
                     displayFlightDetails(result.flight_details);
                     resultsSection.classList.remove('hidden');
                     
-                    // Load previous flight and crew in parallel, but don't wait for Paxlist
-                    const loadPromises = [];
-                    
+                    // Load previous flight and crew in background
                     if (result.flight_details.PreviousFlight) {
-                        loadPromises.push(loadPreviousFlight(result.flight_details.PreviousFlight));
+                        loadPreviousFlight(result.flight_details.PreviousFlight);
                     }
                     
-                    loadPromises.push(loadCrewMembers());
-                    
-                    // Don't await these - let them run in background
-                    Promise.all(loadPromises);
+                    loadCrewMembers();
                     
                 } else {
                     showError(result.error || 'Failed to fetch flight details');
@@ -397,7 +392,7 @@
                 previousFlightSection.innerHTML = `<div class="error-message">Failed to load previous flight: ${error.message}</div>`;
             }
 
-            // SECOND: Fetch Paxlist stats for CURRENT flight in the background (after flight details are shown)
+            // SECOND: Fetch Paxlist stats for CURRENT flight in the background
             setTimeout(async () => {
                 try {
                     const currentFlightNum = document.getElementById('flight_number').value;
@@ -428,7 +423,7 @@
                     statsSpan.innerHTML = ' ❌ stats failed';
                     statsSpan.style.pointerEvents = 'none';
                 }
-            }, 100); // Small delay to ensure previous flight renders first
+            }, 100);
         }
 
         function displayFlightDetails(flight) {
@@ -574,6 +569,18 @@
             `;
 
             container.innerHTML = html;
+            
+            // Scroll to flight number after a short delay to ensure DOM is updated
+            setTimeout(() => {
+                const flightNumberTop = document.getElementById('flightNumberTop');
+                if (flightNumberTop) {
+                    flightNumberTop.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'start',
+                        inline: 'nearest'
+                    });
+                }
+            }, 300);
         }
 
         function displayPreviousFlightDetails(flight) {

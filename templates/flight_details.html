@@ -258,6 +258,19 @@
             }
         }
 
+        // Function to scroll to flight number
+        function scrollToFlightNumber() {
+            const flightNumberTop = document.getElementById('flightNumberTop');
+            if (flightNumberTop) {
+                flightNumberTop.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'start',
+                    inline: 'nearest'
+                });
+                console.log('Scrolled to flight number');
+            }
+        }
+
         document.getElementById('flightSearchForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const searchBtn = document.getElementById('searchBtn');
@@ -417,6 +430,12 @@
                         statsSpan.innerHTML = ' ❌ stats unavailable';
                         statsSpan.style.pointerEvents = 'none';
                     }
+                    
+                    // SECOND SCROLL: After Paxlist stats update (to correct any shift)
+                    setTimeout(() => {
+                        scrollToFlightNumber();
+                    }, 200);
+                    
                 } catch (error) {
                     console.error('Error fetching Paxlist stats:', error);
                     statsSpan.className = 'paxlist-stats error';
@@ -570,16 +589,9 @@
 
             container.innerHTML = html;
             
-            // Scroll to flight number after a short delay to ensure DOM is updated
+            // FIRST SCROLL: After flight details render
             setTimeout(() => {
-                const flightNumberTop = document.getElementById('flightNumberTop');
-                if (flightNumberTop) {
-                    flightNumberTop.scrollIntoView({ 
-                        behavior: 'smooth', 
-                        block: 'start',
-                        inline: 'nearest'
-                    });
-                }
+                scrollToFlightNumber();
             }, 300);
         }
 

@@ -258,24 +258,16 @@
             }
         }
 
-        // Function to scroll to flight number with offset to account for content that loads later
+        // Function to scroll to flight number
         function scrollToFlightNumber() {
             const flightNumberTop = document.getElementById('flightNumberTop');
             if (flightNumberTop) {
-                // Get the flight number element position
-                const rect = flightNumberTop.getBoundingClientRect();
-                const absoluteTop = rect.top + window.pageYOffset;
-                
-                // Scroll 250px BELOW the flight number to account for previous flight and crew content
-                // Adjust this value (150-300) based on how much content loads below
-                const offsetPosition = absoluteTop + 250;
-                
-                window.scrollTo({
-                    top: offsetPosition,
-                    behavior: 'smooth'
+                flightNumberTop.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'start',
+                    inline: 'nearest'
                 });
-                
-                console.log('Scrolled to flight number with offset');
+                console.log('Scrolled to flight number');
             }
         }
 
@@ -439,6 +431,11 @@
                         statsSpan.style.pointerEvents = 'none';
                     }
                     
+                    // SECOND SCROLL: After Paxlist stats update (to correct any shift)
+                    setTimeout(() => {
+                        scrollToFlightNumber();
+                    }, 200);
+                    
                 } catch (error) {
                     console.error('Error fetching Paxlist stats:', error);
                     statsSpan.className = 'paxlist-stats error';
@@ -592,7 +589,7 @@
 
             container.innerHTML = html;
             
-            // SINGLE SCROLL: After flight details render, scroll with offset
+            // FIRST SCROLL: After flight details render
             setTimeout(() => {
                 scrollToFlightNumber();
             }, 300);

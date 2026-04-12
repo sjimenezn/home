@@ -219,6 +219,15 @@
             document.getElementById('origin_airport').focus();
         }
 
+        // Function to scroll down 50px
+        function scrollDown50px() {
+            window.scrollBy({
+                top: 50,
+                behavior: 'smooth'
+            });
+            console.log('Scrolled down 50px');
+        }
+
         // Function to fetch Paxlist stats for a flight
         async function fetchPaxlistStats(flightNumber, origin, date) {
             if (!flightNumber || flightNumber === '0' || flightNumber === '' || flightNumber === 'undefined') {
@@ -321,7 +330,13 @@
                     body: JSON.stringify(currentFlightData)
                 });
                 const result = await response.json();
-                if (result.success) displayCrewMembers(result.crew_data);
+                if (result.success) {
+                    displayCrewMembers(result.crew_data);
+                    // Scroll 50px after crew data is shown
+                    setTimeout(() => {
+                        scrollDown50px();
+                    }, 200);
+                }
             } catch (error) {}
         }
 

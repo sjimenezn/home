@@ -258,22 +258,6 @@
             }
         }
 
-        // Function to scroll by fixed pixels
-        let totalScrolled = 0;
-
-        function scrollByPixels(pixels) {
-            totalScrolled += pixels;
-            window.scrollBy({
-                top: pixels,
-                behavior: 'smooth'
-            });
-            console.log(`Scrolled ${pixels}px (Total: ${totalScrolled}px)`);
-        }
-
-        function resetScrollCounter() {
-            totalScrolled = 0;
-        }
-
         document.getElementById('flightSearchForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const searchBtn = document.getElementById('searchBtn');
@@ -305,7 +289,6 @@
                 const result = await response.json();
 
                 if (result.success) {
-                    resetScrollCounter();
                     displayFlightDetails(result.flight_details);
                     resultsSection.classList.remove('hidden');
                     
@@ -434,11 +417,6 @@
                         statsSpan.innerHTML = ' ❌ stats unavailable';
                         statsSpan.style.pointerEvents = 'none';
                     }
-                    
-                    // SECOND SCROLL: After Paxlist stats update (to correct any shift)
-                    setTimeout(() => {
-                        scrollByPixels(0);  // Adjust this value (try 100, 150, 200)
-                    }, 0);
                     
                 } catch (error) {
                     console.error('Error fetching Paxlist stats:', error);
@@ -592,11 +570,6 @@
             `;
 
             container.innerHTML = html;
-            
-            // FIRST SCROLL: After flight details render
-            setTimeout(() => {
-                scrollByPixels(600);  // Adjust this value (try 300, 400, 500)
-            }, 600);
         }
 
         function displayPreviousFlightDetails(flight) {

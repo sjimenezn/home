@@ -258,17 +258,20 @@
             }
         }
 
-        // Function to scroll to flight number
-        function scrollToFlightNumber() {
-            const flightNumberTop = document.getElementById('flightNumberTop');
-            if (flightNumberTop) {
-                flightNumberTop.scrollIntoView({ 
-                    behavior: 'smooth', 
-                    block: 'start',
-                    inline: 'nearest'
-                });
-                console.log('Scrolled to flight number');
-            }
+        // Function to scroll by fixed pixels
+        let totalScrolled = 0;
+
+        function scrollByPixels(pixels) {
+            totalScrolled += pixels;
+            window.scrollBy({
+                top: pixels,
+                behavior: 'smooth'
+            });
+            console.log(`Scrolled ${pixels}px (Total: ${totalScrolled}px)`);
+        }
+
+        function resetScrollCounter() {
+            totalScrolled = 0;
         }
 
         document.getElementById('flightSearchForm').addEventListener('submit', async function(e) {
@@ -302,6 +305,7 @@
                 const result = await response.json();
 
                 if (result.success) {
+                    resetScrollCounter();
                     displayFlightDetails(result.flight_details);
                     resultsSection.classList.remove('hidden');
                     
@@ -433,8 +437,8 @@
                     
                     // SECOND SCROLL: After Paxlist stats update (to correct any shift)
                     setTimeout(() => {
-                        scrollToFlightNumber();
-                    }, 100);
+                        scrollByPixels(200);  // Adjust this value (try 100, 150, 200)
+                    }, 200);
                     
                 } catch (error) {
                     console.error('Error fetching Paxlist stats:', error);
@@ -591,8 +595,8 @@
             
             // FIRST SCROLL: After flight details render
             setTimeout(() => {
-                scrollToFlightNumber();
-            }, 500);
+                scrollByPixels(400);  // Adjust this value (try 300, 400, 500)
+            }, 300);
         }
 
         function displayPreviousFlightDetails(flight) {

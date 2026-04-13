@@ -73,9 +73,8 @@ document.getElementById('date').value = tomorrow.toISOString().split('T')[0];
 
 let currentPassengers = [];
 let currentFilter = null;
-let currentSort = 'seat'; // 'seat' or 'name'
+let currentSort = 'seat';
 let currentSearchTerm = '';
-let autoSearchPerformed = false;
 
 function isStaff(passenger) {
     return passenger.value_staff && passenger.value_staff.trim() !== '';
@@ -155,28 +154,34 @@ async function checkTokenStatus() {
     } catch(e) {}
 }
 
-function checkForStoredParams() {
+// Check for stored parameters on page load and auto-search
+function checkAndAutoSearch() {
     const storedFlightNum = sessionStorage.getItem('paxlist_flight_number');
     const storedOrigin = sessionStorage.getItem('paxlist_origin');
     const storedDate = sessionStorage.getItem('paxlist_date');
     
-    if (storedFlightNum && storedOrigin && storedDate && !autoSearchPerformed) {
+    if (storedFlightNum && storedOrigin && storedDate) {
+        // Clear the stored parameters after reading
         sessionStorage.removeItem('paxlist_flight_number');
         sessionStorage.removeItem('paxlist_origin');
         sessionStorage.removeItem('paxlist_date');
         
+        // Populate the search fields
         document.getElementById('flightNum').value = storedFlightNum;
         document.getElementById('dep').value = storedOrigin;
         document.getElementById('date').value = storedDate;
         
+        // Show info message
         const resultsDiv = document.getElementById('results');
-        resultsDiv.innerHTML = '<div class="auto-search-info">🔍 Auto-searching flight from Flight Details page...</div>';
+        resultsDiv.innerHTML = '<div class="auto-search-info">✈️ Loading flight AV' + storedFlightNum + ' from ' + storedOrigin + ' on ' + storedDate + '...</div>';
         
-        autoSearchPerformed = true;
+        // Execute search automatically
         setTimeout(() => {
             search();
         }, 100);
+        return true;
     }
+    return false;
 }
 
 async function search() {
@@ -185,6 +190,10 @@ async function search() {
     currentFilter = null;
     currentSearchTerm = '';
     currentSort = 'seat';
+    
+    // Clear search input if it exists
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) searchInput.value = '';
     
     try {
         const response = await fetch('/api/paxlist/search', {
@@ -226,10 +235,10 @@ function filterAndSortPassengers() {
     }
     
     // Apply search
-    if (currentSearchTerm) {
+    if (current name =SearchTerm) {
         const searchLower = currentSearchTerm.toLowerCase();
         filtered = filtered.filter(p => {
-            const name = `${p.lastname || ''} ${p.firstname || ''}`.toLowerCase();
+            const `${p.lastname || ''} ${p.firstname || ''}`.toLowerCase();
             const seat = (p.seat || '').toLowerCase();
             return name.includes(searchLower) || seat.includes(searchLower);
         });
@@ -257,7 +266,7 @@ function renderPassengerList() {
     const filtered = filterAndSortPassengers();
     const listDiv = document.getElementById('passengerList');
     const detailsDiv = document.getElementById('details');
-    detailsDiv.style.display = 'none';
+    if (detailsDiv) detailsDiv.style.display = 'none';
     
     if (filtered.length === 0) {
         listDiv.innerHTML = '<div style="text-align:center;padding:20px;color:#888;">No passengers found</div>';
@@ -351,7 +360,6 @@ function displayStats() {
 
 function setFilter(filter) {
     currentFilter = filter;
-    // Update active state
     document.querySelectorAll('.stat').forEach(stat => stat.classList.remove('active'));
     if (filter === 'all') document.getElementById('statAll')?.classList.add('active');
     else if (filter === 'c') document.getElementById('statC')?.classList.add('active');
@@ -362,7 +370,6 @@ function setFilter(filter) {
 
 function setSort(sort) {
     currentSort = sort;
-    // Update button active state
     document.querySelectorAll('.sort-btn').forEach(btn => btn.classList.remove('active'));
     if (sort === 'seat') document.querySelector('.sort-btn:first-child')?.classList.add('active');
     else if (sort === 'name') document.querySelector('.sort-btn:last-child')?.classList.add('active');
@@ -416,9 +423,14 @@ function showPassengerDetails(index) {
     `;
 }
 
-// Check for stored parameters from flight_details page on load
-checkForStoredParams();
-checkTokenStatus();
+// Check for stored parameters and auto-search on page load
+// Use requestAnimationFrame to ensure DOM is ready
+requestAnimationFrame(() => {
+    const hasParams = checkAndAutoSearch();
+    if (!hasParams) {
+        checkTokenStatus();
+    }
+});
 </script>
 </body>
 </html>

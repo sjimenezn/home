@@ -93,7 +93,38 @@ function getLfm(passenger) {
     return '';
 }
 
-// Check for stored parameters from flight_details page
+// Check for cached passenger data from flight_details page (INSTANT LOAD)
+function checkForCachedData() {
+    var cachedData = sessionStorage.getItem('paxlist_cached_data');
+    if (cachedData) {
+        try {
+            var data = JSON.parse(cachedData);
+            // Clear it immediately so it doesn't get used again
+            sessionStorage.removeItem('paxlist_cached_data');
+            
+            if (data.passengers && data.passengers.length > 0) {
+                // Use the cached data directly - NO API CALL NEEDED
+                currentPassengers = data.passengers;
+                
+                // Populate the search fields
+                if (data.flight_info) {
+                    document.getElementById('flightNum').value = data.flight_info.flight_number;
+                    document.getElementById('dep').value = data.flight_info.origin;
+                    document.getElementById('date').value = data.flight_info.date;
+                }
+                
+                // Display stats immediately without API call
+                displayStats();
+                return true;
+            }
+        } catch(e) {
+            console.error('Error parsing cached data:', e);
+        }
+    }
+    return false;
+}
+
+// Check for stored parameters from flight_details page (fallback)
 function checkAndAutoSearch() {
     var storedFlightNum = sessionStorage.getItem('paxlist_flight_number');
     var storedOrigin = sessionStorage.getItem('paxlist_origin');
@@ -485,12 +516,14 @@ function showPassengerDetails(index) {
     detailsDiv.innerHTML += staffDisplay;
 }
 
-// Check for auto-search from flight_details page on load
-// Use requestAnimationFrame to ensure DOM is ready
+// Check for cached data first (INSTANT LOAD), then auto-search, then token status
 requestAnimationFrame(function() {
-    var hasParams = checkAndAutoSearch();
-    if (!hasParams) {
-        checkTokenStatus();
+    var hasCachedData = checkForCachedData();
+    if (!hasCachedData) {
+        var hasParams = checkAndAutoSearch();
+        if (!hasParams) {
+            checkTokenStatus();
+        }
     }
 });
 </script>

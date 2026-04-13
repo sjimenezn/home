@@ -67,6 +67,7 @@
 </div>
 
 <script>
+// Set default date to tomorrow
 const tomorrow = new Date();
 tomorrow.setDate(tomorrow.getDate() + 1);
 document.getElementById('date').value = tomorrow.toISOString().split('T')[0];
@@ -86,48 +87,44 @@ function getStaffValue(passenger) {
 
 function getLfm(passenger) {
     if (passenger.lfm && passenger.lfm.length > 0) {
-        const lfmData = passenger.lfm[0];
+        var lfmData = passenger.lfm[0];
         return lfmData.tierDescription || lfmData.tierLevel || 'LifeMiles';
     }
     return '';
 }
 
-function getPassengerName(passenger) {
-    return `${passenger.lastname || ''}, ${passenger.firstname || ''}`.trim().toLowerCase() || 'unknown';
-}
-
 // Auto-detect paste and save tokens
 document.getElementById('tokenInput').addEventListener('paste', function(e) {
-    setTimeout(async () => {
-        const jsonInput = document.getElementById('tokenInput').value.trim();
+    setTimeout(async function() {
+        var jsonInput = document.getElementById('tokenInput').value.trim();
         if (!jsonInput) return;
         
-        const statusDiv = document.getElementById('status');
+        var statusDiv = document.getElementById('status');
         statusDiv.className = 'status show';
         statusDiv.innerHTML = '🔄 Saving tokens...';
         statusDiv.style.background = '#2a4a2a';
         statusDiv.style.color = '#d4edda';
         
         try {
-            let tokens = JSON.parse(jsonInput);
+            var tokens = JSON.parse(jsonInput);
             if (typeof tokens === 'string') tokens = JSON.parse(tokens);
             
-            let access_token = tokens.access_token;
-            let refresh_token = tokens.refresh_token;
+            var access_token = tokens.access_token;
+            var refresh_token = tokens.refresh_token;
             if (Array.isArray(access_token)) access_token = access_token[0];
             if (Array.isArray(refresh_token)) refresh_token = refresh_token[0];
             
-            const response = await fetch('/api/paxlist/set_initial_tokens', {
+            var response = await fetch('/api/paxlist/set_initial_tokens', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({access_token, refresh_token})
+                body: JSON.stringify({access_token: access_token, refresh_token: refresh_token})
             });
-            const result = await response.json();
+            var result = await response.json();
             
             if (result.success) {
                 statusDiv.className = 'status show ok';
                 statusDiv.innerHTML = '✅ Tokens saved';
-                setTimeout(() => { statusDiv.classList.remove('show'); }, 2000);
+                setTimeout(function() { statusDiv.classList.remove('show'); }, 2000);
                 checkTokenStatus();
             } else {
                 throw new Error(result.message);
@@ -135,79 +132,49 @@ document.getElementById('tokenInput').addEventListener('paste', function(e) {
         } catch(e) {
             statusDiv.className = 'status show error';
             statusDiv.innerHTML = '❌ Invalid token format';
-            setTimeout(() => { statusDiv.classList.remove('show'); }, 2000);
+            setTimeout(function() { statusDiv.classList.remove('show'); }, 2000);
         }
     }, 50);
 });
 
 async function checkTokenStatus() {
     try {
-        const response = await fetch('/api/paxlist/token_status');
-        const data = await response.json();
-        const statusDiv = document.getElementById('status');
+        var response = await fetch('/api/paxlist/token_status');
+        var data = await response.json();
+        var statusDiv = document.getElementById('status');
         
         if (data.status.access_token_valid) {
             statusDiv.className = 'status show ok';
-            statusDiv.innerHTML = `✅ Token: ${data.status.access_expires_in_minutes} min left`;
-            setTimeout(() => { statusDiv.classList.remove('show'); }, 1500);
+            statusDiv.innerHTML = '✅ Token: ' + data.status.access_expires_in_minutes + ' min left';
+            setTimeout(function() { statusDiv.classList.remove('show'); }, 1500);
         }
     } catch(e) {}
 }
 
-// Check for stored parameters on page load and auto-search
-function checkAndAutoSearch() {
-    const storedFlightNum = sessionStorage.getItem('paxlist_flight_number');
-    const storedOrigin = sessionStorage.getItem('paxlist_origin');
-    const storedDate = sessionStorage.getItem('paxlist_date');
-    
-    if (storedFlightNum && storedOrigin && storedDate) {
-        // Clear the stored parameters after reading
-        sessionStorage.removeItem('paxlist_flight_number');
-        sessionStorage.removeItem('paxlist_origin');
-        sessionStorage.removeItem('paxlist_date');
-        
-        // Populate the search fields
-        document.getElementById('flightNum').value = storedFlightNum;
-        document.getElementById('dep').value = storedOrigin;
-        document.getElementById('date').value = storedDate;
-        
-        // Show info message
-        const resultsDiv = document.getElementById('results');
-        resultsDiv.innerHTML = '<div class="auto-search-info">✈️ Loading flight AV' + storedFlightNum + ' from ' + storedOrigin + ' on ' + storedDate + '...</div>';
-        
-        // Execute search automatically
-        setTimeout(() => {
-            search();
-        }, 100);
-        return true;
-    }
-    return false;
-}
-
 async function search() {
-    const resultsDiv = document.getElementById('results');
+    var resultsDiv = document.getElementById('results');
     resultsDiv.innerHTML = '<div class="loading">Loading...</div>';
     currentFilter = null;
     currentSearchTerm = '';
     currentSort = 'seat';
     
-    // Clear search input if it exists
-    const searchInput = document.getElementById('searchInput');
-    if (searchInput) searchInput.value = '';
-    
     try {
-        const response = await fetch('/api/paxlist/search', {
+        var flightNum = document.getElementById('flightNum').value;
+        var dep = document.getElementById('dep').value.toUpperCase();
+        var date = document.getElementById('date').value;
+        
+        var response = await fetch('/api/paxlist/search', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 flight_carrier: 'AV',
-                flight_number: document.getElementById('flightNum').value,
-                flight_departure_station: document.getElementById('dep').value.toUpperCase(),
-                flight_date: document.getElementById('date').value
+                flight_number: flightNum,
+                flight_departure_station: dep,
+                flight_date: date
             })
         });
         
-        const result = await response.json();
+        var result = await response.json();
         
         if (result.success && result.data) {
             currentPassengers = result.data.passengers || [];
@@ -215,47 +182,72 @@ async function search() {
         } else if (result.needs_new_tokens) {
             resultsDiv.innerHTML = '<div class="loading" style="color:#f44336;">❌ Token expired. Paste new token above.</div>';
         } else {
-            resultsDiv.innerHTML = `<div class="loading" style="color:#f44336;">❌ ${result.message || 'Search failed'}</div>`;
+            resultsDiv.innerHTML = '<div class="loading" style="color:#f44336;">❌ ' + (result.message || 'Search failed') + '</div>';
         }
     } catch(e) {
-        resultsDiv.innerHTML = `<div class="loading" style="color:#f44336;">❌ ${e.message}</div>`;
+        resultsDiv.innerHTML = '<div class="loading" style="color:#f44336;">❌ ' + e.message + '</div>';
     }
 }
 
 function filterAndSortPassengers() {
-    let filtered = [...currentPassengers];
+    var filtered = [];
+    for (var i = 0; i < currentPassengers.length; i++) {
+        filtered.push(currentPassengers[i]);
+    }
     
     // Apply filter
     if (currentFilter === 'c') {
-        filtered = filtered.filter(p => p.cabin === 'C');
+        var temp = [];
+        for (var i = 0; i < filtered.length; i++) {
+            if (filtered[i].cabin === 'C') temp.push(filtered[i]);
+        }
+        filtered = temp;
     } else if (currentFilter === 'y') {
-        filtered = filtered.filter(p => p.cabin !== 'C');
+        var temp = [];
+        for (var i = 0; i < filtered.length; i++) {
+            if (filtered[i].cabin !== 'C') temp.push(filtered[i]);
+        }
+        filtered = temp;
     } else if (currentFilter === 'staff') {
-        filtered = filtered.filter(p => isStaff(p));
+        var temp = [];
+        for (var i = 0; i < filtered.length; i++) {
+            if (isStaff(filtered[i])) temp.push(filtered[i]);
+        }
+        filtered = temp;
     }
     
     // Apply search
     if (currentSearchTerm) {
-        const searchLower = currentSearchTerm.toLowerCase();
-        filtered = filtered.filter(p => {
-            const `${p.lastname || ''} ${p.firstname || ''}`.toLowerCase();
-            const seat = (p.seat || '').toLowerCase();
-            return name.includes(searchLower) || seat.includes(searchLower);
-        });
+        var searchLower = currentSearchTerm.toLowerCase();
+        var temp = [];
+        for (var i = 0; i < filtered.length; i++) {
+            var p = filtered[i];
+            var name = (p.lastname || '') + ' ' + (p.firstname || '');
+            name = name.toLowerCase();
+            var seat = (p.seat || '').toLowerCase();
+            if (name.indexOf(searchLower) !== -1 || seat.indexOf(searchLower) !== -1) {
+                temp.push(p);
+            }
+        }
+        filtered = temp;
     }
     
     // Apply sort
     if (currentSort === 'seat') {
-        filtered.sort((a, b) => {
-            const seatA = a.seat || 'ZZZ';
-            const seatB = b.seat || 'ZZZ';
-            return seatA.localeCompare(seatB);
+        filtered.sort(function(a, b) {
+            var seatA = a.seat || 'ZZZ';
+            var seatB = b.seat || 'ZZZ';
+            if (seatA < seatB) return -1;
+            if (seatA > seatB) return 1;
+            return 0;
         });
     } else if (currentSort === 'name') {
-        filtered.sort((a, b) => {
-            const nameA = `${a.lastname || ''}, ${a.firstname || ''}`;
-            const nameB = `${b.lastname || ''}, ${b.firstname || ''}`;
-            return nameA.localeCompare(nameB);
+        filtered.sort(function(a, b) {
+            var nameA = (a.lastname || '') + ', ' + (a.firstname || '');
+            var nameB = (b.lastname || '') + ', ' + (b.firstname || '');
+            if (nameA < nameB) return -1;
+            if (nameA > nameB) return 1;
+            return 0;
         });
     }
     
@@ -263,9 +255,9 @@ function filterAndSortPassengers() {
 }
 
 function renderPassengerList() {
-    const filtered = filterAndSortPassengers();
-    const listDiv = document.getElementById('passengerList');
-    const detailsDiv = document.getElementById('details');
+    var filtered = filterAndSortPassengers();
+    var listDiv = document.getElementById('passengerList');
+    var detailsDiv = document.getElementById('details');
     if (detailsDiv) detailsDiv.style.display = 'none';
     
     if (filtered.length === 0) {
@@ -273,86 +265,101 @@ function renderPassengerList() {
         return;
     }
     
-    let html = '';
-    for (let i = 0; i < filtered.length; i++) {
-        const p = filtered[i];
-        const name = `${p.lastname || ''}, ${p.firstname || ''}`.trim() || 'Unknown';
-        const seat = p.seat || '???';
-        const cabin = p.cabin || 'Y';
-        const lfm = getLfm(p);
-        const staffValue = getStaffValue(p);
+    var html = '';
+    for (var i = 0; i < filtered.length; i++) {
+        var p = filtered[i];
+        var name = ((p.lastname || '') + ', ' + (p.firstname || '')).trim() || 'Unknown';
+        var seat = p.seat || '???';
+        var cabin = p.cabin || 'Y';
+        var lfm = getLfm(p);
+        var staffValue = getStaffValue(p);
         
-        const cabinBadge = cabin === 'C' ? '<span class="badge badge-c">C</span>' : '<span class="badge badge-y">Y</span>';
-        const staffBadge = staffValue ? `<span class="badge badge-staff">${staffValue}</span>` : '';
-        const lfmText = lfm ? `<span class="lfm">⭐${lfm}</span>` : '';
+        var cabinBadge = cabin === 'C' ? '<span class="badge badge-c">C</span>' : '<span class="badge badge-y">Y</span>';
+        var staffBadge = staffValue ? '<span class="badge badge-staff">' + staffValue + '</span>' : '';
+        var lfmText = lfm ? '<span class="lfm">⭐' + lfm + '</span>' : '';
         
-        // Find original index for details lookup
-        const originalIndex = currentPassengers.findIndex(orig => orig === p);
+        // Find original index
+        var originalIndex = -1;
+        for (var j = 0; j < currentPassengers.length; j++) {
+            if (currentPassengers[j] === p) {
+                originalIndex = j;
+                break;
+            }
+        }
         
-        html += `
-            <div class="passenger-item" onclick="showPassengerDetails(${originalIndex})">
-                <strong>${seat}</strong> - ${name} ${cabinBadge} ${staffBadge} ${lfmText}
-            </div>
-        `;
+        html += '<div class="passenger-item" onclick="showPassengerDetails(' + originalIndex + ')">';
+        html += '<strong>' + seat + '</strong> - ' + name + ' ' + cabinBadge + ' ' + staffBadge + ' ' + lfmText;
+        html += '</div>';
     }
     
     listDiv.innerHTML = html;
 }
 
 function displayStats() {
-    let total = currentPassengers.length;
-    let cClass = 0, yClass = 0, staff = 0;
+    var total = currentPassengers.length;
+    var cClass = 0, yClass = 0, staff = 0;
     
-    for (const p of currentPassengers) {
+    for (var i = 0; i < currentPassengers.length; i++) {
+        var p = currentPassengers[i];
         if (p.cabin === 'C') cClass++;
         else yClass++;
         if (isStaff(p)) staff++;
     }
     
-    let html = `
-        <div class="flight-info">
-            ✈️ AV${document.getElementById('flightNum').value} | 
-            ${document.getElementById('dep').value.toUpperCase()} → ${currentPassengers[0]?.arrival_station || '???'} | 
-            📅 ${document.getElementById('date').value}
-        </div>
-        <div class="stats">
-            <div class="stat" onclick="setFilter('all')" id="statAll">
-                <span>${total}</span>Total
-            </div>
-            <div class="stat" onclick="setFilter('c')" id="statC">
-                <span>${cClass}</span>Business (C)
-            </div>
-            <div class="stat" onclick="setFilter('y')" id="statY">
-                <span>${yClass}</span>Economy (Y)
-            </div>
-            <div class="stat" onclick="setFilter('staff')" id="statStaff">
-                <span>${staff}</span>Staff
-            </div>
-        </div>
-        <div class="controls">
-            <div class="sort-buttons">
-                <button class="sort-btn ${currentSort === 'seat' ? 'active' : ''}" onclick="setSort('seat')">Sort by Seat</button>
-                <button class="sort-btn ${currentSort === 'name' ? 'active' : ''}" onclick="setSort('name')">Sort by Name</button>
-            </div>
-            <div class="search-box">
-                <div class="search-header">
-                    <input type="text" id="searchInput" placeholder="🔍 Search by name or seat..." onkeyup="handleSearch()">
-                    <button class="clear-search" onclick="clearSearch()">Clear</button>
-                </div>
-            </div>
-        </div>
-        <div id="passengerList" class="passenger-list"></div>
-        <div id="details" class="details" style="display:none;"></div>
-    `;
+    var flightNum = document.getElementById('flightNum').value;
+    var dep = document.getElementById('dep').value.toUpperCase();
+    var date = document.getElementById('date').value;
+    var destination = currentPassengers[0] && currentPassengers[0].arrival_station ? currentPassengers[0].arrival_station : '???';
+    
+    var html = '<div class="flight-info">';
+    html += '✈️ AV' + flightNum + ' | ';
+    html += dep + ' → ' + destination + ' | ';
+    html += '📅 ' + date;
+    html += '</div>';
+    
+    html += '<div class="stats">';
+    html += '<div class="stat" onclick="setFilter(\'all\')" id="statAll"><span>' + total + '</span>Total</div>';
+    html += '<div class="stat" onclick="setFilter(\'c\')" id="statC"><span>' + cClass + '</span>Business (C)</div>';
+    html += '<div class="stat" onclick="setFilter(\'y\')" id="statY"><span>' + yClass + '</span>Economy (Y)</div>';
+    html += '<div class="stat" onclick="setFilter(\'staff\')" id="statStaff"><span>' + staff + '</span>Staff</div>';
+    html += '</div>';
+    
+    html += '<div class="controls">';
+    html += '<div class="sort-buttons">';
+    html += '<button class="sort-btn ' + (currentSort === 'seat' ? 'active' : '') + '" onclick="setSort(\'seat\')">Sort by Seat</button>';
+    html += '<button class="sort-btn ' + (currentSort === 'name' ? 'active' : '') + '" onclick="setSort(\'name\')">Sort by Name</button>';
+    html += '</div>';
+    html += '<div class="search-box">';
+    html += '<div class="search-header">';
+    html += '<input type="text" id="searchInput" placeholder="🔍 Search by name or seat..." onkeyup="handleSearch()">';
+    html += '<button class="clear-search" onclick="clearSearch()">Clear</button>';
+    html += '</div>';
+    html += '</div>';
+    html += '</div>';
+    
+    html += '<div id="passengerList" class="passenger-list"></div>';
+    html += '<div id="details" class="details" style="display:none;"></div>';
     
     document.getElementById('results').innerHTML = html;
     
     // Set active stat highlight
-    document.querySelectorAll('.stat').forEach(stat => stat.classList.remove('active'));
-    if (currentFilter === 'all' || !currentFilter) document.getElementById('statAll')?.classList.add('active');
-    else if (currentFilter === 'c') document.getElementById('statC')?.classList.add('active');
-    else if (currentFilter === 'y') document.getElementById('statY')?.classList.add('active');
-    else if (currentFilter === 'staff') document.getElementById('statStaff')?.classList.add('active');
+    var allStats = document.querySelectorAll('.stat');
+    for (var i = 0; i < allStats.length; i++) {
+        allStats[i].classList.remove('active');
+    }
+    if (currentFilter === 'all' || !currentFilter) {
+        var statAll = document.getElementById('statAll');
+        if (statAll) statAll.classList.add('active');
+    } else if (currentFilter === 'c') {
+        var statC = document.getElementById('statC');
+        if (statC) statC.classList.add('active');
+    } else if (currentFilter === 'y') {
+        var statY = document.getElementById('statY');
+        if (statY) statY.classList.add('active');
+    } else if (currentFilter === 'staff') {
+        var statStaff = document.getElementById('statStaff');
+        if (statStaff) statStaff.classList.add('active');
+    }
     
     renderPassengerList();
     checkTokenStatus();
@@ -360,77 +367,96 @@ function displayStats() {
 
 function setFilter(filter) {
     currentFilter = filter;
-    document.querySelectorAll('.stat').forEach(stat => stat.classList.remove('active'));
-    if (filter === 'all') document.getElementById('statAll')?.classList.add('active');
-    else if (filter === 'c') document.getElementById('statC')?.classList.add('active');
-    else if (filter === 'y') document.getElementById('statY')?.classList.add('active');
-    else if (filter === 'staff') document.getElementById('statStaff')?.classList.add('active');
+    var allStats = document.querySelectorAll('.stat');
+    for (var i = 0; i < allStats.length; i++) {
+        allStats[i].classList.remove('active');
+    }
+    if (filter === 'all') {
+        var statAll = document.getElementById('statAll');
+        if (statAll) statAll.classList.add('active');
+    } else if (filter === 'c') {
+        var statC = document.getElementById('statC');
+        if (statC) statC.classList.add('active');
+    } else if (filter === 'y') {
+        var statY = document.getElementById('statY');
+        if (statY) statY.classList.add('active');
+    } else if (filter === 'staff') {
+        var statStaff = document.getElementById('statStaff');
+        if (statStaff) statStaff.classList.add('active');
+    }
     renderPassengerList();
 }
 
 function setSort(sort) {
     currentSort = sort;
-    document.querySelectorAll('.sort-btn').forEach(btn => btn.classList.remove('active'));
-    if (sort === 'seat') document.querySelector('.sort-btn:first-child')?.classList.add('active');
-    else if (sort === 'name') document.querySelector('.sort-btn:last-child')?.classList.add('active');
+    var sortBtns = document.querySelectorAll('.sort-btn');
+    for (var i = 0; i < sortBtns.length; i++) {
+        sortBtns[i].classList.remove('active');
+    }
+    if (sort === 'seat') {
+        var firstBtn = document.querySelector('.sort-btn:first-child');
+        if (firstBtn) firstBtn.classList.add('active');
+    } else if (sort === 'name') {
+        var lastBtn = document.querySelector('.sort-btn:last-child');
+        if (lastBtn) lastBtn.classList.add('active');
+    }
     renderPassengerList();
 }
 
 function handleSearch() {
-    currentSearchTerm = document.getElementById('searchInput').value;
+    var searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        currentSearchTerm = searchInput.value;
+    }
     renderPassengerList();
 }
 
 function clearSearch() {
-    document.getElementById('searchInput').value = '';
+    var searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.value = '';
+    }
     currentSearchTerm = '';
     renderPassengerList();
 }
 
 function showPassengerDetails(index) {
-    const p = currentPassengers[index];
-    const detailsDiv = document.getElementById('details');
+    var p = currentPassengers[index];
+    var detailsDiv = document.getElementById('details');
     
-    document.querySelectorAll('.passenger-item').forEach((item, i) => {
-        item.classList.remove('selected');
-        if (i === index) item.classList.add('selected');
-    });
-    
-    let lfm = '-';
-    if (p.lfm && p.lfm.length > 0) {
-        const lfmData = p.lfm[0];
-        lfm = `${lfmData.carrier || ''} ${lfmData.number || ''} (${lfmData.tierDescription || lfmData.tierLevel || 'LifeMiles'})`;
+    var passengerItems = document.querySelectorAll('.passenger-item');
+    for (var i = 0; i < passengerItems.length; i++) {
+        passengerItems[i].classList.remove('selected');
+        if (i === index) passengerItems[i].classList.add('selected');
     }
     
-    let special = [];
-    if (p.meal_code) special.push(`🍽️ Meal: ${p.meal_code}`);
+    var lfm = '-';
+    if (p.lfm && p.lfm.length > 0) {
+        var lfmData = p.lfm[0];
+        lfm = (lfmData.carrier || '') + ' ' + (lfmData.number || '') + ' (' + (lfmData.tierDescription || lfmData.tierLevel || 'LifeMiles') + ')';
+    }
+    
+    var special = [];
+    if (p.meal_code) special.push('🍽️ Meal: ' + p.meal_code);
     if (p.value_chd === 'CHD') special.push('👶 Child');
     if (p.value_inf === 'INF') special.push('🍼 Infant');
-    if (p.ssr_code) special.push(`♿ ${p.ssr_code}`);
-    const specialStr = special.length ? special.join(' | ') : '-';
+    if (p.ssr_code) special.push('♿ ' + p.ssr_code);
+    var specialStr = special.length ? special.join(' | ') : '-';
     
-    const staffValue = getStaffValue(p);
-    const staffDisplay = staffValue ? `<div class="row"><div class="label">Staff:</div><div>✅ ${staffValue}</div></div>` : '';
+    var staffValue = getStaffValue(p);
+    var staffDisplay = staffValue ? '<div class="row"><div class="label">Staff:</div><div>✅ ' + staffValue + '</div></div>' : '';
     
     detailsDiv.style.display = 'block';
-    detailsDiv.innerHTML = `
-        <div class="row"><div class="label">Name:</div><div><strong>${p.lastname || ''}, ${p.firstname || ''}</strong></div></div>
-        <div class="row"><div class="label">Seat:</div><div>${p.seat || 'N/A'} (${p.cabin || 'Y'} Class)</div></div>
-        <div class="row"><div class="label">Frequent Flyer:</div><div>${lfm}</div></div>
-        <div class="row"><div class="label">Special Services:</div><div>${specialStr}</div></div>
-        <div class="row"><div class="label">Destination:</div><div>${p.arrival_station || 'N/A'}</div></div>
-        ${staffDisplay}
-    `;
+    detailsDiv.innerHTML = '<div class="row"><div class="label">Name:</div><div><strong>' + (p.lastname || '') + ', ' + (p.firstname || '') + '</strong></div></div>';
+    detailsDiv.innerHTML += '<div class="row"><div class="label">Seat:</div><div>' + (p.seat || 'N/A') + ' (' + (p.cabin || 'Y') + ' Class)</div></div>';
+    detailsDiv.innerHTML += '<div class="row"><div class="label">Frequent Flyer:</div><div>' + lfm + '</div></div>';
+    detailsDiv.innerHTML += '<div class="row"><div class="label">Special Services:</div><div>' + specialStr + '</div></div>';
+    detailsDiv.innerHTML += '<div class="row"><div class="label">Destination:</div><div>' + (p.arrival_station || 'N/A') + '</div></div>';
+    detailsDiv.innerHTML += staffDisplay;
 }
 
-// Check for stored parameters and auto-search on page load
-// Use requestAnimationFrame to ensure DOM is ready
-requestAnimationFrame(() => {
-    const hasParams = checkAndAutoSearch();
-    if (!hasParams) {
-        checkTokenStatus();
-    }
-});
+// Check token status on page load
+checkTokenStatus();
 </script>
 </body>
 </html>

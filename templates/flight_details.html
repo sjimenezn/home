@@ -233,6 +233,14 @@
             document.getElementById('origin_airport').focus();
         }
 
+        // Function to open Paxlist in same tab with flight parameters
+        function openPaxlistWithFlight(flightNum, origin, date) {
+            sessionStorage.setItem('paxlist_flight_number', flightNum);
+            sessionStorage.setItem('paxlist_origin', origin);
+            sessionStorage.setItem('paxlist_date', date);
+            window.location.href = '/paxlist';
+        }
+
         // Function to scroll down 350px
         function scrollDown350px() {
             window.scrollBy({
@@ -240,11 +248,6 @@
                 behavior: 'smooth'
             });
             console.log('Scrolled down 350px');
-        }
-
-        // Function to open Paxlist page
-        function openPaxlist() {
-            window.open('/paxlist', '_blank');
         }
 
         // Function to fetch Paxlist stats for a flight
@@ -444,7 +447,7 @@
                         statsSpan.style.cursor = 'pointer';
                         statsSpan.onclick = function(e) {
                             e.stopPropagation();
-                            window.open('/paxlist', '_blank');
+                            openPaxlistWithFlight(currentFlightNum, currentOrigin, currentDate);
                         };
                     } else if (paxStats.success && paxStats.total === 0) {
                         statsSpan.className = 'paxlist-stats';
@@ -452,7 +455,7 @@
                         statsSpan.style.cursor = 'pointer';
                         statsSpan.onclick = function(e) {
                             e.stopPropagation();
-                            window.open('/paxlist', '_blank');
+                            openPaxlistWithFlight(currentFlightNum, currentOrigin, currentDate);
                         };
                     } else {
                         statsSpan.className = 'paxlist-stats error';

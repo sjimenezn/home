@@ -93,6 +93,36 @@ function getLfm(passenger) {
     return '';
 }
 
+// Check for stored parameters from flight_details page
+function checkAndAutoSearch() {
+    var storedFlightNum = sessionStorage.getItem('paxlist_flight_number');
+    var storedOrigin = sessionStorage.getItem('paxlist_origin');
+    var storedDate = sessionStorage.getItem('paxlist_date');
+    
+    if (storedFlightNum && storedOrigin && storedDate) {
+        // Clear the stored parameters after reading
+        sessionStorage.removeItem('paxlist_flight_number');
+        sessionStorage.removeItem('paxlist_origin');
+        sessionStorage.removeItem('paxlist_date');
+        
+        // Populate the search fields
+        document.getElementById('flightNum').value = storedFlightNum;
+        document.getElementById('dep').value = storedOrigin;
+        document.getElementById('date').value = storedDate;
+        
+        // Show info message
+        var resultsDiv = document.getElementById('results');
+        resultsDiv.innerHTML = '<div class="auto-search-info">✈️ Loading flight AV' + storedFlightNum + ' from ' + storedOrigin + ' on ' + storedDate + '...</div>';
+        
+        // Execute search automatically
+        setTimeout(function() {
+            search();
+        }, 100);
+        return true;
+    }
+    return false;
+}
+
 // Auto-detect paste and save tokens
 document.getElementById('tokenInput').addEventListener('paste', function(e) {
     setTimeout(async function() {
@@ -455,8 +485,14 @@ function showPassengerDetails(index) {
     detailsDiv.innerHTML += staffDisplay;
 }
 
-// Check token status on page load
-checkTokenStatus();
+// Check for auto-search from flight_details page on load
+// Use requestAnimationFrame to ensure DOM is ready
+requestAnimationFrame(function() {
+    var hasParams = checkAndAutoSearch();
+    if (!hasParams) {
+        checkTokenStatus();
+    }
+});
 </script>
 </body>
 </html>

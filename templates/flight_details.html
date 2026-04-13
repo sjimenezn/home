@@ -124,11 +124,24 @@
             font-size: 0.85em; 
             font-weight: normal;
             margin-left: auto;
-            cursor: default;
-            pointer-events: none;
+            cursor: pointer;
+            pointer-events: auto;
+            text-decoration: underline;
+            text-decoration-style: dotted;
         }
-        .section-title .paxlist-stats.loading { color: #ffc107; }
-        .section-title .paxlist-stats.error { color: #f44336; }
+        .section-title .paxlist-stats:hover { 
+            color: #ffc107;
+        }
+        .section-title .paxlist-stats.loading { 
+            color: #ffc107;
+            cursor: default;
+            text-decoration: none;
+        }
+        .section-title .paxlist-stats.error { 
+            color: #f44336;
+            cursor: default;
+            text-decoration: none;
+        }
         .previous-flight-number { color: #b0b0b0 !important; font-size: 1.6em; }
         
         .crew-list { display: grid; grid-template-columns: 1fr; gap: 5px; margin: 10px 0; }
@@ -219,8 +232,8 @@
             document.getElementById('origin_airport').focus();
         }
 
-        // Function to scroll down 50px
-        function scrollDown50px() {
+        // Function to scroll down 350px
+        function scrollDown350px() {
             window.scrollBy({
                 top: 350,
                 behavior: 'smooth'
@@ -332,9 +345,9 @@
                 const result = await response.json();
                 if (result.success) {
                     displayCrewMembers(result.crew_data);
-                    // Scroll 50px after crew data is shown
+                    // Scroll 350px after crew data is shown
                     setTimeout(() => {
-                        scrollDown50px();
+                        scrollDown350px();
                     }, 200);
                 }
             } catch (error) {}
@@ -361,7 +374,6 @@
             const statsSpan = document.createElement('span');
             statsSpan.className = 'paxlist-stats loading';
             statsSpan.innerHTML = ' 🔄 loading stats...';
-            statsSpan.style.pointerEvents = 'none';
             title.appendChild(statsSpan);
 
             // FIRST: Load previous flight details immediately (no waiting for Paxlist)
@@ -418,26 +430,31 @@
                     
                     const paxStats = await fetchPaxlistStats(currentFlightNum, currentOrigin, currentDate);
                     
-                    // Update title with stats
+                    // Update title with stats and make it clickable
                     if (paxStats.success && paxStats.total > 0) {
                         statsSpan.className = 'paxlist-stats';
                         statsSpan.innerHTML = ` T:${paxStats.total} C:${paxStats.cClass} Y:${paxStats.yClass} S:${paxStats.staff}`;
-                        statsSpan.style.pointerEvents = 'none';
+                        // Add click handler to open Paxlist page
+                        statsSpan.onclick = function() {
+                            window.open('/paxlist', '_blank');
+                        };
                     } else if (paxStats.success && paxStats.total === 0) {
                         statsSpan.className = 'paxlist-stats';
                         statsSpan.innerHTML = ` T:0 C:0 Y:0 S:0`;
-                        statsSpan.style.pointerEvents = 'none';
+                        statsSpan.onclick = function() {
+                            window.open('/paxlist', '_blank');
+                        };
                     } else {
                         statsSpan.className = 'paxlist-stats error';
                         statsSpan.innerHTML = ' ❌ stats unavailable';
-                        statsSpan.style.pointerEvents = 'none';
+                        statsSpan.onclick = null;
                     }
                     
                 } catch (error) {
                     console.error('Error fetching Paxlist stats:', error);
                     statsSpan.className = 'paxlist-stats error';
                     statsSpan.innerHTML = ' ❌ stats failed';
-                    statsSpan.style.pointerEvents = 'none';
+                    statsSpan.onclick = null;
                 }
             }, 100);
         }

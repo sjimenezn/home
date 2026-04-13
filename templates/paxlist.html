@@ -235,7 +235,7 @@ function filterAndSortPassengers() {
     }
     
     // Apply search
-    if (current name =SearchTerm) {
+    if (currentSearchTerm) {
         const searchLower = currentSearchTerm.toLowerCase();
         filtered = filtered.filter(p => {
             const `${p.lastname || ''} ${p.firstname || ''}`.toLowerCase();

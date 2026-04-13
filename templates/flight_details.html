@@ -128,6 +128,7 @@
             pointer-events: auto;
             text-decoration: underline;
             text-decoration-style: dotted;
+            transition: color 0.2s;
         }
         .section-title .paxlist-stats:hover { 
             color: #ffc107;
@@ -239,6 +240,11 @@
                 behavior: 'smooth'
             });
             console.log('Scrolled down 350px');
+        }
+
+        // Function to open Paxlist page
+        function openPaxlist() {
+            window.open('/paxlist', '_blank');
         }
 
         // Function to fetch Paxlist stats for a flight
@@ -374,6 +380,7 @@
             const statsSpan = document.createElement('span');
             statsSpan.className = 'paxlist-stats loading';
             statsSpan.innerHTML = ' 🔄 loading stats...';
+            statsSpan.style.cursor = 'default';
             title.appendChild(statsSpan);
 
             // FIRST: Load previous flight details immediately (no waiting for Paxlist)
@@ -434,19 +441,23 @@
                     if (paxStats.success && paxStats.total > 0) {
                         statsSpan.className = 'paxlist-stats';
                         statsSpan.innerHTML = ` T:${paxStats.total} C:${paxStats.cClass} Y:${paxStats.yClass} S:${paxStats.staff}`;
-                        // Add click handler to open Paxlist page
-                        statsSpan.onclick = function() {
+                        statsSpan.style.cursor = 'pointer';
+                        statsSpan.onclick = function(e) {
+                            e.stopPropagation();
                             window.open('/paxlist', '_blank');
                         };
                     } else if (paxStats.success && paxStats.total === 0) {
                         statsSpan.className = 'paxlist-stats';
                         statsSpan.innerHTML = ` T:0 C:0 Y:0 S:0`;
-                        statsSpan.onclick = function() {
+                        statsSpan.style.cursor = 'pointer';
+                        statsSpan.onclick = function(e) {
+                            e.stopPropagation();
                             window.open('/paxlist', '_blank');
                         };
                     } else {
                         statsSpan.className = 'paxlist-stats error';
                         statsSpan.innerHTML = ' ❌ stats unavailable';
+                        statsSpan.style.cursor = 'default';
                         statsSpan.onclick = null;
                     }
                     
@@ -454,6 +465,7 @@
                     console.error('Error fetching Paxlist stats:', error);
                     statsSpan.className = 'paxlist-stats error';
                     statsSpan.innerHTML = ' ❌ stats failed';
+                    statsSpan.style.cursor = 'default';
                     statsSpan.onclick = null;
                 }
             }, 100);

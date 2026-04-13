@@ -4,50 +4,67 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         * { box-sizing: border-box; }
-        body { font-family: monospace; margin: 0; padding: 10px; background: #fff; }
-        textarea { width: 100%; font-family: monospace; font-size: 11px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 10px; resize: vertical; }
+        body { font-family: monospace; margin: 0; padding: 10px; background: #121212; color: #f0f0f0; font-size: 16px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        textarea { width: 100%; font-family: monospace; font-size: 11px; padding: 8px; border: 1px solid #444; border-radius: 4px; margin-bottom: 10px; resize: vertical; background: #1e1e1e; color: #f0f0f0; }
         .status { padding: 6px 10px; border-radius: 4px; margin-bottom: 10px; font-size: 12px; display: none; }
         .status.show { display: block; }
-        .ok { background: #d4edda; color: #155724; }
-        .error { background: #f8d7da; color: #721c24; }
+        .ok { background: #2e4b2e; color: #d4edda; }
+        .error { background: #5a3a3a; color: #f8d7da; }
         .stats { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
-        .stat { flex: 1; text-align: center; padding: 12px 8px; background: #f5f5f5; border-radius: 4px; cursor: pointer; transition: all 0.2s; min-width: 80px; }
-        .stat:hover { background: #e0e0e0; transform: scale(1.02); }
+        .stat { flex: 1; text-align: center; padding: 12px 8px; background: #2a2a2a; border: 1px solid #444; border-radius: 4px; cursor: pointer; transition: all 0.2s; min-width: 80px; }
+        .stat:hover { background: #3a3a3a; transform: scale(1.02); }
         .stat span { font-size: 24px; font-weight: bold; display: block; }
-        .stat.active { background: #007bff; color: white; }
-        .passenger-list { margin-top: 15px; max-height: 400px; overflow-y: auto; }
-        .passenger-item { padding: 8px; border-bottom: 1px solid #eee; font-size: 11px; cursor: pointer; }
-        .passenger-item:hover { background: #f0f0f0; }
+        .stat.active { background: #007bff; color: white; border-color: #007bff; }
+        .controls { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; align-items: center; }
+        .sort-buttons { display: flex; gap: 5px; }
+        .sort-btn { padding: 6px 12px; background: #3a3a3a; color: #f0f0f0; border: 1px solid #555; border-radius: 4px; cursor: pointer; font-family: monospace; font-size: 12px; }
+        .sort-btn:hover { background: #4a4a4a; }
+        .sort-btn.active { background: #007bff; border-color: #007bff; }
+        .search-box { flex: 1; min-width: 150px; }
+        .search-box input { width: 100%; padding: 6px; border: 1px solid #444; border-radius: 4px; background: #1e1e1e; color: #f0f0f0; font-family: monospace; font-size: 12px; }
+        .search-box input::placeholder { color: #888; }
+        .passenger-list { margin-top: 15px; max-height: 400px; overflow-y: auto; border: 1px solid #444; border-radius: 4px; }
+        .passenger-item { padding: 8px; border-bottom: 1px solid #333; font-size: 11px; cursor: pointer; }
+        .passenger-item:hover { background: #2a2a2a; }
         .passenger-item.selected { background: #007bff; color: white; }
-        .details { background: #f5f5f5; padding: 10px; border-radius: 4px; font-size: 12px; margin-top: 15px; }
+        .details { background: #2a2a2a; padding: 10px; border-radius: 4px; font-size: 12px; margin-top: 15px; border: 1px solid #444; }
         .row { display: flex; margin-bottom: 6px; }
-        .label { font-weight: bold; width: 100px; }
-        .flight-info { background: #e8f4f8; padding: 8px; border-radius: 4px; margin-bottom: 10px; font-size: 11px; }
+        .label { font-weight: bold; width: 100px; color: #b8b8d0; }
+        .flight-info { background: #2a2a2a; padding: 10px; border-radius: 4px; margin-bottom: 10px; font-size: 11px; border: 1px solid #444; }
         input, select { font-family: monospace; font-size: 12px; }
         .search-row { display: flex; gap: 8px; margin-bottom: 15px; }
-        .search-row input { flex: 1; padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
-        button { padding: 6px 12px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-family: monospace; }
-        button:hover { background: #0056b3; }
-        .loading { text-align: center; padding: 20px; font-size: 12px; color: #666; }
+        .search-row input { flex: 1; padding: 8px; border: 1px solid #444; border-radius: 4px; background: #1e1e1e; color: #f0f0f0; }
+        .search-row input:focus { outline: none; border-color: #007bff; }
+        button { padding: 8px 16px; background: #3a3a3a; color: #f0f0f0; border: 1px solid #555; border-radius: 4px; cursor: pointer; font-family: monospace; }
+        button:hover { background: #4a4a4a; }
+        .loading { text-align: center; padding: 20px; font-size: 12px; color: #888; }
         .badge { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 9px; margin-left: 8px; }
         .badge-c { background: #f093fb; color: #fff; }
         .badge-y { background: #4facfe; color: #fff; }
         .badge-staff { background: #ff9800; color: #fff; }
-        .lfm { font-size: 10px; color: #666; }
+        .lfm { font-size: 10px; color: #aaa; }
+        .auto-search-info { background: #2a4a6a; padding: 8px; border-radius: 4px; margin-bottom: 10px; font-size: 11px; color: #7ec8ff; text-align: center; }
+        .clear-search { background: #5a3a3a; padding: 6px 12px; font-size: 11px; }
+        .clear-search:hover { background: #7a4a4a; }
+        .search-header { display: flex; gap: 8px; align-items: center; }
+        .search-header input { flex: 1; }
     </style>
 </head>
 <body>
-<textarea id="tokenInput" rows="2" placeholder=''></textarea>
-<div id="status" class="status"></div>
+<div class="container">
+    <textarea id="tokenInput" rows="2" placeholder=''></textarea>
+    <div id="status" class="status"></div>
 
-<div class="search-row">
-    <input type="text" id="flightNum" placeholder="Flight" value="124" size="8">
-    <input type="text" id="dep" placeholder="From" value="UIO" size="5">
-    <input type="date" id="date">
-    <button onclick="search()">Search</button>
+    <div class="search-row">
+        <input type="text" id="flightNum" placeholder="Flight" value="124" size="8">
+        <input type="text" id="dep" placeholder="From" value="UIO" size="5">
+        <input type="date" id="date">
+        <button onclick="search()">Search</button>
+    </div>
+
+    <div id="results"></div>
 </div>
-
-<div id="results"></div>
 
 <script>
 const tomorrow = new Date();
@@ -56,9 +73,11 @@ document.getElementById('date').value = tomorrow.toISOString().split('T')[0];
 
 let currentPassengers = [];
 let currentFilter = null;
+let currentSort = 'seat'; // 'seat' or 'name'
+let currentSearchTerm = '';
+let autoSearchPerformed = false;
 
 function isStaff(passenger) {
-    // Staff if value_staff is not empty
     return passenger.value_staff && passenger.value_staff.trim() !== '';
 }
 
@@ -74,6 +93,10 @@ function getLfm(passenger) {
     return '';
 }
 
+function getPassengerName(passenger) {
+    return `${passenger.lastname || ''}, ${passenger.firstname || ''}`.trim().toLowerCase() || 'unknown';
+}
+
 // Auto-detect paste and save tokens
 document.getElementById('tokenInput').addEventListener('paste', function(e) {
     setTimeout(async () => {
@@ -83,8 +106,8 @@ document.getElementById('tokenInput').addEventListener('paste', function(e) {
         const statusDiv = document.getElementById('status');
         statusDiv.className = 'status show';
         statusDiv.innerHTML = '🔄 Saving tokens...';
-        statusDiv.style.background = '#fff3cd';
-        statusDiv.style.color = '#856404';
+        statusDiv.style.background = '#2a4a2a';
+        statusDiv.style.color = '#d4edda';
         
         try {
             let tokens = JSON.parse(jsonInput);
@@ -132,10 +155,36 @@ async function checkTokenStatus() {
     } catch(e) {}
 }
 
+function checkForStoredParams() {
+    const storedFlightNum = sessionStorage.getItem('paxlist_flight_number');
+    const storedOrigin = sessionStorage.getItem('paxlist_origin');
+    const storedDate = sessionStorage.getItem('paxlist_date');
+    
+    if (storedFlightNum && storedOrigin && storedDate && !autoSearchPerformed) {
+        sessionStorage.removeItem('paxlist_flight_number');
+        sessionStorage.removeItem('paxlist_origin');
+        sessionStorage.removeItem('paxlist_date');
+        
+        document.getElementById('flightNum').value = storedFlightNum;
+        document.getElementById('dep').value = storedOrigin;
+        document.getElementById('date').value = storedDate;
+        
+        const resultsDiv = document.getElementById('results');
+        resultsDiv.innerHTML = '<div class="auto-search-info">🔍 Auto-searching flight from Flight Details page...</div>';
+        
+        autoSearchPerformed = true;
+        setTimeout(() => {
+            search();
+        }, 100);
+    }
+}
+
 async function search() {
     const resultsDiv = document.getElementById('results');
     resultsDiv.innerHTML = '<div class="loading">Loading...</div>';
     currentFilter = null;
+    currentSearchTerm = '';
+    currentSort = 'seat';
     
     try {
         const response = await fetch('/api/paxlist/search', {
@@ -155,13 +204,90 @@ async function search() {
             currentPassengers = result.data.passengers || [];
             displayStats();
         } else if (result.needs_new_tokens) {
-            resultsDiv.innerHTML = '<div class="loading" style="color:#721c24;">❌ Token expired. Paste new token above.</div>';
+            resultsDiv.innerHTML = '<div class="loading" style="color:#f44336;">❌ Token expired. Paste new token above.</div>';
         } else {
-            resultsDiv.innerHTML = `<div class="loading" style="color:#721c24;">❌ ${result.message || 'Search failed'}</div>`;
+            resultsDiv.innerHTML = `<div class="loading" style="color:#f44336;">❌ ${result.message || 'Search failed'}</div>`;
         }
     } catch(e) {
-        resultsDiv.innerHTML = `<div class="loading" style="color:#721c24;">❌ ${e.message}</div>`;
+        resultsDiv.innerHTML = `<div class="loading" style="color:#f44336;">❌ ${e.message}</div>`;
     }
+}
+
+function filterAndSortPassengers() {
+    let filtered = [...currentPassengers];
+    
+    // Apply filter
+    if (currentFilter === 'c') {
+        filtered = filtered.filter(p => p.cabin === 'C');
+    } else if (currentFilter === 'y') {
+        filtered = filtered.filter(p => p.cabin !== 'C');
+    } else if (currentFilter === 'staff') {
+        filtered = filtered.filter(p => isStaff(p));
+    }
+    
+    // Apply search
+    if (currentSearchTerm) {
+        const searchLower = currentSearchTerm.toLowerCase();
+        filtered = filtered.filter(p => {
+            const name = `${p.lastname || ''} ${p.firstname || ''}`.toLowerCase();
+            const seat = (p.seat || '').toLowerCase();
+            return name.includes(searchLower) || seat.includes(searchLower);
+        });
+    }
+    
+    // Apply sort
+    if (currentSort === 'seat') {
+        filtered.sort((a, b) => {
+            const seatA = a.seat || 'ZZZ';
+            const seatB = b.seat || 'ZZZ';
+            return seatA.localeCompare(seatB);
+        });
+    } else if (currentSort === 'name') {
+        filtered.sort((a, b) => {
+            const nameA = `${a.lastname || ''}, ${a.firstname || ''}`;
+            const nameB = `${b.lastname || ''}, ${b.firstname || ''}`;
+            return nameA.localeCompare(nameB);
+        });
+    }
+    
+    return filtered;
+}
+
+function renderPassengerList() {
+    const filtered = filterAndSortPassengers();
+    const listDiv = document.getElementById('passengerList');
+    const detailsDiv = document.getElementById('details');
+    detailsDiv.style.display = 'none';
+    
+    if (filtered.length === 0) {
+        listDiv.innerHTML = '<div style="text-align:center;padding:20px;color:#888;">No passengers found</div>';
+        return;
+    }
+    
+    let html = '';
+    for (let i = 0; i < filtered.length; i++) {
+        const p = filtered[i];
+        const name = `${p.lastname || ''}, ${p.firstname || ''}`.trim() || 'Unknown';
+        const seat = p.seat || '???';
+        const cabin = p.cabin || 'Y';
+        const lfm = getLfm(p);
+        const staffValue = getStaffValue(p);
+        
+        const cabinBadge = cabin === 'C' ? '<span class="badge badge-c">C</span>' : '<span class="badge badge-y">Y</span>';
+        const staffBadge = staffValue ? `<span class="badge badge-staff">${staffValue}</span>` : '';
+        const lfmText = lfm ? `<span class="lfm">⭐${lfm}</span>` : '';
+        
+        // Find original index for details lookup
+        const originalIndex = currentPassengers.findIndex(orig => orig === p);
+        
+        html += `
+            <div class="passenger-item" onclick="showPassengerDetails(${originalIndex})">
+                <strong>${seat}</strong> - ${name} ${cabinBadge} ${staffBadge} ${lfmText}
+            </div>
+        `;
+    }
+    
+    listDiv.innerHTML = html;
 }
 
 function displayStats() {
@@ -181,17 +307,29 @@ function displayStats() {
             📅 ${document.getElementById('date').value}
         </div>
         <div class="stats">
-            <div class="stat" onclick="showByType('all')" id="statAll">
+            <div class="stat" onclick="setFilter('all')" id="statAll">
                 <span>${total}</span>Total
             </div>
-            <div class="stat" onclick="showByType('c')" id="statC">
+            <div class="stat" onclick="setFilter('c')" id="statC">
                 <span>${cClass}</span>Business (C)
             </div>
-            <div class="stat" onclick="showByType('y')" id="statY">
+            <div class="stat" onclick="setFilter('y')" id="statY">
                 <span>${yClass}</span>Economy (Y)
             </div>
-            <div class="stat" onclick="showByType('staff')" id="statStaff">
+            <div class="stat" onclick="setFilter('staff')" id="statStaff">
                 <span>${staff}</span>Staff
+            </div>
+        </div>
+        <div class="controls">
+            <div class="sort-buttons">
+                <button class="sort-btn ${currentSort === 'seat' ? 'active' : ''}" onclick="setSort('seat')">Sort by Seat</button>
+                <button class="sort-btn ${currentSort === 'name' ? 'active' : ''}" onclick="setSort('name')">Sort by Name</button>
+            </div>
+            <div class="search-box">
+                <div class="search-header">
+                    <input type="text" id="searchInput" placeholder="🔍 Search by name or seat..." onkeyup="handleSearch()">
+                    <button class="clear-search" onclick="clearSearch()">Clear</button>
+                </div>
             </div>
         </div>
         <div id="passengerList" class="passenger-list"></div>
@@ -199,67 +337,47 @@ function displayStats() {
     `;
     
     document.getElementById('results').innerHTML = html;
-    showByType('all');
+    
+    // Set active stat highlight
+    document.querySelectorAll('.stat').forEach(stat => stat.classList.remove('active'));
+    if (currentFilter === 'all' || !currentFilter) document.getElementById('statAll')?.classList.add('active');
+    else if (currentFilter === 'c') document.getElementById('statC')?.classList.add('active');
+    else if (currentFilter === 'y') document.getElementById('statY')?.classList.add('active');
+    else if (currentFilter === 'staff') document.getElementById('statStaff')?.classList.add('active');
+    
+    renderPassengerList();
     checkTokenStatus();
 }
 
-function showByType(type) {
-    currentFilter = type;
-    
+function setFilter(filter) {
+    currentFilter = filter;
+    // Update active state
     document.querySelectorAll('.stat').forEach(stat => stat.classList.remove('active'));
-    if (type === 'all') document.getElementById('statAll')?.classList.add('active');
-    else if (type === 'c') document.getElementById('statC')?.classList.add('active');
-    else if (type === 'y') document.getElementById('statY')?.classList.add('active');
-    else if (type === 'staff') document.getElementById('statStaff')?.classList.add('active');
-    
-    let filtered = [];
-    
-    if (type === 'all') {
-        filtered = currentPassengers;
-    } else if (type === 'c') {
-        filtered = currentPassengers.filter(p => p.cabin === 'C');
-    } else if (type === 'y') {
-        filtered = currentPassengers.filter(p => p.cabin !== 'C');
-    } else if (type === 'staff') {
-        filtered = currentPassengers.filter(p => isStaff(p));
-    }
-    
-    filtered.sort((a, b) => {
-        const seatA = a.seat || 'ZZZ';
-        const seatB = b.seat || 'ZZZ';
-        return seatA.localeCompare(seatB);
-    });
-    
-    const listDiv = document.getElementById('passengerList');
-    const detailsDiv = document.getElementById('details');
-    detailsDiv.style.display = 'none';
-    
-    if (filtered.length === 0) {
-        listDiv.innerHTML = '<div style="text-align:center;padding:20px;color:#666;">No passengers</div>';
-        return;
-    }
-    
-    let html = '';
-    for (let i = 0; i < filtered.length; i++) {
-        const p = filtered[i];
-        const name = `${p.lastname || ''}, ${p.firstname || ''}`.trim() || 'Unknown';
-        const seat = p.seat || '???';
-        const cabin = p.cabin || 'Y';
-        const lfm = getLfm(p);
-        const staffValue = getStaffValue(p);
-        
-        const cabinBadge = cabin === 'C' ? '<span class="badge badge-c">C</span>' : '<span class="badge badge-y">Y</span>';
-        const staffBadge = staffValue ? `<span class="badge badge-staff">${staffValue}</span>` : '';
-        const lfmText = lfm ? `<span class="lfm">⭐${lfm}</span>` : '';
-        
-        html += `
-            <div class="passenger-item" onclick="showPassengerDetails(${currentPassengers.indexOf(p)})">
-                <strong>${seat}</strong> - ${name} ${cabinBadge} ${staffBadge} ${lfmText}
-            </div>
-        `;
-    }
-    
-    listDiv.innerHTML = html;
+    if (filter === 'all') document.getElementById('statAll')?.classList.add('active');
+    else if (filter === 'c') document.getElementById('statC')?.classList.add('active');
+    else if (filter === 'y') document.getElementById('statY')?.classList.add('active');
+    else if (filter === 'staff') document.getElementById('statStaff')?.classList.add('active');
+    renderPassengerList();
+}
+
+function setSort(sort) {
+    currentSort = sort;
+    // Update button active state
+    document.querySelectorAll('.sort-btn').forEach(btn => btn.classList.remove('active'));
+    if (sort === 'seat') document.querySelector('.sort-btn:first-child')?.classList.add('active');
+    else if (sort === 'name') document.querySelector('.sort-btn:last-child')?.classList.add('active');
+    renderPassengerList();
+}
+
+function handleSearch() {
+    currentSearchTerm = document.getElementById('searchInput').value;
+    renderPassengerList();
+}
+
+function clearSearch() {
+    document.getElementById('searchInput').value = '';
+    currentSearchTerm = '';
+    renderPassengerList();
 }
 
 function showPassengerDetails(index) {
@@ -298,6 +416,8 @@ function showPassengerDetails(index) {
     `;
 }
 
+// Check for stored parameters from flight_details page on load
+checkForStoredParams();
 checkTokenStatus();
 </script>
 </body>

@@ -64,7 +64,8 @@
         .tail-number { font-size: 1.8em; color: #4fc3f7; font-weight: bold; margin-bottom: 5px; }
         .fleet-type { font-size: 1.1em; color: #ffffff; font-weight: bold; }
         .gate-info { font-size: 1.1em; color: #ffffff; font-weight: bold; margin-bottom: 5px; }
-        .route-line { font-size: 1.2em; font-weight: bold; text-align: center; margin: 10px 0; }
+        .route-line { font-size: 1.2em; font-weight: bold; text-align: center; margin: 10px 0; cursor: pointer; }
+        .route-line:hover { color: #ffc107; text-decoration: underline; }
         .time-comparison { text-align: center; margin: 10px 0; }
         .time-line { display: flex; justify-content: center; align-items: center; margin-bottom: 3px; font-size: 0.9em; white-space: nowrap; }
         .time-label { width: 80px; color: #b8b8d0; text-align: right; margin-right: 10px; }
@@ -144,6 +145,15 @@
             text-decoration: none;
         }
         .previous-flight-number { color: #b0b0b0 !important; font-size: 1.6em; }
+        
+        .clickable-flight {
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .clickable-flight:hover {
+            color: #ffc107;
+            text-decoration: underline;
+        }
         
         .crew-list { display: grid; grid-template-columns: 1fr; gap: 5px; margin: 10px 0; }
         .crew-member { background: #2a2a2a; padding: 8px; border-radius: 4px; border: 1px solid #444; cursor: pointer; }
@@ -233,6 +243,16 @@
             document.getElementById('origin_airport').focus();
         }
 
+        // Function to search a flight (used by clickable previous flight)
+        function searchFlight(flightNum, origin, date) {
+            document.getElementById('flight_number').value = flightNum;
+            document.getElementById('origin_airport').value = origin;
+            document.getElementById('departure_date').value = date;
+            document.getElementById('flightSearchForm').dispatchEvent(new Event('submit'));
+            // Scroll to top
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
         // Function to open Paxlist in same tab with flight parameters
         function openPaxlistWithFlight(flightNum, origin, date) {
             sessionStorage.setItem('paxlist_flight_number', flightNum);
@@ -251,7 +271,7 @@
         }
 
         // Function to fetch Paxlist stats for a flight
-        async function fetchPaxlistStats(flightNumber, origin, date) {
+        async function fetchPaxlistStats(flightNumber, origin, date, returnFullData = false) {
             if (!flightNumber || flightNumber === '0' || flightNumber === '' || flightNumber === 'undefined') {
                 return { success: false, error: 'Invalid flight number' };
             }
@@ -279,6 +299,20 @@
                         if (p.cabin === 'C') cClass++;
                         else yClass++;
                         if (p.value_staff && p.value_staff.trim() !== '') staff++;
+                    }
+                    
+                    if (returnFullData) {
+                        return { 
+                            success: true, 
+                            total, cClass, yClass, staff,
+                            passengers: passengers,
+                            flight_info: {
+                                flight_number: flightNumber,
+                                origin: origin,
+                                date: date,
+                                destination: passengers[0]?.arrival_station || '???'
+                            }
+                        };
                     }
                     
                     return { success: true, total, cClass, yClass, staff };
@@ -354,7 +388,6 @@
                 const result = await response.json();
                 if (result.success) {
                     displayCrewMembers(result.crew_data);
-                    // Scroll 350px after crew data is shown
                     setTimeout(() => {
                         scrollDown350px();
                     }, 200);
@@ -417,7 +450,7 @@
                     const result = await response.json();
 
                     if (result.success) {
-                        displayPreviousFlightDetails(result.flight_details);
+                        displayPreviousFlightDetails(result.flight_details, flightNumber, originAirport, dateString);
                     } else {
                         previousFlightSection.innerHTML = `<div class="error-message">Failed to load previous flight</div>`;
                     }
@@ -438,16 +471,33 @@
                     
                     console.log('Fetching Paxlist stats for CURRENT flight:', currentFlightNum, currentOrigin, currentDate);
                     
-                    const paxStats = await fetchPaxlistStats(currentFlightNum, currentOrigin, currentDate);
+                    const paxStats = await fetchPaxlistStats(currentFlightNum, currentOrigin, currentDate, true);
                     
                     // Update title with stats and make it clickable
                     if (paxStats.success && paxStats.total > 0) {
                         statsSpan.className = 'paxlist-stats';
                         statsSpan.innerHTML = ` T:${paxStats.total} C:${paxStats.cClass} Y:${paxStats.yClass} S:${paxStats.staff}`;
                         statsSpan.style.cursor = 'pointer';
+                        
+                        // Save the FULL passenger data to sessionStorage for instant loading in Paxlist
+                        const paxDataToStore = {
+                            passengers: paxStats.passengers,
+                            flight_info: paxStats.flight_info,
+                            stats: {
+                                total: paxStats.total,
+                                cClass: paxStats.cClass,
+                                yClass: paxStats.yClass,
+                                staff: paxStats.staff
+                            }
+                        };
+                        sessionStorage.setItem('paxlist_cached_data', JSON.stringify(paxDataToStore));
+                        
                         statsSpan.onclick = function(e) {
                             e.stopPropagation();
-                            openPaxlistWithFlight(currentFlightNum, currentOrigin, currentDate);
+                            sessionStorage.setItem('paxlist_flight_number', currentFlightNum);
+                            sessionStorage.setItem('paxlist_origin', currentOrigin);
+                            sessionStorage.setItem('paxlist_date', currentDate);
+                            window.location.href = '/paxlist';
                         };
                     } else if (paxStats.success && paxStats.total === 0) {
                         statsSpan.className = 'paxlist-stats';
@@ -455,7 +505,10 @@
                         statsSpan.style.cursor = 'pointer';
                         statsSpan.onclick = function(e) {
                             e.stopPropagation();
-                            openPaxlistWithFlight(currentFlightNum, currentOrigin, currentDate);
+                            sessionStorage.setItem('paxlist_flight_number', currentFlightNum);
+                            sessionStorage.setItem('paxlist_origin', currentOrigin);
+                            sessionStorage.setItem('paxlist_date', currentDate);
+                            window.location.href = '/paxlist';
                         };
                     } else {
                         statsSpan.className = 'paxlist-stats error';
@@ -619,7 +672,7 @@
             container.innerHTML = html;
         }
 
-        function displayPreviousFlightDetails(flight) {
+        function displayPreviousFlightDetails(flight, flightNumber, origin, date) {
             const previousFlightSection = document.getElementById('previousFlightSection');
             
             const scheduledDeparture = flight.Flight?.ScheduleDepartureDateLOCAL;
@@ -634,8 +687,8 @@
             
             const html = `
                 <div class="flight-header">
-                    <div class="route-line">
-                        ${flight.Flight?.Airline || 'AV'}${flight.Flight?.CommercialFlightNumber || '-'} ${flight.Flight?.OriginAirportIATACode || '-'} → ${flight.Flight?.FinalAirportIATACode || '-'}
+                    <div class="route-line clickable-flight" onclick="searchFlight('${flightNumber}', '${origin}', '${date}')">
+                        ${flight.Flight?.Airline || 'AV'}${flight.Flight?.CommercialFlightNumber || flightNumber || '-'} ${flight.Flight?.OriginAirportIATACode || origin || '-'} → ${flight.Flight?.FinalAirportIATACode || '-'}
                     </div>
                     
                     <div class="time-comparison">

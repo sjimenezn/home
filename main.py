@@ -65,7 +65,7 @@ class CrewAPIClient:
             logger.info("🔄 Token expired or not present, requesting new token...")
             self.session = requests.Session()
             email = os.getenv('CREW_EMAIL', 'sergio.jimenez@avianca.com')
-            password = os.getenv('CREW_PASSWORD', 'aLogout.8701')
+            password = os.getenv('CREW_PASSWORD', 'aLogout.8702')
             
             form_data = {
                 'username': email, 'password': password, 'grant_type': 'password',

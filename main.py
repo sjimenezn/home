@@ -542,40 +542,40 @@ class PaxlistClient:
         return False
     
     def set_initial_tokens(self, access_token, refresh_token):
-    """Set initial tokens from browser extraction with JWT decoding"""
-    try:
-        # Validate token format before proceeding
-        if not isinstance(access_token, str) or not access_token.startswith('eyJ'):
-            logger.error("❌ Invalid token format - must be a JWT starting with eyJ")
-            return False
-        
-        # First, try to get expiry from JWT
-        jwt_expiry = self.get_expiry_from_token(access_token)
-        
-        if jwt_expiry:
-            logger.info(f"📊 Using JWT decoding to set token expiry: {jwt_expiry//60} minutes")
-            expires_in = jwt_expiry
-        else:
-            logger.warning("⚠️ Could not decode JWT, using default 3700 seconds")
-            expires_in = 3700
-        
-        success = self.save_tokens(
-            access_token=access_token,
-            refresh_token=refresh_token,
-            expires_in=expires_in,
-            refresh_expires_in=86399
-        )
-        
-        if success:
-            logger.info("✅ Paxlist initial tokens set successfully")
-            return True
+        """Set initial tokens from browser extraction with JWT decoding"""
+        try:
+            # Validate token format before proceeding
+            if not isinstance(access_token, str) or not access_token.startswith('eyJ'):
+                logger.error("❌ Invalid token format - must be a JWT starting with eyJ")
+                return False
             
-    except Exception as e:
-        logger.error(f"Error setting Paxlist initial tokens: {e}")
-    
-    return False
+            # First, try to get expiry from JWT
+            jwt_expiry = self.get_expiry_from_token(access_token)
+            
+            if jwt_expiry:
+                logger.info(f"📊 Using JWT decoding to set token expiry: {jwt_expiry//60} minutes")
+                expires_in = jwt_expiry
+            else:
+                logger.warning("⚠️ Could not decode JWT, using default 3700 seconds")
+                expires_in = 3700
+            
+            success = self.save_tokens(
+                access_token=access_token,
+                refresh_token=refresh_token,
+                expires_in=expires_in,
+                refresh_expires_in=86399
+            )
+            
+            if success:
+                logger.info("✅ Paxlist initial tokens set successfully")
+                return True
+                
+        except Exception as e:
+            logger.error(f"Error setting Paxlist initial tokens: {e}")
+        
+        return False
 
-def get_passenger_list(self, flight_carrier, flight_number, flight_departure_station, flight_date):
+    def get_passenger_list(self, flight_carrier, flight_number, flight_departure_station, flight_date):
         """Get passenger list with automatic token refresh"""
         try:
             current_time = time.time()

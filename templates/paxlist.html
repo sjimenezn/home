@@ -206,7 +206,7 @@ async function checkTokenStatus() {
         
         if (data.status.access_token_valid) {
             statusDiv.className = 'status show ok';
-            statusDiv.innerHTML = '✅ Token: ' + data.status.access_expires_in_minutes + ' min left';
+            statusDiv.innerHTML = '✅ Access: ' + data.status.access_expires_in_minutes + ' min | Refresh: ' + data.status.refresh_expires_in_hours + ' hours';
             setTimeout(function() { statusDiv.classList.remove('show'); }, 1500);
         }
     } catch(e) {}

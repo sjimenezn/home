@@ -1,561 +1,1221 @@
-import pytz
-from flask import Flask, render_template, render_template_string, jsonify, request, send_file, redirect, url_for
-import threading
-import pprint
-import json
+#!/usr/bin/env python3
+"""
+My Crew Schedule Monitor - Optimized Version with Paxlist Integration
+"""
+
 import os
 import time
+import json
+import logging
 import requests
+import jwt  # Added for JWT decoding
 from datetime import datetime, timedelta
-from growattServer import GrowattApi
-from telegram import Update
-from telegram.ext import Updater, CommandHandler, CallbackContext
+from flask import Flask, render_template, request, send_file, jsonify
 
-# --- Pre-computation Logging ---
-console_logs = []
-def log_message(message):
-    timestamped = f"{(datetime.now() - timedelta(hours=5)).strftime('%H:%M:%S')} - {message}"
-    print(timestamped)
-    console_logs.append((time.time(), timestamped))
-    now = time.time()
-    console_logs[:] = [(t, m) for t, m in console_logs if now - t < 6000]
-
-# --- Credentials ---
-username1 = "vospina"
-password1 = "Vospina.2025"
-
-# --- Telegram Config ---
-TELEGRAM_TOKEN = "7653969082:AAGGuY6-sZz0KbVDTa0zfNanMF4MH1vP_oo" # <--- YOUR CURRENT TOKEN
-CHAT_IDS = ["5715745951", "7524705169", "7812545729", "7862573365", "7650630450"]
-chat_log = set()
-
-# Global variable to control Telegram bot state
-telegram_enabled = False
-updater = None  # Global reference for the Updater object
-dp = None       # Global reference for the Dispatcher object
-
-# --- Flask App ---
+DEFAULT_CREW_ID = "32385184"
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
-GROWATT_USERNAME = "vospina"
-PASSWORD_CRC = "0c4107c238d57d475d4660b07b2f043e"
-STORAGE_SN = "BNG7CH806N"
-PLANT_ID = "2817170"
+def get_utc_minus_5():
+    return datetime.utcnow() - timedelta(hours=5)
 
-HEADERS = {
-    'User-Agent': 'Mozilla/5.5',
-    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-    'X-Requested-With': 'XMLHttpRequest'
-}
-
-session = requests.Session()
-
-def growatt_login2():
-    data = {
-        'account': GROWATT_USERNAME,
-        'password': '',
-        'validateCode': '',
-        'isReadPact': '0',
-        'passwordCrc': PASSWORD_CRC
-    }
-    session.post('https://server.growatt.com/login', headers=HEADERS, data=data)
-
-def get_today_date_utc_minus_5():
-    now = datetime.utcnow() - timedelta(hours=5)
-    return now.strftime('%Y-%m-%d')
-
-
-# Growatt API
-api = GrowattApi()
-api.session.headers.update({
-    'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148'
-})
-
-# --- Shared Data ---
-current_data = {}
-last_processed_time = "Never"
-last_successful_growatt_update_time = "Never" # This will be the time of the last *fresh* data received
-
-fetched_data = {}
-
-def send_telegram_message(message):
-    global updater
-    if telegram_enabled and updater and updater.running:
-        for chat_id in CHAT_IDS:
-            for attempt in range(3):
-                try:
-                    updater.bot.send_message(chat_id=chat_id, text=message)
-                    log_message(f"✅ Message sent to {chat_id}")
-                    break
-                except Exception as e:
-                    log_message(f"❌ Attempt {attempt + 1} failed to send message to {chat_id}: {e}")
-                    time.sleep(5)
-                    if attempt == 2:
-                        log_message(f"❌ Failed to send message to {chat_id} after 3 attempts")
-    else:
-        log_message(f"Telegram not enabled or updater not running. Message not sent: {message}")
-
-def login_growatt():
-    log_message("🔄 Attempting Growatt login...")
-
+def load_crew_names():
     try:
-        login_response = api.login(username1, password1)
-        fetched_data['login_response'] = login_response
-        user = login_response.get('user', {})
-        user_id = user.get('id')
-        fetched_data['user_id'] = user_id
-        fetched_data['cpower_token'] = user.get('cpowerToken')
-        fetched_data['cpower_auth'] = user.get('cpowerAuth')
-        fetched_data['account_name'] = user.get('accountName')
-        fetched_data['email'] = user.get('email')
-        fetched_data['last_login_time'] = user.get('lastLoginTime')
-        fetched_data['user_area'] = user.get('area')
-        log_message("✅ Login successful!")
+        if os.path.exists('name_list.txt'):
+            with open('name_list.txt', 'r', encoding='utf-8') as f:
+                return [
+                    f"{line.split(';')[0].strip()} {line.split(';')[2].strip()}" 
+                    if ';' in line and len(line.split(';')) >= 3 
+                    else line.replace(';', ' ').strip()
+                    for line in f if line.strip() and not line.startswith('#')
+                ]
     except Exception as e:
-        log_message(f"❌ Login failed: {e}")
-        return None, None, None, None
+        logger.error(f"Error loading names: {e}")
+    return [
+        "GRACIA GRANADOS ALVARO HERNANDO 79150332",
+        "HERNANDEZ MONTES CARLOS AUGUSTO 79154225", 
+        "RAMIREZ PLAZAS CARLOS AUGUSTO 19466758"
+    ]
 
-    try:
-        plant_info = api.plant_list(user_id)
-        fetched_data['plant_info'] = plant_info
-        plant_data = plant_info['data'][0]
-        plant_id = plant_data['plantId']
-        fetched_data['plant_id'] = plant_id
-        fetched_data['plant_name'] = plant_data['plantName']
-        fetched_data['plant_total_data'] = plant_info.get('totalData', {})
-    except Exception as e:
-        log_message(f"❌ Failed to retrieve plant info: {e}")
-        return None, None, None, None
-
-    try:
-        inverter_info = api.inverter_list(plant_id)
-        fetched_data['inverter_info'] = inverter_info
-        inverter_data = inverter_info[0]
-        inverter_sn = inverter_data['deviceSn']
-        datalog_sn = inverter_data.get('datalogSn', 'N/A')
-        fetched_data['inverter_sn'] = inverter_sn
-        fetched_data['datalog_sn'] = datalog_sn
-        fetched_data['inverter_alias'] = inverter_data.get('deviceAilas')
-        fetched_data['inverter_capacity'] = inverter_data.get('capacity')
-        fetched_data['inverter_energy'] = inverter_data.get('energy')
-        fetched_data['inverter_active_power'] = inverter_data.get('activePower')
-        fetched_data['inverter_apparent_power'] = inverter_data.get('apparentPower')
-        fetched_data['inverter_status'] = inverter_data.get('deviceStatus')
-    except Exception as e:
-        log_message(f"❌ Failed to retrieve inverter info: {e}")
-        return None, None, None, None
-
-    try:
-        storage_detail = api.storage_detail(inverter_sn)
-        fetched_data['storage_detail'] = storage_detail
-    except Exception as e:
-        log_message(f"❌ Failed to retrieve storage detail: {e}")
-        fetched_data['storage_detail'] = {}
-
-    log_message(f"🌿 User ID: {user_id}")
-    log_message(f"🌿 Plant ID: {plant_id}")
-    log_message(f"🌿 Inverter SN: {inverter_sn}")
-    log_message(f"🌿 Datalogger SN: {datalog_sn}")
-
-    return user_id, plant_id, inverter_sn, datalog_sn
-
-def monitor_growatt():
-    global last_processed_time, last_successful_growatt_update_time, current_data
-    threshold = 80
-
-    loop_counter = 0
-    user_id, plant_id, inverter_sn, datalog_sn = None, None, None, None
-
-    while True:
-        current_loop_datetime_utc_minus_5 = datetime.now() - timedelta(hours=5)
-        current_loop_time_str = current_loop_datetime_utc_minus_5.strftime("%Y-%m-%d %H:%M:%S")
-
+class CrewAPIClient:
+    def __init__(self):
+        self.base_url = "https://api-avianca.avianca.com/MycreWFlights/api"
+        self.auth_url = "https://api-avianca.avianca.com/MyCrewSecurity/connect/token"
+        self.subscription_key = "9d32877073ce403795da2254ae9c2de7"
+        self.session = None
+        self.auth_token = None
+        self.last_token_time = None
+        
+    def _should_renew_token(self):
+        """Check if token is older than 11 hours"""
+        if not self.last_token_time or not self.auth_token:
+            return True
+        elapsed_hours = (datetime.utcnow() - self.last_token_time).total_seconds() / 3600
+        logger.info(f"🔍 Token age: {elapsed_hours:.2f} hours")
+        return elapsed_hours >= 11
+    
+    def _login(self, force=False):
+        """Login only if token is older than 11 hours or forced"""
         try:
-            if user_id is None or plant_id is None or inverter_sn is None or datalog_sn is None:
-                log_message("Attempting to acquire Growatt IDs (re-login or initial login).")
-                user_id, plant_id, inverter_sn, datalog_sn = login_growatt()
-                if user_id is None:
-                    log_message("Growatt login/ID fetching failed. Retrying in 60 seconds.")
-                    time.sleep(60)
-                    continue
-
-            raw_growatt_data = api.storage_detail(inverter_sn)
-
-            new_ac_input_v = raw_growatt_data.get("vGrid", "N/A")
-            new_ac_input_f = raw_growatt_data.get("freqGrid", "N/A")
-            new_ac_output_v = raw_growatt_data.get("outPutVolt", "N/A")
-            new_ac_output_f = raw_growatt_data.get("freqOutPut", "N/A")
-            new_load_w = raw_growatt_data.get("activePower", "N/A")
-            new_battery_pct = raw_growatt_data.get("capacity", "N/A")
-
-            last_successful_growatt_update_time = current_loop_time_str
-
-            current_data.update({
-                "ac_input_voltage": new_ac_input_v,
-                "ac_input_frequency": new_ac_input_f,
-                "ac_output_voltage": new_ac_output_v,
-                "ac_output_frequency": new_ac_output_f,
-                "load_power": new_load_w,
-                "battery_capacity": new_battery_pct,
-                "user_id": user_id,
-                "plant_id": plant_id,
-                "inverter_sn": inverter_sn,
-                "datalog_sn": datalog_sn
-            })
-
-            last_processed_time = current_loop_time_str
-
-            # Simplified Telegram alerting - send immediate alerts without confirmation delays
-            if telegram_enabled and current_data.get("ac_input_voltage") != "N/A":
-                try:
-                    current_ac_input_v_float = float(current_data.get("ac_input_voltage"))
-                except (ValueError, TypeError):
-                    current_ac_input_v_float = 0.0
-
-                alert_timestamp = last_successful_growatt_update_time
+            if not force and not self._should_renew_token():
+                logger.info("🔄 Using existing token (less than 11 hours old)")
+                return True
                 
-                # Grid outage detection
-                if current_ac_input_v_float < threshold:
-                    msg = f"""🔴🔴¡Se fue la luz en Acacías!🔴🔴
-    🕒 Hora--> {alert_timestamp}
-Nivel de batería     : {raw_growatt_data.get('capacity', 'N/A')} %
-Voltaje de la red    : {current_ac_input_v_float} V / {raw_growatt_data.get('freqGrid', 'N/A')} Hz
-Voltaje del inversor: {raw_growatt_data.get('outPutVolt', 'N/A')} V / {raw_growatt_data.get('freqOutPut', 'N/A')} Hz
-Consumo actual     : {raw_growatt_data.get('activePower', 'N/A')} W"""
-                    send_telegram_message(msg)
-                # Grid restoration detection
-                elif current_ac_input_v_float >= threshold:
-                    msg = f"""✅✅¡Llegó la luz en Acacías!✅✅
-    🕒 Hora--> {alert_timestamp}
-Nivel de batería     : {raw_growatt_data.get('capacity', 'N/A')} %
-Voltaje de la red    : {current_ac_input_v_float} V / {raw_growatt_data.get('freqGrid', 'N/A')} Hz
-Voltaje del inversor: {raw_growatt_data.get('outPutVolt', 'N/A')} V / {raw_growatt_data.get('freqOutPut', 'N/A')} Hz
-Consumo actual     : {raw_growatt_data.get('activePower', 'N/A')} W"""
-                    send_telegram_message(msg)
-
-        except Exception as e_inner:
-            log_message(f"❌ Error during Growatt data fetch or processing (API error): {e_inner}")
-            # Reset IDs to force a re-login on the next attempt
-            user_id, plant_id, inverter_sn, datalog_sn = None, None, None, None
-
-        time.sleep(60)
-
-# Telegram Handlers
-def start(update: Update, context: CallbackContext):
-    chat_log.add(update.effective_chat.id)
-    update.message.reply_text("¡Bienvenido al monitor Growatt! Usa /status para ver el estado del inversor.")
-
-def send_status(update: Update, context: CallbackContext):
-    chat_log.add(update.effective_chat.id)
-    timestamp = (datetime.now() - timedelta(hours=5)).strftime("%H:%M:%S")
-    msg = f"""⚡ /status Estado del Inversor ⚡
-        🕒 Hora--> {timestamp}
-Voltaje Red          : {current_data.get('ac_input_voltage', 'N/A')} V / {current_data.get('ac_input_frequency', 'N/A')} Hz
-Voltaje Inversor   : {current_data.get('ac_output_voltage', 'N/A')} V / {current_data.get('ac_output_frequency', 'N/A')} Hz
-Consumo             : {current_data.get('load_power', 'N/A')} W
-Batería                 : {current_data.get('battery_capacity', 'N/A')}%"""
-    try:
-        update.message.reply_text(msg)
-        log_message(f"✅ Status sent to {update.effective_chat.id}")
-    except Exception as e:
-        log_message(f"❌ Failed to send status to {update.effective_chat.id}: {e}")
-
-def send_chatlog(update: Update, context: CallbackContext):
-    chat_log.add(update.effective_chat.id)
-    ids = "\n".join(str(cid) for cid in chat_log)
-    update.message.reply_text(f"IDs registrados:\n{ids}")
-
-def stop_bot_telegram_command(update: Update, context: CallbackContext):
-    update.message.reply_text("Bot detenido.")
-    log_message("Bot detenido por comando /stop")
-    global telegram_enabled, updater
-    if updater and updater.running:
-        updater.stop()
-        telegram_enabled = False
-        log_message("Telegram bot stopped via /stop command.")
-    else:
-        log_message("Telegram bot not running to be stopped.")
-
-def telegram_error_handler(update: object, context: CallbackContext) -> None:
-    """Log Errors caused by Updates."""
-    if update and hasattr(update, 'effective_chat') and update.effective_chat:
-        chat_info = f"Chat ID: {update.effective_chat.id}"
-    elif update and hasattr(update, 'effective_user') and update.effective_user:
-        chat_info = f"User ID: {update.effective_user.id}"
-    else:
-        chat_info = "N/A"
-
-    error_message = f'Telegram error processing update (Update: "{update}", Chat/User Info: "{chat_info}"): {context.error}'
-    log_message(error_message)
-
-def initialize_telegram_bot():
-    global updater, dp, TELEGRAM_TOKEN, telegram_enabled
-    if not TELEGRAM_TOKEN:
-        log_message("❌ Cannot start Telegram bot: TELEGRAM_TOKEN is empty.")
-        telegram_enabled = False
-        return False
-    if updater and updater.running:
-        log_message("Telegram bot is already running.")
-        telegram_enabled = True
-        return True
-    try:
-        log_message("Initializing Telegram bot...")
-        updater = Updater(token=TELEGRAM_TOKEN, use_context=True)
-        dp = updater.dispatcher
-        dp.add_handler(CommandHandler("start", start))
-        dp.add_handler(CommandHandler("status", send_status))
-        dp.add_handler(CommandHandler("chatlog", send_chatlog))
-        dp.add_handler(CommandHandler("stop", stop_bot_telegram_command))
-        dp.add_error_handler(telegram_error_handler)
-        updater.start_polling(timeout=20, read_latency=5.0)
-        log_message("✅ Telegram bot polling started successfully.")
-        telegram_enabled = True
-        return True
-    except Exception as e:
-        log_message(f"❌ Error starting Telegram bot: {e}")
-        updater = None
-        dp = None
-        telegram_enabled = False
+            logger.info("🔄 Token expired or not present, requesting new token...")
+            self.session = requests.Session()
+            email = os.getenv('CREW_EMAIL', 'sergio.jimenez@avianca.com')
+            password = os.getenv('CREW_PASSWORD', 'aLogout.8702')
+            
+            form_data = {
+                'username': email, 'password': password, 'grant_type': 'password',
+                'client_id': 'angularclient', 'client_secret': 'angularclient',
+                'scope': 'email openid profile CrewApp offline_access'
+            }
+            headers = {
+                "Ocp-Apim-Subscription-Key": self.subscription_key,
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Origin": "https://mycrew.avianca.com", "Referer": "https://mycrew.avianca.com/",
+            }
+            
+            response = self.session.post(self.auth_url, data=form_data, headers=headers, timeout=30)
+            if response.status_code == 200:
+                self.auth_token = f"Bearer {response.json()['access_token']}"
+                self.last_token_time = datetime.utcnow()
+                logger.info(f"✅ New token acquired at {self.last_token_time}")
+                return True
+            else:
+                logger.error(f"❌ Login failed with status: {response.status_code}")
+                self.auth_token = None
+                self.last_token_time = None
+                
+        except Exception as e:
+            logger.error(f"Login error: {e}")
+            self.auth_token = None
+            self.last_token_time = None
         return False
 
-# --- Start Background Threads ---
-# Start Growatt Monitor Thread
-monitor_thread = threading.Thread(target=monitor_growatt, daemon=True, name="GrowattMonitorThread")
-monitor_thread.start()
-log_message("Growatt monitor thread started.")
+    def get_schedule_data(self, crew_id=None):
+        try:
+            target_crew_id = crew_id or current_crew_id
+            logger.info(f"📊 Fetching schedule data for crew: {target_crew_id}...")
+            
+            if not self._login():
+                return None
+            
+            url = f"{self.base_url}/Assignements/AssignmentsComplete"
+            params = {
+                "timeZoneOffset": -300,
+                "crewMemberUniqueId": target_crew_id
+            }
+            headers = {
+                "Authorization": self.auth_token, 
+                "Ocp-Apim-Subscription-Key": self.subscription_key,
+                "Accept": "application/json", 
+                "Origin": "https://mycrew.avianca.com", 
+                "Referer": "https://mycrew.avianca.com/",
+            }
+            
+            response = self.session.get(url, params=params, headers=headers, timeout=30)
+            
+            if response.status_code == 200:
+                data = response.json()
+                logger.info(f"✅ Schedule data fetched for crew {target_crew_id}! Structure: {len(data)} months")
+                return data
+                
+            logger.error(f"❌ Failed to fetch schedule data for crew {target_crew_id}: {response.status_code}")
+            return None
+        except Exception as e:
+            logger.error(f"❌ Error fetching data for crew {crew_id}: {e}")
+            return None
 
-# --- Flask Routes ---
-@app.route("/")
-def home():
-    global TELEGRAM_TOKEN, last_successful_growatt_update_time
-    displayed_token = TELEGRAM_TOKEN
-    if TELEGRAM_TOKEN and len(TELEGRAM_TOKEN) > 10:
-        displayed_token = TELEGRAM_TOKEN[:5] + "..." + TELEGRAM_TOKEN[-5:]
-    return render_template("home.html",
-        d=current_data,
-        last_growatt_update=last_successful_growatt_update_time,
-        plant_id=current_data.get("plant_id", "N/A"),
-        user_id=current_data.get("user_id", "N/A"),
-        inverter_sn=current_data.get("inverter_sn", "N/A"),
-        datalog_sn=current_data.get("datalog_sn", "N/A"),
-        telegram_status="Running" if telegram_enabled and updater and updater.running else "Stopped",
-        current_telegram_token=displayed_token)
-
-@app.route("/toggle_telegram", methods=["POST"])
-def toggle_telegram():
-    global telegram_enabled, updater
-    action = request.form.get('action')
-    if action == 'start' and not telegram_enabled:
-        log_message("Attempting to start Telegram bot via Flask.")
-        if initialize_telegram_bot():
-            telegram_enabled = True; log_message("Telegram bot enabled.")
-        else:
-            log_message("Failed to enable Telegram bot."); telegram_enabled = False
-    elif action == 'stop' and telegram_enabled:
-        log_message("Attempting to stop Telegram bot via Flask.")
-        if updater and updater.running:
-            updater.stop(); telegram_enabled = False; log_message("Telegram bot stopped.")
-        else:
-            log_message("Telegram bot not running to be stopped.")
-    return redirect(url_for('home'))
-
-@app.route("/update_telegram_token", methods=["POST"])
-def update_telegram_token():
-    global TELEGRAM_TOKEN, telegram_enabled, updater, dp
-    new_token = request.form.get('new_telegram_token')
-    if not new_token:
-        log_message("❌ No new Telegram token provided.")
-        return redirect(url_for('home'))
-    log_message(f"Attempting to update Telegram token...")
-    if updater and updater.running:
-        log_message("Stopping existing Telegram bot for token update.")
-        try: updater.stop(); time.sleep(1); log_message("Existing Telegram bot stopped.")
-        except Exception as e: log_message(f"⚠️ Error stopping existing Telegram bot: {e}")
-        finally: updater = None; dp = None
-    TELEGRAM_TOKEN = new_token
-    log_message(f"Telegram token updated to: {new_token[:5]}...{new_token[-5:]}")
-    if initialize_telegram_bot():
-        telegram_enabled = True; log_message("Telegram bot restarted successfully with new token.")
-    else:
-        telegram_enabled = False; log_message("❌ Failed to restart Telegram bot. It remains disabled.")
-    return redirect(url_for('home'))
-
-@app.route("/logs")
-def logs():
-    global last_successful_growatt_update_time
-    # Return empty charts since data logging is removed
-    return render_template("logs.html", timestamps=[], ac_input=[], ac_output=[],
-                           active_power=[], battery_capacity=[],
-                           last_growatt_update=last_successful_growatt_update_time)
-
-@app.route("/chatlog")
-def chatlog_view():
-    return render_template_string("""
-        <html><head><title>Growatt Monitor - Chatlog</title><meta name="viewport" content="width=device-width, initial-scale=0.6, maximum-scale=1.0, user-scalable=yes">
-        <style>body{font-family:Arial,sans-serif;margin:0;padding:0}nav{background-color:#333;overflow:hidden;position:sticky;top:0;z-index:100}nav ul{list-style-type:none;margin:0;padding:0;display:flex;justify-content:center}nav ul li{padding:14px 20px}nav ul li a{color:white;text-decoration:none;font-size:18px}nav ul li a:hover{background-color:#ddd;color:black}</style></head>
-        <body><nav><ul><li><a href="/">Home</a></li><li><a href="/logs">Logs</a></li><li><a href="/chatlog">Chatlog</a></li><li><a href="/console">Console</a></li><li><a href="/details">Details</a></li><li><a href="/battery-chart">Battery Chart</a></li></ul></nav>
-        <h1>Chatlog</h1><pre>{{ chat_log }}</pre></body></html>""", chat_log="\n".join(str(cid) for cid in sorted(list(chat_log))))
-
-@app.route("/console")
-def console_view():
-    return render_template_string("""
-        <html><head><title>Console Logs</title><meta name="viewport" content="width=device-width, initial-scale=0.6, maximum-scale=1.0, user-scalable=yes">
-        <style>body{font-family:Arial,sans-serif;margin:0;padding:0}nav{background-color:#333;overflow:hidden;position:sticky;top:0;z-index:100}nav ul{list-style-type:none;margin:0;padding:0;display:flex;justify-content:center}nav ul li{padding:14px 20px}nav ul li a{color:white;text-decoration:none;font-size:18px}nav ul li a:hover{background-color:#ddd;color:black}</style></head>
-        <body><nav><ul><li><a href="/">Home</a></li><li><a href="/logs">Logs</a></li><li><a href="/chatlog">Chatlog</a></li><li><a href="/console">Console</a></li><li><a href="/details">Details</a></li><li><a href="/battery-chart">Battery Chart</a></li></ul></nav>
-        <h2>Console Output (últimos 100 minutos)</h2><pre style="white-space: pre; font-family: monospace; overflow-x: auto;">{{ logs }}</pre>
-        <h2>📦 Fetched Growatt Data</h2><pre style="white-space: pre; font-family: monospace; overflow-x: auto;">{{ data }}</pre></body></html>""",
-    logs="\n\n".join(m for _, m in console_logs), data=pprint.pformat(fetched_data, indent=2))
-
-@app.route("/battery-chart", methods=["GET", "POST"])
-def battery_chart():
-    global last_successful_growatt_update_time
-    selected_date = request.form.get("date") if request.method == "POST" else get_today_date_utc_minus_5()
-    if request.method != "POST": log_message(f"Selected date on GET for battery-chart: {selected_date}")
-    growatt_login2()
-    battery_payload = {'plantId': PLANT_ID, 'storageSn': STORAGE_SN, 'date': selected_date}
-    try:
-        battery_response = session.post('https://server.growatt.com/panel/storage/getStorageBatChart', headers=HEADERS, data=battery_payload, timeout=10)
-        battery_response.raise_for_status(); battery_data = battery_response.json()
-    except requests.exceptions.RequestException as e: log_message(f"❌ Failed to fetch battery data for {selected_date}: {e}"); battery_data = {}
-    soc_data = battery_data.get("obj", {}).get("socChart", {}).get("capacity", [])
-    if not soc_data: log_message(f"⚠️ No SoC data received for {selected_date}")
-    soc_data = soc_data + [None] * (288 - len(soc_data))
-    energy_payload = {"date": selected_date, "plantId": PLANT_ID, "storageSn": STORAGE_SN}
-    try:
-        energy_response = session.post("https://server.growatt.com/panel/storage/getStorageEnergyDayChart", headers=HEADERS, data=energy_payload, timeout=10)
-        energy_response.raise_for_status(); energy_data = energy_response.json()
-    except requests.exceptions.RequestException as e: log_message(f"❌ Failed to fetch energy chart data for {selected_date}: {e}"); energy_data = {}
-    energy_obj = energy_data.get("obj", {}).get("charts", {}); energy_titles = energy_data.get("titles", [])
-    def prepare_series(dl, n, c):
-        cd = [float(x) if (isinstance(x,(int,float)) or (isinstance(x,str) and x.replace('.','',1).isdigit())) else None for x in dl]
-        return {"name":n,"data":cd,"color":c,"fillOpacity":0.2,"lineWidth":1} if any(x is not None for x in cd) else None
-    energy_series = [s for s in [
-        prepare_series(energy_obj.get("ppv"), "Photovoltaic Output", "#FFEB3B"),
-        prepare_series(energy_obj.get("userLoad"), "Load Consumption", "#9C27B0"),
-        prepare_series(energy_obj.get("pacToUser"), "Imported from Grid", "#00BCD4"),
-    ] if s and s['name'] != 'Exported to Grid']
-    if not any(s and s['data'] for s in energy_series): log_message(f"⚠️ No usable energy chart data for {selected_date}")
-    for s in energy_series: s["data"] = (s["data"] if s and s["data"] else []) + [None]*(288-len(s["data"] if s and s["data"] else []))
-    return render_template("battery-chart.html", selected_date=selected_date, soc_data=soc_data,
-                           raw_json=battery_data, energy_titles=energy_titles, energy_series=energy_series,
-                           last_growatt_update=last_successful_growatt_update_time)
-
-@app.route("/details", methods=["GET", "POST"])
-def details():
-    global last_successful_growatt_update_time
-    selected_date = request.form.get("date") if request.method == "POST" else get_today_date_utc_minus_5()
-    if request.method != "POST":
-        log_message(f"Selected date on GET for details page: {selected_date}")
-
-    growatt_login2()
-
-    NEW_API_PLANT_ID = '2817170'
-    NEW_API_STORAGE_SN = 'BNG7CH806N'
-    DEVICES_DAY_CHART_URL = "https://server.growatt.com/energy/compare/getDevicesDayChart"
-
-    def prepare_series(dl, n, c):
-        if not isinstance(dl, list):
-            log_message(f"‼️ Warning: Input data for series '{n}' is not a list. Received type: {type(dl)}. Treating as empty.")
-            dl = []
-
-        cd = [float(x) if (isinstance(x, (int, float)) or (isinstance(x, str) and x.replace('.', '', 1).isdigit())) else None for x in dl]
-
-        if any(x is not None for x in cd):
-            return {"name": n, "data": cd, "color": c, "fillOpacity": 0.2, "lineWidth": 1}
+    def get_assignments_by_user(self, crew_id=None, year=None, month=None):
+        try:
+            target_crew_id = crew_id or current_crew_id
+            now = get_utc_minus_5()
+            year = year or now.year
+            month = month or now.month
+            
+            first_day = datetime(year, month, 1)
+            last_day = (datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)) - timedelta(days=1)
+            
+            current_month = datetime(now.year, now.month, 1)
+            requested_month = datetime(year, month, 1)
+            
+            if requested_month > current_month:
+                last_day_of_current = (datetime(now.year + 1, 1, 1) if now.month == 12 
+                                     else datetime(now.year, now.month + 1, 1)) - timedelta(days=1)
+                start_date = last_day_of_current
+                logger.info(f"🔮 Future month: starting from {start_date.strftime('%Y-%m-%d')}")
+            else:
+                start_date = first_day
+                logger.info(f"📅 Current/Past month: starting from {start_date.strftime('%Y-%m-%d')}")
+            
+            change_days = 34
+            logger.info(f"📊 Unified request: {change_days} days from {start_date.strftime('%Y-%m-%d')}")
+            
+            if not self._login():
+                return None
+            
+            url = f"{self.base_url}/Assignements/GetAssignementsByUser"
+            params = {
+                "date": start_date.strftime('%Y-%m-%dT00:00:00Z'),
+                "changeDays": change_days,
+                "crewMemberUniqueId": target_crew_id,
+                "holding": "AV",
+                "timeZoneOffset": -300
+            }
+            
+            headers = {
+                "Authorization": self.auth_token,
+                "Ocp-Apim-Subscription-Key": self.subscription_key,
+                "Accept": "application/json",
+                "Origin": "https://mycrew.avianca.com", 
+                "Referer": "https://mycrew.avianca.com/",
+            }
+            
+            response = self.session.get(url, params=params, headers=headers, timeout=30)
+            if response.status_code == 200:
+                data = response.json()
+                logger.info(f"✅ Fetched {len(data)} assignments for {year}-{month:02d}")
+                return {'year': year, 'month': month, 'assignments': data}
+                
+        except Exception as e:
+            logger.error(f"❌ Error fetching assignments: {e}")
         return None
 
-    volt_series_data = []
-    raw_json_volts_response = {}
-    volt_request_jsonData = [{"type": "storage", "sn": NEW_API_STORAGE_SN, "params": "vGrid,outPutVolt"}]
-    volt_payload = {'plantId': NEW_API_PLANT_ID, 'date': selected_date, 'jsonData': json.dumps(volt_request_jsonData)}
+    def get_flight_details(self, airline, flight_number, departure_date, origin_airport, operational_number):
+        try:
+            if not self._login():
+                return None
+            
+            url = f"{self.base_url}/FlightDetails/{airline}/{flight_number}/{departure_date}/{origin_airport}/{operational_number}"
+            
+            headers = {
+                "Authorization": self.auth_token,
+                "Ocp-Apim-Subscription-Key": self.subscription_key,
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "Origin": "https://mycrew.avianca.com",
+                "Referer": "https://mycrew.avianca.com/",
+            }
+            
+            body = {
+                "holding": airline,
+                "commercialFlightNumber": flight_number,
+                "departureflightDate": departure_date,
+                "originAirportIATACode": origin_airport
+            }
+            
+            logger.info(f"🛫 Fetching flight details: {airline}{flight_number}")
+            
+            response = self.session.post(url, json=body, headers=headers, timeout=30)
+            
+            if response.status_code == 200:
+                flight_data = response.json()
+                logger.info(f"✅ Flight details fetched for {airline}{flight_number}")
+                return flight_data
+                
+        except Exception as e:
+            logger.error(f"❌ Error fetching flight details: {e}")
+        return None
 
-    try:
-        response_volts = session.post(DEVICES_DAY_CHART_URL, headers=HEADERS, data=volt_payload, timeout=10)
-        response_volts.raise_for_status()
-        raw_json_volts_response = response_volts.json()
+    def get_flight_crew_members(self, airline, flight_number, departure_date, origin_airport, operational_number):
+        try:
+            if not self._login():
+                return None
+            
+            url = f"{self.base_url}/FlightDetails/FlightMembersTeam/{airline}/{flight_number}/{departure_date}/{origin_airport}/{operational_number}"
+            
+            headers = {
+                "Authorization": self.auth_token,
+                "Ocp-Apim-Subscription-Key": self.subscription_key,
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "Origin": "https://mycrew.avianca.com",
+                "Referer": "https://mycrew.avianca.com/",
+            }
+            
+            body = {
+                "commercialFlightNumber": flight_number,
+                "departureflightDate": departure_date,
+                "holding": airline,
+                "originAirportIATACode": operational_number
+            }
+            
+            logger.info(f"👥 Fetching crew for: {airline}{flight_number}")
+            
+            response = self.session.post(url, json=body, headers=headers, timeout=30)
+            
+            if response.status_code == 200:
+                crew_data = response.json()
+                logger.info(f"✅ Crew fetched for {airline}{flight_number}")
+                return crew_data
+                
+        except Exception as e:
+            logger.error(f"❌ Error fetching crew: {e}")
+        return None
 
-        vGrid_values = []
-        outPutVolt_values = []
+    def get_flight_details_from_assignment(self, assignment):
+        try:
+            flight_assignment = assignment.get('FlighAssignement', {})
+            
+            airline = flight_assignment.get('Airline', 'AV')
+            flight_number = flight_assignment.get('CommercialFlightNumber', '')
+            operational_number = flight_assignment.get('OperationalNumber', '')
+            departure_date_utc = flight_assignment.get('ScheduledDepartureDate', '')
+            origin_airport = flight_assignment.get('OriginAirportIATACode', '')
+            
+            if not all([flight_number, operational_number, departure_date_utc, origin_airport]):
+                return None
+            
+            return self.get_flight_details(
+                airline=airline,
+                flight_number=flight_number,
+                departure_date=departure_date_utc,
+                origin_airport=origin_airport,
+                operational_number=operational_number
+            )
+            
+        except Exception as e:
+            logger.error(f"❌ Error extracting flight details: {e}")
+            return None
+    
+    def download_schedule_pdf(self, crew_id, schedule_type="actual", month="", year=""):
+        try:
+            if not self._login():
+                return None
+            
+            endpoint = "Scheduled/Export" if schedule_type.lower() == "scheduled" else "Export"
+            url = f"{self.base_url}/MonthlyAssignements/{endpoint}"
+            
+            boundary = "----WebKitFormBoundary" + str(int(time.time() * 1000))
+            current_month = month or str(get_utc_minus_5().month)
+            current_year = year or str(get_utc_minus_5().year)
+            
+            form_data = "\r\n".join([
+                f"--{boundary}", 'Content-Disposition: form-data; name="Holding"', '', 'AV',
+                f"--{boundary}", 'Content-Disposition: form-data; name="CrewMemberUniqueId"', '', crew_id,
+                f"--{boundary}", 'Content-Disposition: form-data; name="Year"', '', current_year,
+                f"--{boundary}", 'Content-Disposition: form-data; name="Month"', '', current_month,
+                f"--{boundary}--", ''
+            ])
+            
+            headers = {
+                "Authorization": self.auth_token,
+                "Ocp-Apim-Subscription-Key": self.subscription_key,
+                "Content-Type": f"multipart/form-data; boundary={boundary}",
+                "Origin": "https://mycrew.avianca.com",
+                "Referer": "https://mycrew.avianca.com/",
+            }
+            
+            response = self.session.post(url, data=form_data, headers=headers, timeout=30)
+            if response.status_code == 200 and 'pdf' in response.headers.get('content-type', '').lower():
+                filename = f"{schedule_type}_schedule_{crew_id}_{get_utc_minus_5().strftime('%Y%m%d_%H%M%S')}.pdf"
+                with open(filename, 'wb') as f:
+                    f.write(response.content)
+                return filename
+                
+        except Exception as e:
+            logger.error(f"PDF download error: {e}")
+        return None
 
-        obj_list_volts = raw_json_volts_response.get("obj")
-        if isinstance(obj_list_volts, list) and len(obj_list_volts) > 0:
-            first_item_volts = obj_list_volts[0]
-            if isinstance(first_item_volts, dict):
-                datas_dict_volts = first_item_volts.get("datas")
-                if isinstance(datas_dict_volts, dict):
-                    vGrid_values = datas_dict_volts.get("vGrid", [])
-                    outPutVolt_values = datas_dict_volts.get("outPutVolt", [])
-                else:
-                    log_message(f"⚠️ 'datas' key for volts is not a dict or missing. Response: {raw_json_volts_response}")
+
+class PaxlistClient:
+    def __init__(self):
+        self.base_url = "https://paxlist.avianca.com"
+        self.token_url = "https://login.microsoftonline.com/a2addd3e-8397-4579-ba30-7a38803fc3bf/oauth2/v2.0/token"
+        self.client_id = "1d866ed3-bdb0-47d1-bfac-8ebfd47360d3"
+        self.redirect_uri = "https://paxlist.avianca.com/dashboard"
+        self.scope = "api://1d866ed3-bdb0-47d1-bfac-8ebfd47360d3/access_as_user openid profile offline_access"
+        
+        self.session = None
+        self.access_token = None
+        self.refresh_token = None
+        self.token_expiry = None
+        self.refresh_expiry = None
+        self.token_file = "paxlist_tokens.json"
+        
+        self.load_tokens()
+        self.create_session()
+    
+    def create_session(self):
+        """Create requests session"""
+        self.session = requests.Session()
+        self.session.headers.update({
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36",
+            "Accept": "application/json, text/plain, */*",
+            "Accept-Language": "en-US,en;q=0.9,es-419;q=0.8,es;q=0.7",
+            "Origin": "https://paxlist.avianca.com",
+            "Referer": "https://paxlist.avianca.com/",
+        })
+    
+    def decode_jwt_token(self, token):
+        """Decode JWT token to extract claims without verification"""
+        try:
+            # Decode without verifying signature (just to read the data)
+            payload = jwt.decode(token, options={"verify_signature": False})
+            return payload
+        except Exception as e:
+            logger.error(f"Failed to decode JWT: {e}")
+            return None
+    
+    def get_expiry_from_token(self, token):
+        """Extract expiration time from JWT token"""
+        try:
+            payload = self.decode_jwt_token(token)
+            if payload and 'exp' in payload:
+                exp_timestamp = payload['exp']
+                current_time = time.time()
+                seconds_left = max(0, int(exp_timestamp - current_time))
+                
+                # Also get issued time if available
+                iat_timestamp = payload.get('iat', 0)
+                if iat_timestamp:
+                    total_lifetime = exp_timestamp - iat_timestamp
+                    logger.info(f"📊 JWT Analysis:")
+                    logger.info(f"   - Issued at: {datetime.fromtimestamp(iat_timestamp).strftime('%Y-%m-%d %H:%M:%S')}")
+                    logger.info(f"   - Expires at: {datetime.fromtimestamp(exp_timestamp).strftime('%Y-%m-%d %H:%M:%S')}")
+                    logger.info(f"   - Total lifetime: {total_lifetime//60} minutes ({total_lifetime} seconds)")
+                    logger.info(f"   - Time left: {seconds_left//60} minutes ({seconds_left} seconds)")
+                
+                return seconds_left
             else:
-                log_message(f"⚠️ First item in 'obj' list for volts is not a dict. Response: {raw_json_volts_response}")
-        else:
-            log_message(f"⚠️ 'obj' key for volts is not a list, is empty, or missing. Response: {raw_json_volts_response}")
-
-        prepared_series_list_volts = []
-        series_vgrid = prepare_series(vGrid_values, "Grid Voltage (V)", "#FF5733")
-        if series_vgrid: prepared_series_list_volts.append(series_vgrid)
-        series_outputvolt = prepare_series(outPutVolt_values, "Output Voltage (V)", "#33FF57")
-        if series_outputvolt: prepared_series_list_volts.append(series_outputvolt)
-        volt_series_data = prepared_series_list_volts
-
-    except requests.exceptions.RequestException as e:
-        log_message(f"❌ Failed to fetch voltage data for {selected_date}: {e}")
-    except Exception as e:
-        log_message(f"❌ Unexpected error processing voltage data for {selected_date}: {e}")
-
-
-    amp_series_data = []
-    raw_json_amps_response = {}
-    amp_request_jsonData = [{"type": "storage", "sn": NEW_API_STORAGE_SN, "params": "ppv"}]
-    amp_payload = {'plantId': NEW_API_PLANT_ID, 'date': selected_date, 'jsonData': json.dumps(amp_request_jsonData)}
-
-    try:
-        response_amps = session.post(DEVICES_DAY_CHART_URL, headers=HEADERS, data=amp_payload, timeout=10)
-        response_amps.raise_for_status()
-        raw_json_amps_response = response_amps.json()
-
-        ppv_values = []
-
-        obj_list_amps = raw_json_amps_response.get("obj")
-        if isinstance(obj_list_amps, list) and len(obj_list_amps) > 0:
-            first_item_amps = obj_list_amps[0]
-            if isinstance(first_item_amps, dict):
-                datas_dict_amps = first_item_amps.get("datas")
-                if isinstance(datas_dict_amps, dict):
-                    ppv_values = datas_dict_amps.get("ppv", [])
-                else:
-                    log_message(f"⚠️ 'datas' key for amps is not a dict or missing. Response: {raw_json_amps_response}")
+                logger.warning("⚠️ No 'exp' claim found in token")
+                return None
+                
+        except Exception as e:
+            logger.error(f"❌ Failed to get expiry from JWT: {e}")
+            return None
+    
+    def load_tokens(self):
+        """Load saved tokens from file"""
+        try:
+            if os.path.exists(self.token_file):
+                with open(self.token_file, 'r') as f:
+                    data = json.load(f)
+                
+                self.access_token = data.get('access_token')
+                self.refresh_token = data.get('refresh_token')
+                self.token_expiry = data.get('token_expiry')
+                self.refresh_expiry = data.get('refresh_expiry')
+                
+                current_time = time.time()
+                
+                if self.refresh_token:
+                    if self.refresh_expiry and current_time < self.refresh_expiry:
+                        hours_left = int((self.refresh_expiry - current_time) / 3600)
+                        logger.info(f"✅ Paxlist refresh token valid for {hours_left} hours")
+                    else:
+                        logger.warning("⚠️ Paxlist refresh token expired")
+                
+                if self.access_token:
+                    if self.token_expiry and current_time < self.token_expiry:
+                        minutes_left = int((self.token_expiry - current_time) / 60)
+                        logger.info(f"✅ Paxlist access token valid for {minutes_left} minutes")
+                        # Double-check with JWT decoding
+                        jwt_time_left = self.get_expiry_from_token(self.access_token)
+                        if jwt_time_left:
+                            logger.info(f"🔍 JWT says {jwt_time_left//60} minutes left, stored says {minutes_left} minutes left")
+                            if abs(jwt_time_left - (self.token_expiry - current_time)) > 60:
+                                logger.warning(f"⚠️ Token expiry mismatch! Updating with JWT value")
+                                self.token_expiry = current_time + jwt_time_left
+                                self.save_tokens(
+                                    access_token=self.access_token,
+                                    refresh_token=self.refresh_token,
+                                    expires_in=jwt_time_left,
+                                    refresh_expires_in=86399
+                                )
+                    else:
+                        logger.info("🔄 Paxlist access token needs refresh")
+                        if self.refresh_token and self.refresh_expiry and current_time < self.refresh_expiry:
+                            self.refresh_access_token()
+                
+                return True
+                    
+        except Exception as e:
+            logger.error(f"Error loading Paxlist tokens: {e}")
+        
+        return False
+    
+    def save_tokens(self, access_token=None, refresh_token=None, expires_in=3700, refresh_expires_in=86399):
+        """Save tokens to file"""
+        try:
+            current_time = time.time()
+            
+            if access_token:
+                self.access_token = access_token
+                # Try to get accurate expiry from JWT first
+                jwt_expiry = self.get_expiry_from_token(access_token)
+                if jwt_expiry:
+                    expires_in = jwt_expiry
+                    logger.info(f"📊 Using JWT expiry: {expires_in//60} minutes")
+                self.token_expiry = current_time + expires_in
+            
+            if refresh_token:
+                self.refresh_token = refresh_token
+                self.refresh_expiry = current_time + refresh_expires_in
+            
+            data = {
+                'access_token': self.access_token,
+                'refresh_token': self.refresh_token,
+                'token_expiry': self.token_expiry,
+                'refresh_expiry': self.refresh_expiry,
+                'last_updated': current_time
+            }
+            
+            with open(self.token_file, 'w') as f:
+                json.dump(data, f, indent=2)
+            
+            logger.info(f"💾 Paxlist tokens saved (access valid for {expires_in//60} minutes)")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error saving Paxlist tokens: {e}")
+            return False
+    
+    def refresh_access_token(self):
+        """Refresh access token using refresh token"""
+        try:
+            if not self.refresh_token:
+                logger.error("❌ No Paxlist refresh token available")
+                return False
+            
+            current_time = time.time()
+            if self.refresh_expiry and current_time >= self.refresh_expiry:
+                logger.error("❌ Paxlist refresh token expired")
+                return False
+            
+            headers = {
+                "Content-Type": "application/x-www-form-urlencoded;charset=utf-8",
+                "Accept": "*/*",
+                "Origin": "https://paxlist.avianca.com",
+                "Referer": "https://paxlist.avianca.com/",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36"
+            }
+            
+            data = {
+                "client_id": self.client_id,
+                "scope": self.scope,
+                "refresh_token": self.refresh_token,
+                "grant_type": "refresh_token",
+                "client_info": "1"
+            }
+            
+            logger.info("🔄 Refreshing Paxlist access token...")
+            
+            response = requests.post(self.token_url, data=data, headers=headers, timeout=30)
+            
+            if response.status_code == 200:
+                token_data = response.json()
+                
+                new_access_token = token_data.get('access_token')
+                new_refresh_token = token_data.get('refresh_token', self.refresh_token)
+                expires_in = token_data.get('expires_in', 3700)
+                refresh_expires_in = token_data.get('refresh_token_expires_in', 86399)
+                
+                # Verify with JWT decoding
+                jwt_expiry = self.get_expiry_from_token(new_access_token)
+                if jwt_expiry:
+                    logger.info(f"📊 Response says {expires_in//60} min, JWT says {jwt_expiry//60} min")
+                    # Use the more accurate JWT value
+                    expires_in = jwt_expiry
+                
+                success = self.save_tokens(
+                    access_token=new_access_token,
+                    refresh_token=new_refresh_token,
+                    expires_in=expires_in,
+                    refresh_expires_in=refresh_expires_in
+                )
+                
+                if success:
+                    logger.info(f"✅ Paxlist access token refreshed (valid {expires_in//60} minutes)")
+                    return True
             else:
-                log_message(f"⚠️ First item in 'obj' list for amps is not a dict. Response: {raw_json_amps_response}")
-        else:
-            log_message(f"⚠️ 'obj' key for amps is not a list, is empty, or missing. Response: {raw_json_amps_response}")
+                logger.error(f"❌ Paxlist token refresh failed: {response.status_code}")
+                if response.text:
+                    logger.error(f"Response: {response.text[:200]}")
+                
+        except Exception as e:
+            logger.error(f"❌ Error refreshing Paxlist token: {e}")
+        
+        return False
+    
+    def set_initial_tokens(self, access_token, refresh_token):
+        """Set initial tokens from browser extraction with JWT decoding"""
+        try:
+            # Validate token format before proceeding
+            if not isinstance(access_token, str) or not access_token.startswith('eyJ'):
+                logger.error("❌ Invalid token format - must be a JWT starting with eyJ")
+                return False
+            
+            # First, try to get expiry from JWT
+            jwt_expiry = self.get_expiry_from_token(access_token)
+            
+            if jwt_expiry:
+                logger.info(f"📊 Using JWT decoding to set token expiry: {jwt_expiry//60} minutes")
+                expires_in = jwt_expiry
+            else:
+                logger.warning("⚠️ Could not decode JWT, using default 3700 seconds")
+                expires_in = 3700
+            
+            success = self.save_tokens(
+                access_token=access_token,
+                refresh_token=refresh_token,
+                expires_in=expires_in,
+                refresh_expires_in=86399
+            )
+            
+            if success:
+                logger.info("✅ Paxlist initial tokens set successfully")
+                return True
+                
+        except Exception as e:
+            logger.error(f"Error setting Paxlist initial tokens: {e}")
+        
+        return False
 
-        prepared_series_list_amps = []
-        series_ppv = prepare_series(ppv_values, "PV Current (A)", "#3357FF")
-        if series_ppv: prepared_series_list_amps.append(series_ppv)
-        amp_series_data = prepared_series_list_amps
+    def get_passenger_list(self, flight_carrier, flight_number, flight_departure_station, flight_date):
+        """Get passenger list with automatic token refresh"""
+        try:
+            current_time = time.time()
+            
+            if not self.access_token or not self.token_expiry or current_time >= self.token_expiry:
+                if not self.refresh_access_token():
+                    return {
+                        "error": "token_expired",
+                        "message": "Token expired and could not refresh",
+                        "needs_new_tokens": True
+                    }
+            
+            url = f"{self.base_url}/crew_devices/consulta_pasajeros"
+            
+            headers = {
+                "Authorization": f"Bearer {self.access_token}",
+                "Content-Type": "application/json",
+                "Accept": "application/json, text/plain, */*",
+                "Origin": "https://paxlist.avianca.com",
+                "Referer": "https://paxlist.avianca.com/",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36",
+                "sec-ch-ua": '"Not_A Brand";v="99", "Google Chrome";v="109", "Chromium";v="109"',
+                "sec-ch-ua-mobile": "?0",
+                "sec-ch-ua-platform": '"Windows"',
+                "Sec-Fetch-Site": "same-origin",
+                "Sec-Fetch-Mode": "cors",
+                "Sec-Fetch-Dest": "empty"
+            }
+            
+            payload = {
+                "flight_carrier": flight_carrier,
+                "flight_number": flight_number,
+                "flight_departure_station": flight_departure_station,
+                "flight_date": flight_date
+            }
+            
+            logger.info(f"🛫 Requesting passenger list: {flight_carrier}{flight_number}")
+            
+            response = self.session.post(url, json=payload, headers=headers, timeout=30)
+            
+            if response.status_code == 200:
+                data = response.json()
+                passenger_count = len(data.get('passengers', []))
+                logger.info(f"✅ Got {passenger_count} passengers")
+                return data
+            elif response.status_code == 401:
+                logger.warning("🔄 Got 401, forcing token refresh...")
+                if self.refresh_access_token():
+                    headers["Authorization"] = f"Bearer {self.access_token}"
+                    response = self.session.post(url, json=payload, headers=headers, timeout=30)
+                    if response.status_code == 200:
+                        data = response.json()
+                        logger.info("✅ Request succeeded after token refresh")
+                        return data
+                
+                return {
+                    "error": "authentication_failed",
+                    "message": "Authentication failed",
+                    "status_code": 401
+                }
+            else:
+                logger.error(f"❌ Paxlist API error {response.status_code}")
+                return {
+                    "error": "api_error",
+                    "status_code": response.status_code,
+                    "message": response.text[:500] if response.text else "No response"
+                }
+                
+        except Exception as e:
+            logger.error(f"❌ Error in Paxlist request: {e}")
+            return {"error": "request_error", "message": str(e)}
+    
+    def get_token_status(self):
+        """Get current token status with JWT verification"""
+        current_time = time.time()
+        
+        access_valid = False
+        refresh_valid = False
+        access_expires_in = 0
+        refresh_expires_in = 0
+        jwt_verified = False
+        jwt_expires_in = 0
+        
+        if self.access_token and self.token_expiry:
+            access_valid = current_time < self.token_expiry
+            access_expires_in = max(0, int(self.token_expiry - current_time))
+            
+            # Verify with JWT
+            jwt_time_left = self.get_expiry_from_token(self.access_token)
+            if jwt_time_left:
+                jwt_verified = True
+                jwt_expires_in = jwt_time_left
+                if abs(jwt_time_left - access_expires_in) > 60:
+                    logger.warning(f"⚠️ Token expiry mismatch! Stored: {access_expires_in//60} min, JWT: {jwt_time_left//60} min")
+        
+        if self.refresh_token and self.refresh_expiry:
+            refresh_valid = current_time < self.refresh_expiry
+            refresh_expires_in = max(0, int(self.refresh_expiry - current_time))
+        
+        return {
+            "has_access_token": bool(self.access_token),
+            "has_refresh_token": bool(self.refresh_token),
+            "access_token_valid": access_valid,
+            "refresh_token_valid": refresh_valid,
+            "access_expires_in_seconds": access_expires_in,
+            "refresh_expires_in_seconds": refresh_expires_in,
+            "access_expires_in_minutes": access_expires_in // 60,
+            "refresh_expires_in_hours": refresh_expires_in // 3600,
+            "jwt_verified": jwt_verified,
+            "jwt_expires_in_seconds": jwt_expires_in,
+            "jwt_expires_in_minutes": jwt_expires_in // 60
+        }
 
-    except requests.exceptions.RequestException as e:
-        log_message(f"❌ Failed to fetch amperage data for {selected_date}: {e}")
+
+def create_empty_month_data(year, month):
+    first_day = datetime(year, month, 1)
+    last_day = (datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)) - timedelta(days=1)
+    
+    month_data = []
+    current_date = first_day
+    while current_date <= last_day:
+        date_str = current_date.strftime('%Y-%m-%d')
+        month_data.append({
+            'StartDate': date_str + 'T00:00:00Z',
+            'Dem': '',
+            'AssignementList': []
+        })
+        current_date += timedelta(days=1)
+    
+    return [month_data]
+
+def transform_assignments_to_calendar_data(assignments_data, year, month):
+    if not assignments_data or not isinstance(assignments_data, list):
+        logger.warning(f"⚠️ No assignments data for {year}-{month:02d}")
+        return create_empty_month_data(year, month)
+    
+    first_day = datetime(year, month, 1)
+    last_day = (datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)) - timedelta(days=1)
+    
+    days_dict = {}
+    for assignment in assignments_data:
+        if assignment and assignment.get('StartDate'):
+            try:
+                date_str = assignment['StartDate'][:10]
+                date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+                if date_obj.year == year and date_obj.month == month:
+                    if date_str not in days_dict:
+                        days_dict[date_str] = {'StartDate': assignment['StartDate'], 'Dem': '', 'AssignementList': []}
+                    days_dict[date_str]['AssignementList'].append(assignment)
+            except (ValueError, KeyError):
+                continue
+    
+    month_data = []
+    current_date = first_day
+    while current_date <= last_day:
+        date_str = current_date.strftime('%Y-%m-%d')
+        month_data.append(days_dict.get(date_str, {
+            'StartDate': date_str + 'T00:00:00Z',
+            'Dem': '',
+            'AssignementList': []
+        }))
+        current_date += timedelta(days=1)
+    
+    return [month_data]
+
+def create_calendar_view_data(month_data):
+    if not month_data or not isinstance(month_data, list):
+        return []
+    
+    first_day = None
+    for day in month_data:
+        if day and day.get('StartDate'):
+            try:
+                first_day = datetime.strptime(day['StartDate'][:10], '%Y-%m-%d').replace(day=1)
+                break
+            except (ValueError, KeyError):
+                continue
+    
+    if not first_day:
+        return []
+    
+    calendar_start = first_day - timedelta(days=first_day.weekday())
+    calendar_days = []
+    
+    for i in range(42):
+        current_date = calendar_start + timedelta(days=i)
+        date_str = current_date.strftime('%Y-%m-%d')
+        calendar_day = None
+        
+        for day_data in month_data:
+            if day_data and day_data.get('StartDate', '').startswith(date_str):
+                assignments = []
+                for assignment in day_data.get('AssignementList', []):
+                    flight_data = assignment.get('FlighAssignement')
+                    if flight_data and flight_data.get('CommercialFlightNumber') != "XXX":
+                        local_date = assignment.get('StartDateLocal', '')[:10]
+                        assignments.append({
+                            'is_flight': True,
+                            'flight_number': flight_data.get('CommercialFlightNumber', ''),
+                            'origin': flight_data.get('OriginAirportIATACode', '').strip() if flight_data.get('OriginAirportIATACode') else '',
+                            'destination': flight_data.get('FinalAirportIATACode', '').strip() if flight_data.get('FinalAirportIATACode') else '',
+                            'departure_stand': flight_data.get('DepartureStand', '').strip() if flight_data.get('DepartureStand') else '',
+                            'departure_time': flight_data.get('ScheduledDepartureDate', '')[11:16] if flight_data.get('ScheduledDepartureDate') else 'N/A',
+                            'arrival_time': flight_data.get('ScheduledArrivalDate', '')[11:16] if flight_data.get('ScheduledArrivalDate') else 'N/A',
+                            'time_advanced': flight_data.get('TimeAdvanced', False),
+                            'time_delayed': flight_data.get('TimeDelayed', False),
+                            'aircraft_registration': assignment.get('AircraftRegistrationNumber', '').strip() if assignment.get('AircraftRegistrationNumber') else '',
+                            'operational_number': flight_data.get('OperationalNumber', ''),
+                            'local_date': local_date
+                        })
+                    else:
+                        assignments.append({
+                            'is_flight': False,
+                            'activity_code': assignment.get('ActivityCode', '').strip() if assignment.get('ActivityCode') else 'DUTY',
+                            'start_time': assignment.get('StartDateLocal', '')[11:16] if assignment.get('StartDateLocal') else 'N/A',
+                            'end_time': assignment.get('EndDateLocal', '')[11:16] if assignment.get('EndDateLocal') else 'N/A'
+                        })
+                
+                calendar_day = {
+                    'date': date_str,
+                    'day_number': current_date.day,
+                    'weekend': current_date.weekday() >= 5,
+                    'assignments': assignments
+                }
+                break
+        
+        if not calendar_day and current_date.month == first_day.month:
+            calendar_day = {
+                'date': date_str,
+                'day_number': current_date.day,
+                'weekend': current_date.weekday() >= 5,
+                'assignments': []
+            }
+        
+        calendar_days.append(calendar_day)
+    
+    return calendar_days
+
+def get_month_name(year, month):
+    return datetime(year, month, 1).strftime('%B %Y')
+
+def get_month_name_from_data(month_data):
+    if not month_data or not isinstance(month_data, list):
+        return "Unknown Month"
+    
+    for day in month_data:
+        if day and isinstance(day, dict) and day.get('StartDate'):
+            try:
+                date_str = day['StartDate'][:10]
+                date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+                return date_obj.strftime('%B %Y')
+            except (ValueError, KeyError):
+                continue
+    return "Unknown Month"
+
+
+# Initialize clients
+client = CrewAPIClient()
+paxlist_client = PaxlistClient()
+
+# Global variables
+schedule_data = None
+last_fetch_time = None
+current_crew_id = DEFAULT_CREW_ID
+current_calendar_year = get_utc_minus_5().year
+current_calendar_month = get_utc_minus_5().month
+crew_names = load_crew_names()
+
+
+# ========== FLASK ROUTES ==========
+
+@app.route('/')
+def index():
+    """Main page - Paxlist passenger search"""
+    token_status = paxlist_client.get_token_status() if paxlist_client else None
+    
+    return render_template('paxlist.html',
+        current_crew_id=current_crew_id,
+        crew_names=crew_names,
+        token_status=token_status,
+        has_token=bool(paxlist_client and paxlist_client.access_token)
+    )
+
+@app.route('/calendar')
+def calendar_view():
+    global schedule_data, last_fetch_time, current_crew_id, current_calendar_year, current_calendar_month
+    
+    year = request.args.get('year', type=int, default=current_calendar_year)
+    month = request.args.get('month', type=int, default=current_calendar_month)
+    current_calendar_year, current_calendar_month = year, month
+    
+    logger.info(f"🗓️ Calendar view: {year}-{month:02d}")
+    
+    assignments_result = client.get_assignments_by_user(current_crew_id, year=year, month=month)
+    if assignments_result:
+        schedule_data = transform_assignments_to_calendar_data(
+            assignments_result['assignments'], 
+            assignments_result['year'], 
+            assignments_result['month']
+        )
+        last_fetch_time = get_utc_minus_5().strftime("%Y-%m-%d %H:%M:%S")
+    
+    month_name = get_month_name(year, month)
+    month_calendars = [create_calendar_view_data(schedule_data[0])] if schedule_data else []
+    
+    total_days = len(schedule_data[0]) if schedule_data else 0
+    total_assignments = sum(len(day.get('AssignementList', [])) for day in schedule_data[0]) if schedule_data else 0
+    
+    total_actual_minutes = 0
+    total_scheduled_minutes = 0
+    
+    if schedule_data:
+        for day in schedule_data[0]:
+            for assignment in day.get('AssignementList', []):
+                flight_data = assignment.get('FlighAssignement', {})
+                if flight_data and flight_data.get('CommercialFlightNumber') != "XXX":
+                    actual_duration = flight_data.get('Duration')
+                    if actual_duration is not None:
+                        total_actual_minutes += actual_duration
+                    
+                    scheduled_duration = flight_data.get('ScheduledDuration')
+                    if scheduled_duration is not None:
+                        total_scheduled_minutes += scheduled_duration
+    
+    total_actual_hours = total_actual_minutes // 60
+    total_actual_minutes_remainder = total_actual_minutes % 60
+    
+    total_scheduled_hours = total_scheduled_minutes // 60
+    total_scheduled_minutes_remainder = total_scheduled_minutes % 60
+    
+    refresh_message = "Data refreshed successfully!" if request.args.get('refresh') == 'success' else None
+    
+    month_names = [month_name]
+    
+    return render_template('calendar_view.html',
+        schedule_data=schedule_data,
+        last_fetch=last_fetch_time,
+        total_days=total_days,
+        total_assignments=total_assignments,
+        refresh_message=refresh_message,
+        current_crew_id=current_crew_id,
+        month_names=month_names,
+        month_calendars=month_calendars,
+        current_date=get_utc_minus_5().strftime('%Y-%m-%d'),
+        current_month_index=0,
+        current_calendar_year=current_calendar_year,
+        current_calendar_month=current_calendar_month,
+        total_actual_hours=total_actual_hours,
+        total_actual_minutes=total_actual_minutes_remainder,
+        total_scheduled_hours=total_scheduled_hours,
+        total_scheduled_minutes=total_scheduled_minutes_remainder,
+        crew_names=crew_names
+    )
+    
+@app.route('/flight_details')
+def flight_details_page():
+    return render_template('flight_details.html',
+        current_crew_id=current_crew_id,
+        crew_names=crew_names,
+        flight_details=None,
+        crew_data=None,
+        auto_fetch=False,
+        flight_number=None,
+        local_date=None,
+        origin_airport=None
+    )
+
+@app.route('/paxlist')
+def paxlist_page():
+    """Paxlist search page"""
+    token_status = paxlist_client.get_token_status() if paxlist_client else None
+    
+    return render_template('paxlist.html',
+        current_crew_id=current_crew_id,
+        crew_names=crew_names,
+        token_status=token_status,
+        has_token=bool(paxlist_client and paxlist_client.access_token)
+    )
+
+@app.route('/api/paxlist/set_initial_tokens', methods=['POST'])
+def set_paxlist_initial_tokens():
+    """Set initial tokens from browser extraction with JWT decoding"""
+    try:
+        data = request.get_json()
+        access_token = data.get('access_token')
+        refresh_token = data.get('refresh_token')
+        
+        if access_token and refresh_token:
+            success = paxlist_client.set_initial_tokens(access_token, refresh_token)
+            if success:
+                return jsonify({
+                    'success': True, 
+                    'message': 'Tokens set successfully with JWT validation. Will auto-refresh for 24 hours.'
+                })
     except Exception as e:
-        log_message(f"❌ Unexpected error processing amperage data for {selected_date}: {e}")
+        logger.error(f"Error setting Paxlist tokens: {e}")
+    return jsonify({'success': False, 'message': 'Failed to set tokens'}), 400
 
-    for series_list_to_pad in [volt_series_data, amp_series_data]:
-        for s_object in series_list_to_pad:
-            if s_object and "data" in s_object:
-                current_data_list = s_object["data"] if s_object["data"] else []
-                s_object["data"] = current_data_list + [None] * (288 - len(current_data_list))
+@app.route('/api/paxlist/refresh_token', methods=['POST'])
+def refresh_paxlist_token():
+    """Manually refresh token"""
+    try:
+        success = paxlist_client.refresh_access_token()
+        if success:
+            return jsonify({'success': True, 'message': 'Token refreshed'})
+    except Exception as e:
+        logger.error(f"Error refreshing Paxlist token: {e}")
+    return jsonify({'success': False, 'message': 'Failed to refresh token'}), 400
 
-    return render_template("details.html",
-                           selected_date=selected_date,
-                           chart1_data_series=volt_series_data,
-                           chart2_data_series=amp_series_data,
-                           raw_json_chart1=raw_json_volts_response,
-                           raw_json_chart2=raw_json_amps_response,
-                           last_growatt_update=last_successful_growatt_update_time)
+@app.route('/api/paxlist/token_status')
+def paxlist_token_status():
+    """Get token status with JWT verification"""
+    status = paxlist_client.get_token_status()
+    return jsonify({
+        'success': True,
+        'status': status
+    })
 
-if __name__ == '__main__':
-    log_message("Starting Flask development server.")
-    port = int(os.environ.get("PORT", 8000))
-    app.run(host='0.0.0.0', port=port)
+@app.route('/api/paxlist/search', methods=['POST'])
+def paxlist_search():
+    """Search for passengers"""
+    try:
+        data = request.get_json()
+        
+        flight_carrier = data.get('flight_carrier', 'AV')
+        flight_number = data.get('flight_number')
+        flight_departure_station = data.get('flight_departure_station')
+        flight_date = data.get('flight_date')
+        
+        if not all([flight_number, flight_departure_station, flight_date]):
+            return jsonify({
+                'success': False,
+                'message': 'Missing required fields'
+            }), 400
+        
+        result = paxlist_client.get_passenger_list(
+            flight_carrier=flight_carrier,
+            flight_number=flight_number,
+            flight_departure_station=flight_departure_station,
+            flight_date=flight_date
+        )
+        
+        if isinstance(result, dict) and 'error' in result:
+            return jsonify({
+                'success': False,
+                'message': result.get('message', 'Failed to fetch passenger data'),
+                'needs_new_tokens': result.get('needs_new_tokens', False),
+                'data': result
+            })
+        elif result:
+            return jsonify({
+                'success': True,
+                'data': result
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Failed to fetch passenger data'
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Paxlist search error: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+@app.route('/api/flight_details', methods=['POST'])
+def get_flight_details_api():
+    try:
+        data = request.get_json()
+        
+        airline = data.get('airline', 'AV')
+        flight_number = data.get('flight_number')
+        departure_date = data.get('departure_date')
+        origin_airport = data.get('origin_airport')
+        operational_number = data.get('operational_number')
+        
+        if not all([flight_number, departure_date, origin_airport, operational_number]):
+            return jsonify({
+                'success': False,
+                'error': 'Missing required parameters'
+            }), 400
+        
+        flight_details = client.get_flight_details(
+            airline=airline,
+            flight_number=flight_number,
+            departure_date=departure_date,
+            origin_airport=origin_airport,
+            operational_number=operational_number
+        )
+        
+        if flight_details:
+            return jsonify({
+                'success': True,
+                'flight_details': flight_details
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to fetch flight details'
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Error in flight details API: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/flight_crew', methods=['POST'])
+def get_flight_crew_api():
+    try:
+        data = request.get_json()
+        
+        airline = data.get('airline', 'AV')
+        flight_number = data.get('flight_number')
+        departure_date = data.get('departure_date')
+        origin_airport = data.get('origin_airport')
+        operational_number = data.get('operational_number')
+        
+        if not all([flight_number, departure_date, origin_airport, operational_number]):
+            return jsonify({
+                'success': False,
+                'error': 'Missing required parameters'
+            }), 400
+        
+        crew_data = client.get_flight_crew_members(
+            airline=airline,
+            flight_number=flight_number,
+            departure_date=departure_date,
+            origin_airport=origin_airport,
+            operational_number=operational_number
+        )
+        
+        if crew_data:
+            return jsonify({
+                'success': True,
+                'crew_data': crew_data
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to fetch crew data'
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Error in flight crew API: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/flight_details_from_assignment', methods=['POST'])
+def get_flight_details_from_assignment_api():
+    try:
+        data = request.get_json()
+        assignment = data.get('assignment')
+        
+        if not assignment:
+            return jsonify({
+                'success': False,
+                'error': 'No assignment data provided'
+            }), 400
+        
+        flight_details = client.get_flight_details_from_assignment(assignment)
+        
+        if flight_details:
+            return jsonify({
+                'success': True,
+                'flight_details': flight_details
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to fetch flight details from assignment'
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Error in flight details from assignment API: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/pdf')
+def pdf_view():
+    pdf_message = request.args.get('pdf_message')
+    pdf_success = request.args.get('pdf_success') == 'true'
+    return render_template('pdf_view.html',
+        current_crew_id=current_crew_id,
+        pdf_message=pdf_message,
+        pdf_success=pdf_success,
+        crew_names=crew_names
+    )
+
+@app.route('/update_crew_id')
+def update_crew_id():
+    global current_crew_id, schedule_data, last_fetch_time, current_calendar_year, current_calendar_month
+    new_crew_id = request.args.get('crew_id', '').strip()
+    if new_crew_id:
+        current_crew_id = new_crew_id
+        schedule_data = None
+        last_fetch_time = None
+        current_calendar_year = get_utc_minus_5().year
+        current_calendar_month = get_utc_minus_5().month
+        return {"success": True, "new_crew_id": current_crew_id}
+    return {"success": False, "error": "No crew ID provided"}
+
+@app.route('/download_pdf')
+def download_pdf():
+    schedule_type = request.args.get('type', 'actual')
+    month = request.args.get('month', '').strip()
+    year = request.args.get('year', '').strip()
+    try:
+        filename = client.download_schedule_pdf(current_crew_id, schedule_type, month, year)
+        if filename and os.path.exists(filename):
+            return send_file(filename, as_attachment=True, download_name=os.path.basename(filename))
+    except Exception as e:
+        logger.error(f"PDF download error: {e}")
+    return {"success": False, "error": "PDF generation failed"}, 400
+
+@app.route('/fetch')
+def fetch_data():
+    global schedule_data, last_fetch_time, current_calendar_year, current_calendar_month
+    try:
+        assignments_result = client.get_assignments_by_user(current_crew_id, current_calendar_year, current_calendar_month)
+        if assignments_result:
+            schedule_data = transform_assignments_to_calendar_data(
+                assignments_result['assignments'],
+                assignments_result['year'],
+                assignments_result['month']
+            )
+            last_fetch_time = get_utc_minus_5().strftime("%Y-%m-%d %H:%M:%S")
+            return {"success": True}
+    except Exception as e:
+        logger.error(f"Error in /fetch: {e}")
+    return {"success": False, "error": "Failed to fetch data"}
+
+if __name__ == "__main__":
+    logger.info("🚀 Starting Crew Schedule Application with Paxlist Integration...")
+    logger.info("📊 JWT Decoding Enabled - Token expiry will be read from the token itself")
+    app.run(host='0.0.0.0', port=8000, debug=False)

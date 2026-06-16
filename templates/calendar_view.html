@@ -84,7 +84,7 @@
             margin: 0 3px; 
             text-decoration: none; 
             display: inline-block; 
-            font-size: 0.99em;
+            font-size: 0.99em; /* was 0.9em */
         }
         .nav-button:hover { background: #4a4a4a; }
         .nav-button.active { background: #f0f0f0; color: #121212; }
@@ -95,7 +95,7 @@
             border: none; 
             border-radius: 5px; 
             cursor: pointer; 
-            font-size: 0.99em;
+            font-size: 0.99em; /* was 0.9em */
             display: block;
             margin: 10px auto;
         }
@@ -150,7 +150,7 @@
             border-radius: 5px; 
             margin: 10px 0; 
             text-align: center; 
-            font-size: 0.99em;
+            font-size: 0.99em; /* was 0.9em */
             width: 100%;
         }
         
@@ -181,7 +181,7 @@
             margin-bottom: 5px;
             text-align: center;
             font-weight: bold;
-            font-size: 1.43em;
+            font-size: 1.43em; /* was 1.3em */
             line-height: 1.2;
             height: 24px;
             display: flex;
@@ -218,7 +218,7 @@
         .flight-number { 
             font-weight: bold; 
             color: #ffc107; 
-            font-size: 1.76em;
+            font-size: 1.76em; /* was 1.6em */
             display: inline; 
             cursor: pointer; 
             text-decoration: none; 
@@ -231,26 +231,18 @@
         .departure-stand { 
             font-weight: bold; 
             color: #4fc3f7; 
-            font-size: 1.76em;
+            font-size: 1.76em; /* was 1.6em */
             display: inline; 
             margin-left: 8px; 
         }
-        /* New gate label - white color, smaller than blue/yellow */
-        .gate-new-label {
-            font-weight: bold;
-            color: #ffffff;
-            font-size: 1.4em;
-            display: inline;
-            margin-left: 6px;
-        }
         .route { 
-            font-size: 1.54em;
+            font-size: 1.54em; /* was 1.4em */
             color: #f0f0f0; 
             font-weight: bold; 
             margin: 3px 0; 
         }
         .flight-times { 
-            font-size: 1.39em;
+            font-size: 1.39em; /* was 1.2em */
             color: #f0f0f0; 
             font-weight: bold; 
             margin-top: 3px; 
@@ -271,7 +263,7 @@
         .no-assignments { 
             color: #888; 
             text-align: center; 
-            font-size: 0.88em;
+            font-size: 0.88em; /* was 0.8em */
             padding: 10px; 
         }
         .month-header {
@@ -419,7 +411,7 @@
             margin: 8px 0; 
             font-weight: 600; 
             text-align: center; 
-            font-size: 0.99em;
+            font-size: 0.99em; /* was 0.9em */
             width: 1080px;
             min-width: 1080px;
             max-width: 1080px;
@@ -432,7 +424,7 @@
             margin: 8px 0; 
             font-weight: 600; 
             text-align: center; 
-            font-size: 0.99em;
+            font-size: 0.99em; /* was 0.9em */
             width: 1080px;
             min-width: 1080px;
             max-width: 1080px;
@@ -440,7 +432,7 @@
 
         h1 {
             margin: 0 0 5px 0;
-            font-size: 1.32em;
+            font-size: 1.32em; /* was 1.2em */
             text-align: center;
             cursor: pointer;
             color: #ffc107;
@@ -465,7 +457,7 @@
             border-radius: 5px;
             padding: 10px;
             cursor: pointer;
-            font-size: 0.99em;
+            font-size: 0.99em; /* was 0.9em */
             text-align: center;
         }
         .pdf-button:hover {
@@ -476,43 +468,6 @@
         }
         .pdf-button.scheduled:hover {
             background: #555;
-        }
-
-        /* Bottom chevron row - only what you asked for */
-        .bottom-nav-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            width: 1080px;
-            margin: 10px 0;
-            padding: 0 10px;
-        }
-        .bottom-nav-row .chevron-bottom {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 1.8em;
-            cursor: pointer;
-            padding: 0 10px;
-        }
-        .bottom-nav-row .chevron-bottom:hover {
-            color: #ffc107;
-        }
-        .bottom-nav-row .title-center {
-            flex: 1;
-            text-align: center;
-            padding: 0 15px;
-        }
-        .bottom-nav-row .title-center h1 {
-            margin: 0;
-            font-size: 1.32em;
-            cursor: pointer;
-            color: #ffc107;
-            transition: color 0.2s ease;
-        }
-        .bottom-nav-row .title-center h1:hover {
-            color: #ffd54f;
-            text-decoration: underline;
         }
     </style>
 </head>
@@ -577,34 +532,7 @@
                                                     {{ assignment.flight_number }}
                                                 </a>
                                                 {% if assignment.departure_stand %}
-                                                    {# GATE MAPPING FOR BOG DEPARTURES ONLY #}
-                                                    {% if assignment.origin == "BOG" %}
-                                                        {% set gate_mapping = {
-                                                            '11': 'C1', '12': 'C2', '13': 'C3', '15': 'C5',
-                                                            '17': 'B8', '19': 'B7', '20': 'B7', '22': 'B6',
-                                                            '24': 'B5', '27': 'B3', '29': 'B2', '32': 'B1',
-                                                            '34': 'A1', '36': 'A2', '38': 'A3',
-                                                            '41': 'A4', '43': 'A5', '45': 'A6',
-                                                            '47': 'A8', '48': 'A9', '49': 'A10',
-                                                            '51': 'A11', '53': 'A12', '54': 'A13', '56': 'A14',
-                                                            '71': 'D1', '72': 'D3', '73': 'D5',
-                                                            '74': 'D9', '75': 'D11', '76': 'D13',
-                                                            '79': 'D15', '80': 'D15', '83': 'D15',
-                                                            '84': 'D14', '85': 'D12', '86': 'D10',
-                                                            '87': 'D8', '88': 'D4', '89': 'D2'
-                                                        } %}
-                                                        {% set old_gate = assignment.departure_stand|string %}
-                                                        {% set new_gate = gate_mapping.get(old_gate) %}
-                                                        {% if new_gate %}
-                                                            {# Display: Flight Number → Old Gate (blue) → New Gate (white, smaller) #}
-                                                            <span class="departure-stand">{{ assignment.departure_stand }}</span>
-                                                            <span class="gate-new-label">{{ new_gate }}</span>
-                                                        {% else %}
-                                                            <span class="departure-stand">{{ assignment.departure_stand }}</span>
-                                                        {% endif %}
-                                                    {% else %}
-                                                        <span class="departure-stand">{{ assignment.departure_stand }}</span>
-                                                    {% endif %}
+                                                    <span class="departure-stand">{{ assignment.departure_stand }}</span>
                                                 {% endif %}
                                             </div>
                                             <div class="route">
@@ -615,10 +543,10 @@
                                                 {% if assignment.aircraft_registration %} | {{ assignment.aircraft_registration }}{% endif %}
                                             </div>
                                         {% else %}
-                                            <div style="font-weight: bold; color: #f0f0f0; font-size: 1.54em;">
+                                            <div style="font-weight: bold; color: #f0f0f0; font-size: 1.54em;"> <!-- was 1.4em -->
                                                 {{ assignment.activity_code }}
                                             </div>
-                                            <div style="font-size: 1.32em; color: #f0f0f0; font-weight: bold;">
+                                            <div style="font-size: 1.32em; color: #f0f0f0; font-weight: bold;"> <!-- was 1.2em -->
                                                 {{ assignment.start_time }} - {{ assignment.end_time }}
                                             </div>
                                         {% endif %}
@@ -641,13 +569,9 @@
             </div>
         {% endif %}
 
-        <!-- 2. BOTTOM CHEVRON NAVIGATION (ADDED) -->
-        <div class="bottom-nav-row">
-            <button class="chevron-bottom" onclick="navigateMonth(-1)" id="prevMonthBottom">〈</button>
-            <div class="title-center">
-                <h1 onclick="reloadWithMyId()">My Crew Schedule - Calendar View</h1>
-            </div>
-            <button class="chevron-bottom" onclick="navigateMonth(1)" id="nextMonthBottom">〉</button>
+        <!-- 2. HEADER WITH TITLE ONLY -->
+        <div class="header">
+            <h1 onclick="reloadWithMyId()">My Crew Schedule - Calendar View</h1>
         </div>
 
         <!-- 3. PDF CONTROLS SECTION -->
@@ -705,21 +629,27 @@
     let currentYear = {{ current_calendar_year }};
     let currentMonth = {{ current_calendar_month }};
 
+    // FIX 2: PDF download includes current month/year
     function downloadPDF(type) {
         const button = event.target;
         const originalText = button.textContent;
         button.disabled = true;
         button.textContent = '⏳';
         
+        // Download the PDF WITH current month/year parameters
         let url = `/download_pdf?type=${type}&month=${currentMonth}&year=${currentYear}`;
+        
+        // Download in same window/tab
         window.location.href = url;
         
+        // Re-enable button after delay
         setTimeout(() => {
             button.disabled = false;
             button.innerHTML = originalText;
         }, 3000);
     }
 
+    // NEW: Clickable title to reload with your ID
     function reloadWithMyId() {
         document.getElementById('loadingOverlay').style.display = 'flex';
         
@@ -727,6 +657,7 @@
             .then(r => r.json())
             .then(data => {
                 if (data.success) {
+                    // Refresh the page with your crew ID
                     location.reload();
                 } else {
                     alert('Failed to switch to your ID: ' + (data.error || 'Unknown error'));
@@ -739,6 +670,7 @@
             });
     }
 
+    // Crew selector functions from PDF page
     function handleCrewSelect() {
         const input = document.getElementById('crewSelectorInput');
         const selectedValue = input.value.trim();
@@ -756,7 +688,9 @@
 
     function updateCrewId(crewId = null) {
         if (!crewId) {
+            // Fallback to input field if no crewId provided
             crewId = document.getElementById('crewSelectorInput').value.trim();
+            // Extract ID from name if it's a full name with ID
             if (crewId.length >= 8) {
                 crewId = crewId.slice(-8).trim();
             }
@@ -767,12 +701,14 @@
             return;
         }
         
+        // Show loading overlay
         document.getElementById('loadingOverlay').style.display = 'flex';
         
         fetch('/update_crew_id?crew_id=' + crewId)
             .then(r => r.json())
             .then(data => {
                 if (data.success) {
+                    // Refresh the page with new crew ID
                     location.reload();
                 } else {
                     alert('Failed: ' + (data.error || 'Unknown error'));
@@ -785,6 +721,7 @@
             });
     }
 
+    // NEW: Month/Year dropdown navigation
     function jumpToMonth() {
         const monthSelect = document.getElementById('monthSelector');
         const yearSelect = document.getElementById('yearSelector');
@@ -800,6 +737,7 @@
         window.location.href = url.toString();
     }
 
+    // Navigate to previous or next month
     function navigateMonth(direction) {
         let newYear = currentYear;
         let newMonth = currentMonth + direction;
@@ -820,6 +758,7 @@
         window.location.href = url.toString();
     }
 
+    // Refresh current month data
     function refreshCurrentMonth() {
         const floatingBtn = document.querySelector('.floating-button');
 
@@ -855,9 +794,11 @@
         // Add logic here to disable buttons if needed
     }
 
+    // Initialize on page load
     document.addEventListener('DOMContentLoaded', function() {
         updateNavigationButtons();
 
+        // Hide loading overlay after page loads
         setTimeout(() => {
             document.getElementById('loadingOverlay').style.display = 'none';
         }, 500);

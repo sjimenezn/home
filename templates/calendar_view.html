@@ -84,7 +84,7 @@
             margin: 0 3px; 
             text-decoration: none; 
             display: inline-block; 
-            font-size: 0.99em; /* was 0.9em */
+            font-size: 0.99em;
         }
         .nav-button:hover { background: #4a4a4a; }
         .nav-button.active { background: #f0f0f0; color: #121212; }
@@ -95,7 +95,7 @@
             border: none; 
             border-radius: 5px; 
             cursor: pointer; 
-            font-size: 0.99em; /* was 0.9em */
+            font-size: 0.99em;
             display: block;
             margin: 10px auto;
         }
@@ -150,7 +150,7 @@
             border-radius: 5px; 
             margin: 10px 0; 
             text-align: center; 
-            font-size: 0.99em; /* was 0.9em */
+            font-size: 0.99em;
             width: 100%;
         }
         
@@ -181,7 +181,7 @@
             margin-bottom: 5px;
             text-align: center;
             font-weight: bold;
-            font-size: 1.43em; /* was 1.3em */
+            font-size: 1.43em;
             line-height: 1.2;
             height: 24px;
             display: flex;
@@ -218,7 +218,7 @@
         .flight-number { 
             font-weight: bold; 
             color: #ffc107; 
-            font-size: 1.76em; /* was 1.6em */
+            font-size: 1.76em;
             display: inline; 
             cursor: pointer; 
             text-decoration: none; 
@@ -231,18 +231,33 @@
         .departure-stand { 
             font-weight: bold; 
             color: #4fc3f7; 
-            font-size: 1.76em; /* was 1.6em */
+            font-size: 1.76em;
             display: inline; 
             margin-left: 8px; 
         }
+        /* New gate label - white color, same font and size */
+        .gate-new-label {
+            font-weight: bold;
+            color: #ffffff;
+            font-size: 1.76em;
+            display: inline;
+            margin-right: 4px;
+        }
+        /* Old gate number - keep original blue color */
+        .gate-old-number {
+            font-weight: bold;
+            color: #4fc3f7;
+            font-size: 1.76em;
+            display: inline;
+        }
         .route { 
-            font-size: 1.54em; /* was 1.4em */
+            font-size: 1.54em;
             color: #f0f0f0; 
             font-weight: bold; 
             margin: 3px 0; 
         }
         .flight-times { 
-            font-size: 1.39em; /* was 1.2em */
+            font-size: 1.39em;
             color: #f0f0f0; 
             font-weight: bold; 
             margin-top: 3px; 
@@ -263,7 +278,7 @@
         .no-assignments { 
             color: #888; 
             text-align: center; 
-            font-size: 0.88em; /* was 0.8em */
+            font-size: 0.88em;
             padding: 10px; 
         }
         .month-header {
@@ -411,7 +426,7 @@
             margin: 8px 0; 
             font-weight: 600; 
             text-align: center; 
-            font-size: 0.99em; /* was 0.9em */
+            font-size: 0.99em;
             width: 1080px;
             min-width: 1080px;
             max-width: 1080px;
@@ -424,15 +439,100 @@
             margin: 8px 0; 
             font-weight: 600; 
             text-align: center; 
-            font-size: 0.99em; /* was 0.9em */
+            font-size: 0.99em;
             width: 1080px;
             min-width: 1080px;
             max-width: 1080px;
         }
 
+        /* Title with wide chevrons layout */
+        .title-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 1080px;
+            margin: 10px 0;
+            padding: 0 10px;
+        }
+        .title-row .chevron-wide {
+            flex: 1;
+            background: #3a3a3a;
+            border: none;
+            color: white;
+            font-size: 2em;
+            cursor: pointer;
+            padding: 15px 10px;
+            border-radius: 5px;
+            transition: all 0.2s ease;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .title-row .chevron-wide:hover {
+            background: #4a4a4a;
+            color: #ffc107;
+        }
+        .title-row .chevron-wide:active {
+            background: #5a5a5a;
+            transform: scale(0.98);
+        }
+        .title-row .title-center {
+            flex: 2;
+            text-align: center;
+            padding: 0 15px;
+        }
+        .title-row .title-center h1 {
+            margin: 0;
+            font-size: 1.32em;
+            cursor: pointer;
+            color: #ffc107;
+            transition: color 0.2s ease;
+        }
+        .title-row .title-center h1:hover {
+            color: #ffd54f;
+            text-decoration: underline;
+        }
+
+        /* Network status indicator */
+        #network-status {
+            position: fixed;
+            bottom: 90px;
+            right: 20px;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            z-index: 1000;
+            transition: opacity 0.3s ease;
+            color: white;
+            background: #4CAF50;
+            opacity: 0;
+            pointer-events: none;
+        }
+        #network-status.visible {
+            opacity: 0.9;
+        }
+        #network-status.offline {
+            background: #f44336;
+        }
+        #network-status.online {
+            background: #4CAF50;
+        }
+
+        .offline-badge {
+            display: inline-block;
+            background: #ffc107;
+            color: #121212;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+
         h1 {
             margin: 0 0 5px 0;
-            font-size: 1.32em; /* was 1.2em */
+            font-size: 1.32em;
             text-align: center;
             cursor: pointer;
             color: #ffc107;
@@ -457,7 +557,7 @@
             border-radius: 5px;
             padding: 10px;
             cursor: pointer;
-            font-size: 0.99em; /* was 0.9em */
+            font-size: 0.99em;
             text-align: center;
         }
         .pdf-button:hover {
@@ -532,7 +632,32 @@
                                                     {{ assignment.flight_number }}
                                                 </a>
                                                 {% if assignment.departure_stand %}
-                                                    <span class="departure-stand">{{ assignment.departure_stand }}</span>
+                                                    {# GATE MAPPING FOR BOG DEPARTURES #}
+                                                    {% if assignment.origin == "BOG" %}
+                                                        {% set gate_mapping = {
+                                                            '11': 'C1', '12': 'C2', '13': 'C3', '15': 'C5',
+                                                            '24': 'B5', '27': 'B3', '29': 'B2', '32': 'B1',
+                                                            '34': 'A1', '36': 'A2', '38': 'A3',
+                                                            '41': 'A4', '43': 'A5', '45': 'A6',
+                                                            '47': 'A8', '49': 'A10', '51': 'A11',
+                                                            '53': 'A12', '54': 'A13', '56': 'A14',
+                                                            '71': 'D1', '72': 'D3', '73': 'D5',
+                                                            '74': 'D9', '75': 'D11', '76': 'D13',
+                                                            '79': 'D15', '80': 'D15', '83': 'D15',
+                                                            '84': 'D14', '85': 'D12', '86': 'D10',
+                                                            '87': 'D8', '88': 'D4', '89': 'D2'
+                                                        } %}
+                                                        {% set old_gate = assignment.departure_stand|string %}
+                                                        {% set new_gate = gate_mapping.get(old_gate) %}
+                                                        {% if new_gate %}
+                                                            <span class="gate-new-label">{{ new_gate }}</span>
+                                                            <span class="gate-old-number">{{ assignment.departure_stand }}</span>
+                                                        {% else %}
+                                                            <span class="departure-stand">{{ assignment.departure_stand }}</span>
+                                                        {% endif %}
+                                                    {% else %}
+                                                        <span class="departure-stand">{{ assignment.departure_stand }}</span>
+                                                    {% endif %}
                                                 {% endif %}
                                             </div>
                                             <div class="route">
@@ -543,10 +668,10 @@
                                                 {% if assignment.aircraft_registration %} | {{ assignment.aircraft_registration }}{% endif %}
                                             </div>
                                         {% else %}
-                                            <div style="font-weight: bold; color: #f0f0f0; font-size: 1.54em;"> <!-- was 1.4em -->
+                                            <div style="font-weight: bold; color: #f0f0f0; font-size: 1.54em;">
                                                 {{ assignment.activity_code }}
                                             </div>
-                                            <div style="font-size: 1.32em; color: #f0f0f0; font-weight: bold;"> <!-- was 1.2em -->
+                                            <div style="font-size: 1.32em; color: #f0f0f0; font-weight: bold;">
                                                 {{ assignment.start_time }} - {{ assignment.end_time }}
                                             </div>
                                         {% endif %}
@@ -569,9 +694,17 @@
             </div>
         {% endif %}
 
-        <!-- 2. HEADER WITH TITLE ONLY -->
-        <div class="header">
-            <h1 onclick="reloadWithMyId()">My Crew Schedule - Calendar View</h1>
+        <!-- 2. TITLE WITH WIDE CHEVRONS (DUPLICATED NAVIGATION) -->
+        <div class="title-row">
+            <button class="chevron-wide" onclick="navigateMonth(-1)" id="prevMonthBottom">〈〈 PREV</button>
+            <div class="title-center">
+                <h1 onclick="reloadWithMyId()">My Crew Schedule - Calendar View</h1>
+                <span style="font-size:0.9em; color:#888;">
+                    {{ current_calendar_month }}/{{ current_calendar_year }}
+                    <span id="offlineIndicator" style="display:none;" class="offline-badge">OFFLINE</span>
+                </span>
+            </div>
+            <button class="chevron-wide" onclick="navigateMonth(1)" id="nextMonthBottom">NEXT 〉〉</button>
         </div>
 
         <!-- 3. PDF CONTROLS SECTION -->
@@ -611,6 +744,7 @@
                 {% if last_fetch %}
                 <p>Last updated: {{ last_fetch }}</p>
                 {% endif %}
+                <p id="cacheStatus" style="color:#888; font-size:0.8em;">Checking cache...</p>
             </div>
 
             {% if refresh_message %}
@@ -622,34 +756,288 @@
 
     </div>
 
+    <!-- Network Status Indicator -->
+    <div id="network-status">🟢 Online</div>
+
     <!-- Floating Button - refreshes data -->
-    <button class="floating-button" onclick="refreshCurrentMonth()" title="Refresh Data">↻</button>
+    <button class="floating-button" onclick="refreshWithOfflineCheck()" title="Refresh Data">↻</button>
 
     <script>
     let currentYear = {{ current_calendar_year }};
     let currentMonth = {{ current_calendar_month }};
+    let currentCrewId = '{{ current_crew_id }}';
 
-    // FIX 2: PDF download includes current month/year
+    // ========== OFFLINE CACHE MANAGEMENT ==========
+    const CACHE_KEY = 'crew_schedule_cache_v2';
+    
+    function saveToLocalCache(data) {
+        try {
+            const cacheData = {
+                data: data,
+                timestamp: Date.now(),
+                crew_id: currentCrewId
+            };
+            localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
+            console.log('💾 Data saved to local cache');
+            updateCacheStatus('saved');
+            return true;
+        } catch (e) {
+            console.error('Failed to save cache:', e);
+            return false;
+        }
+    }
+
+    function loadFromLocalCache() {
+        try {
+            const cached = localStorage.getItem(CACHE_KEY);
+            if (cached) {
+                const cacheData = JSON.parse(cached);
+                console.log('📂 Loaded data from local cache');
+                return cacheData;
+            }
+        } catch (e) {
+            console.error('Failed to load cache:', e);
+        }
+        return null;
+    }
+
+    function getCacheAge() {
+        const cached = localStorage.getItem(CACHE_KEY);
+        if (cached) {
+            try {
+                const cacheData = JSON.parse(cached);
+                const age = (Date.now() - cacheData.timestamp) / (1000 * 60);
+                return Math.floor(age);
+            } catch (e) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    function updateCacheStatus(status) {
+        const el = document.getElementById('cacheStatus');
+        if (!el) return;
+        
+        const age = getCacheAge();
+        if (age !== null) {
+            el.textContent = `📂 Cache: ${age} min old (${status})`;
+            el.style.color = '#888';
+        } else {
+            el.textContent = '📂 No cache available';
+            el.style.color = '#666';
+        }
+    }
+
+    // ========== SMART LOADING WITH OFFLINE SUPPORT ==========
+    function loadScheduleSmartly() {
+        const isOnline = navigator.onLine;
+        const cacheAge = getCacheAge();
+        
+        // If offline, always use cache
+        if (!isOnline) {
+            console.log('📡 Offline mode - using cached data');
+            const cached = loadFromLocalCache();
+            if (cached) {
+                renderFromCache(cached.data);
+                document.getElementById('offlineIndicator').style.display = 'inline';
+                return;
+            } else {
+                showOfflineMessage();
+                return;
+            }
+        }
+        
+        // Online: if cache is recent (< 30 min), use it and refresh in background
+        if (cacheAge !== null && cacheAge < 30) {
+            console.log(`📡 Using cached data (${cacheAge} min old)`);
+            const cached = loadFromLocalCache();
+            if (cached) {
+                renderFromCache(cached.data);
+                // Refresh in background
+                setTimeout(() => refreshInBackground(), 500);
+                return;
+            }
+        }
+        
+        // Otherwise, page already loaded with fresh data from server
+        // Just save current data to cache
+        saveCurrentCalendarToCache();
+    }
+
+    function refreshInBackground() {
+        fetch(`/calendar?year=${currentYear}&month=${currentMonth}`)
+            .then(r => r.text())
+            .then(html => {
+                const data = extractCalendarData(html);
+                if (data) {
+                    saveToLocalCache(data);
+                }
+            })
+            .catch(() => { /* Silently fail */ });
+    }
+
+    function extractCalendarData(html) {
+        const temp = document.createElement('div');
+        temp.innerHTML = html;
+        
+        const grid = temp.querySelector('.calendar-grid');
+        const header = temp.querySelector('.month-header');
+        const info = temp.querySelector('.info-box');
+        
+        if (!grid) return null;
+        
+        return {
+            gridHTML: grid.outerHTML,
+            headerHTML: header ? header.outerHTML : '',
+            infoHTML: info ? info.outerHTML : '',
+            month: currentMonth,
+            year: currentYear,
+            crew_id: currentCrewId
+        };
+    }
+
+    function renderFromCache(data) {
+        if (!data) return;
+        
+        const container = document.querySelector('.container');
+        
+        // Update calendar grid
+        const currentGrid = document.querySelector('.calendar-grid');
+        if (currentGrid && data.gridHTML) {
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = data.gridHTML;
+            const newGrid = tempDiv.firstElementChild;
+            if (newGrid) {
+                currentGrid.replaceWith(newGrid);
+            }
+        }
+        
+        // Update month header if present
+        if (data.headerHTML) {
+            const currentHeader = document.querySelector('.month-header');
+            if (currentHeader) {
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = data.headerHTML;
+                const newHeader = tempDiv.firstElementChild;
+                if (newHeader) {
+                    currentHeader.replaceWith(newHeader);
+                }
+            }
+        }
+        
+        // Update info box
+        if (data.infoHTML) {
+            const infoBox = document.querySelector('.info-box');
+            if (infoBox) {
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = data.infoHTML;
+                const newInfo = tempDiv.firstElementChild;
+                if (newInfo) {
+                    infoBox.innerHTML = newInfo.innerHTML;
+                }
+            }
+        }
+        
+        document.getElementById('offlineIndicator').style.display = 'inline';
+        updateCacheStatus('loaded');
+    }
+
+    function saveCurrentCalendarToCache() {
+        const grid = document.querySelector('.calendar-grid');
+        const header = document.querySelector('.month-header');
+        const info = document.querySelector('.info-box');
+        
+        if (!grid) return;
+        
+        const data = {
+            gridHTML: grid.outerHTML,
+            headerHTML: header ? header.outerHTML : '',
+            infoHTML: info ? info.outerHTML : '',
+            month: currentMonth,
+            year: currentYear,
+            crew_id: currentCrewId
+        };
+        saveToLocalCache(data);
+    }
+
+    function showOfflineMessage() {
+        const container = document.querySelector('.container');
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'error';
+        errorDiv.style.margin = '20px auto';
+        errorDiv.innerHTML = `
+            <h3>✈️ Offline Mode</h3>
+            <p>No cached schedule data available. Please connect to the internet to fetch your schedule.</p>
+            <button onclick="window.location.reload()" class="button" style="margin:10px auto;">
+                Try Again
+            </button>
+        `;
+        
+        const existing = document.querySelector('.month-section');
+        if (existing) {
+            existing.replaceWith(errorDiv);
+        } else {
+            container.prepend(errorDiv);
+        }
+        document.getElementById('offlineIndicator').style.display = 'inline';
+    }
+
+    // ========== NETWORK STATUS ==========
+    function updateNetworkStatus() {
+        const isOnline = navigator.onLine;
+        const indicator = document.getElementById('network-status');
+        if (!indicator) return;
+        
+        indicator.className = isOnline ? 'online visible' : 'offline visible';
+        indicator.textContent = isOnline ? '🟢 Online' : '🔴 Offline';
+        
+        if (isOnline) {
+            setTimeout(() => {
+                indicator.classList.remove('visible');
+            }, 3000);
+        } else {
+            document.getElementById('offlineIndicator').style.display = 'inline';
+        }
+    }
+
+    window.addEventListener('online', updateNetworkStatus);
+    window.addEventListener('offline', updateNetworkStatus);
+
+    // ========== REFRESH WITH OFFLINE CHECK ==========
+    function refreshWithOfflineCheck() {
+        if (!navigator.onLine) {
+            alert('📡 You are offline. Showing cached data.');
+            const cached = loadFromLocalCache();
+            if (cached) {
+                renderFromCache(cached.data);
+            } else {
+                showOfflineMessage();
+            }
+            return;
+        }
+        
+        // Online - refresh normally
+        refreshCurrentMonth();
+    }
+
+    // ========== EXISTING FUNCTIONS (Modified) ==========
+
     function downloadPDF(type) {
         const button = event.target;
         const originalText = button.textContent;
         button.disabled = true;
         button.textContent = '⏳';
         
-        // Download the PDF WITH current month/year parameters
         let url = `/download_pdf?type=${type}&month=${currentMonth}&year=${currentYear}`;
-        
-        // Download in same window/tab
         window.location.href = url;
         
-        // Re-enable button after delay
         setTimeout(() => {
             button.disabled = false;
             button.innerHTML = originalText;
         }, 3000);
     }
 
-    // NEW: Clickable title to reload with your ID
     function reloadWithMyId() {
         document.getElementById('loadingOverlay').style.display = 'flex';
         
@@ -657,7 +1045,6 @@
             .then(r => r.json())
             .then(data => {
                 if (data.success) {
-                    // Refresh the page with your crew ID
                     location.reload();
                 } else {
                     alert('Failed to switch to your ID: ' + (data.error || 'Unknown error'));
@@ -670,7 +1057,6 @@
             });
     }
 
-    // Crew selector functions from PDF page
     function handleCrewSelect() {
         const input = document.getElementById('crewSelectorInput');
         const selectedValue = input.value.trim();
@@ -688,9 +1074,7 @@
 
     function updateCrewId(crewId = null) {
         if (!crewId) {
-            // Fallback to input field if no crewId provided
             crewId = document.getElementById('crewSelectorInput').value.trim();
-            // Extract ID from name if it's a full name with ID
             if (crewId.length >= 8) {
                 crewId = crewId.slice(-8).trim();
             }
@@ -701,14 +1085,12 @@
             return;
         }
         
-        // Show loading overlay
         document.getElementById('loadingOverlay').style.display = 'flex';
         
         fetch('/update_crew_id?crew_id=' + crewId)
             .then(r => r.json())
             .then(data => {
                 if (data.success) {
-                    // Refresh the page with new crew ID
                     location.reload();
                 } else {
                     alert('Failed: ' + (data.error || 'Unknown error'));
@@ -721,7 +1103,6 @@
             });
     }
 
-    // NEW: Month/Year dropdown navigation
     function jumpToMonth() {
         const monthSelect = document.getElementById('monthSelector');
         const yearSelect = document.getElementById('yearSelector');
@@ -737,7 +1118,6 @@
         window.location.href = url.toString();
     }
 
-    // Navigate to previous or next month
     function navigateMonth(direction) {
         let newYear = currentYear;
         let newMonth = currentMonth + direction;
@@ -758,7 +1138,6 @@
         window.location.href = url.toString();
     }
 
-    // Refresh current month data
     function refreshCurrentMonth() {
         const floatingBtn = document.querySelector('.floating-button');
 
@@ -790,15 +1169,28 @@
         }
     }
 
-    function updateNavigationButtons() {
-        // Add logic here to disable buttons if needed
-    }
-
-    // Initialize on page load
+    // ========== INITIALIZATION ==========
     document.addEventListener('DOMContentLoaded', function() {
-        updateNavigationButtons();
+        // Update network status
+        updateNetworkStatus();
+        
+        // Load cache status
+        const age = getCacheAge();
+        if (age !== null) {
+            updateCacheStatus(`found (${age} min old)`);
+        } else {
+            updateCacheStatus('none');
+        }
+        
+        // Smart load with offline support
+        loadScheduleSmartly();
+        
+        // Save current data to cache after a moment
+        setTimeout(() => {
+            saveCurrentCalendarToCache();
+        }, 1000);
 
-        // Hide loading overlay after page loads
+        // Hide loading overlay
         setTimeout(() => {
             document.getElementById('loadingOverlay').style.display = 'none';
         }, 500);

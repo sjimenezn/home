@@ -300,6 +300,31 @@
             gap: 10px; 
             flex-wrap: wrap;
         }
+        /* WIDE CHEVRONS for top navigation */
+        .chevron-wide-top {
+            flex: 1;
+            background: #3a3a3a;
+            border: none;
+            color: white;
+            font-size: 2em;
+            cursor: pointer;
+            padding: 15px 10px;
+            border-radius: 5px;
+            transition: all 0.2s ease;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            max-width: 150px;
+        }
+        .chevron-wide-top:hover {
+            background: #4a4a4a;
+            color: #ffc107;
+        }
+        .chevron-wide-top:active {
+            background: #5a5a5a;
+            transform: scale(0.98);
+        }
         .chevron { 
             background: none; 
             border: none; 
@@ -445,7 +470,7 @@
             max-width: 1080px;
         }
 
-        /* Title with wide chevrons layout */
+        /* Title with wide chevrons layout - BOTTOM */
         .title-row {
             display: flex;
             align-items: center;
@@ -454,7 +479,7 @@
             margin: 10px 0;
             padding: 0 10px;
         }
-        .title-row .chevron-wide {
+        .title-row .chevron-wide-bottom {
             flex: 1;
             background: #3a3a3a;
             border: none;
@@ -468,12 +493,13 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            max-width: 150px;
         }
-        .title-row .chevron-wide:hover {
+        .title-row .chevron-wide-bottom:hover {
             background: #4a4a4a;
             color: #ffc107;
         }
-        .title-row .chevron-wide:active {
+        .title-row .chevron-wide-bottom:active {
             background: #5a5a5a;
             transform: scale(0.98);
         }
@@ -583,7 +609,7 @@
             <div class="month-section" id="month-section">
                 <div class="month-header">
                     <div class="month-navigation">
-                        <button class="chevron" onclick="navigateMonth(-1)" id="prevMonth">〈</button>
+                        <button class="chevron-wide-top" onclick="navigateMonth(-1)" id="prevMonth">〈</button>
                         <select class="month-selector" id="monthSelector" onchange="jumpToMonth()">
                             {% for month_num in range(1, 13) %}
                             <option value="{{ month_num }}" 
@@ -601,7 +627,7 @@
                             </option>
                             {% endfor %}
                         </select>
-                        <button class="chevron" onclick="navigateMonth(1)" id="nextMonth">〉</button>
+                        <button class="chevron-wide-top" onclick="navigateMonth(1)" id="nextMonth">〉</button>
                     </div>
                 </div>
 
@@ -694,9 +720,9 @@
             </div>
         {% endif %}
 
-        <!-- 2. TITLE WITH WIDE CHEVRONS (DUPLICATED NAVIGATION) -->
+        <!-- 2. TITLE WITH WIDE CHEVRONS (DUPLICATED NAVIGATION - BOTTOM) -->
         <div class="title-row">
-            <button class="chevron-wide" onclick="navigateMonth(-1)" id="prevMonthBottom">〈〈 PREV</button>
+            <button class="chevron-wide-bottom" onclick="navigateMonth(-1)" id="prevMonthBottom">〈</button>
             <div class="title-center">
                 <h1 onclick="reloadWithMyId()">My Crew Schedule - Calendar View</h1>
                 <span style="font-size:0.9em; color:#888;">
@@ -704,7 +730,7 @@
                     <span id="offlineIndicator" style="display:none;" class="offline-badge">OFFLINE</span>
                 </span>
             </div>
-            <button class="chevron-wide" onclick="navigateMonth(1)" id="nextMonthBottom">NEXT 〉〉</button>
+            <button class="chevron-wide-bottom" onclick="navigateMonth(1)" id="nextMonthBottom">〉</button>
         </div>
 
         <!-- 3. PDF CONTROLS SECTION -->
@@ -1021,7 +1047,7 @@
         refreshCurrentMonth();
     }
 
-    // ========== EXISTING FUNCTIONS (Modified) ==========
+    // ========== EXISTING FUNCTIONS (KEPT EXACTLY THE SAME) ==========
 
     function downloadPDF(type) {
         const button = event.target;

@@ -832,6 +832,55 @@ def get_month_name_from_data(month_data):
     return "Unknown Month"
 
 
+# ========== OFFLINE CACHE FUNCTIONS ==========
+
+def save_cache_data():
+    """Save current schedule data to JSON cache file"""
+    try:
+        if not schedule_data:
+            return False
+            
+        # Store only essential data for offline use
+        cache_data = {
+            'crew_id': current_crew_id,
+            'year': current_calendar_year,
+            'month': current_calendar_month,
+            'last_fetch': last_fetch_time,
+            'schedule_data': schedule_data,
+            'month_calendars': create_calendar_view_data(schedule_data[0]) if schedule_data else [],
+            'month_name': get_month_name(current_calendar_year, current_calendar_month),
+        }
+        
+        with open('cache_data.json', 'w') as f:
+            json.dump(cache_data, f)
+        logger.info("💾 Cache data saved successfully")
+        return True
+    except Exception as e:
+        logger.error(f"Error saving cache: {e}")
+        return False
+
+def get_cache_age_minutes():
+    """Calculate cache age in minutes"""
+    try:
+        if os.path.exists('cache_data.json'):
+            mtime = os.path.getmtime('cache_data.json')
+            age = (time.time() - mtime) / 60
+            return int(age)
+    except:
+        pass
+    return None
+
+def load_cache_data():
+    """Load cached data if available"""
+    try:
+        if os.path.exists('cache_data.json'):
+            with open('cache_data.json', 'r') as f:
+                return json.load(f)
+    except Exception as e:
+        logger.error(f"Error loading cache: {e}")
+    return None
+
+
 # Initialize clients
 client = CrewAPIClient()
 paxlist_client = PaxlistClient()
@@ -867,16 +916,28 @@ def calendar_view():
     month = request.args.get('month', type=int, default=current_calendar_month)
     current_calendar_year, current_calendar_month = year, month
     
-    logger.info(f"🗓️ Calendar view: {year}-{month:02d}")
+    # Try to load from cache if no data available
+    use_cache = request.args.get('cache', 'false').lower() == 'true'
     
-    assignments_result = client.get_assignments_by_user(current_crew_id, year=year, month=month)
-    if assignments_result:
-        schedule_data = transform_assignments_to_calendar_data(
-            assignments_result['assignments'], 
-            assignments_result['year'], 
-            assignments_result['month']
-        )
-        last_fetch_time = get_utc_minus_5().strftime("%Y-%m-%d %H:%M:%S")
+    if use_cache and not schedule_data:
+        cache_data = load_cache_data()
+        if cache_data:
+            schedule_data = cache_data.get('schedule_data')
+            last_fetch_time = cache_data.get('last_fetch', '')
+            logger.info("📂 Loaded data from cache")
+    
+    # If no data and not using cache, fetch from API
+    if not schedule_data and not use_cache:
+        assignments_result = client.get_assignments_by_user(current_crew_id, year=year, month=month)
+        if assignments_result:
+            schedule_data = transform_assignments_to_calendar_data(
+                assignments_result['assignments'], 
+                assignments_result['year'], 
+                assignments_result['month']
+            )
+            last_fetch_time = get_utc_minus_5().strftime("%Y-%m-%d %H:%M:%S")
+            # Save to cache
+            save_cache_data()
     
     month_name = get_month_name(year, month)
     month_calendars = [create_calendar_view_data(schedule_data[0])] if schedule_data else []
@@ -1210,10 +1271,33 @@ def fetch_data():
                 assignments_result['month']
             )
             last_fetch_time = get_utc_minus_5().strftime("%Y-%m-%d %H:%M:%S")
+            # Save to cache after fetch
+            save_cache_data()
             return {"success": True}
     except Exception as e:
         logger.error(f"Error in /fetch: {e}")
     return {"success": False, "error": "Failed to fetch data"}
+
+@app.route('/api/cache_status')
+def cache_status():
+    """Quick check if cache exists"""
+    has_cache = os.path.exists('cache_data.json')
+    cache_age = get_cache_age_minutes() if has_cache else None
+    return jsonify({
+        'has_cache': has_cache,
+        'cache_age_minutes': cache_age
+    })
+
+@app.route('/api/cached_data')
+def get_cached_data():
+    """Serve cached data for offline use"""
+    cache_data = load_cache_data()
+    if cache_data:
+        return jsonify({
+            'success': True,
+            'data': cache_data
+        })
+    return jsonify({'success': False, 'message': 'No cached data found'}), 404
 
 if __name__ == "__main__":
     logger.info("🚀 Starting Crew Schedule Application with Paxlist Integration...")

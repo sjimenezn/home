@@ -235,20 +235,13 @@
             display: inline; 
             margin-left: 8px; 
         }
-        /* New gate label - white color, same font and size */
+        /* New gate label - white color, SMALLER size */
         .gate-new-label {
             font-weight: bold;
             color: #ffffff;
-            font-size: 1.76em;
+            font-size: 1.2em;
             display: inline;
-            margin-right: 4px;
-        }
-        /* Old gate number - keep original blue color */
-        .gate-old-number {
-            font-weight: bold;
-            color: #4fc3f7;
-            font-size: 1.76em;
-            display: inline;
+            margin-left: 6px;
         }
         .route { 
             font-size: 1.54em;
@@ -299,31 +292,6 @@
             align-items: center; 
             gap: 10px; 
             flex-wrap: wrap;
-        }
-        /* WIDE CHEVRONS for top navigation */
-        .chevron-wide-top {
-            flex: 1;
-            background: #3a3a3a;
-            border: none;
-            color: white;
-            font-size: 2em;
-            cursor: pointer;
-            padding: 15px 10px;
-            border-radius: 5px;
-            transition: all 0.2s ease;
-            min-height: 60px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            max-width: 150px;
-        }
-        .chevron-wide-top:hover {
-            background: #4a4a4a;
-            color: #ffc107;
-        }
-        .chevron-wide-top:active {
-            background: #5a5a5a;
-            transform: scale(0.98);
         }
         .chevron { 
             background: none; 
@@ -470,92 +438,6 @@
             max-width: 1080px;
         }
 
-        /* Title with wide chevrons layout - BOTTOM */
-        .title-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            width: 1080px;
-            margin: 10px 0;
-            padding: 0 10px;
-        }
-        .title-row .chevron-wide-bottom {
-            flex: 1;
-            background: #3a3a3a;
-            border: none;
-            color: white;
-            font-size: 2em;
-            cursor: pointer;
-            padding: 15px 10px;
-            border-radius: 5px;
-            transition: all 0.2s ease;
-            min-height: 60px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            max-width: 150px;
-        }
-        .title-row .chevron-wide-bottom:hover {
-            background: #4a4a4a;
-            color: #ffc107;
-        }
-        .title-row .chevron-wide-bottom:active {
-            background: #5a5a5a;
-            transform: scale(0.98);
-        }
-        .title-row .title-center {
-            flex: 2;
-            text-align: center;
-            padding: 0 15px;
-        }
-        .title-row .title-center h1 {
-            margin: 0;
-            font-size: 1.32em;
-            cursor: pointer;
-            color: #ffc107;
-            transition: color 0.2s ease;
-        }
-        .title-row .title-center h1:hover {
-            color: #ffd54f;
-            text-decoration: underline;
-        }
-
-        /* Network status indicator */
-        #network-status {
-            position: fixed;
-            bottom: 90px;
-            right: 20px;
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 11px;
-            z-index: 1000;
-            transition: opacity 0.3s ease;
-            color: white;
-            background: #4CAF50;
-            opacity: 0;
-            pointer-events: none;
-        }
-        #network-status.visible {
-            opacity: 0.9;
-        }
-        #network-status.offline {
-            background: #f44336;
-        }
-        #network-status.online {
-            background: #4CAF50;
-        }
-
-        .offline-badge {
-            display: inline-block;
-            background: #ffc107;
-            color: #121212;
-            padding: 2px 10px;
-            border-radius: 12px;
-            font-size: 0.8em;
-            font-weight: bold;
-            margin-left: 10px;
-        }
-
         h1 {
             margin: 0 0 5px 0;
             font-size: 1.32em;
@@ -609,7 +491,7 @@
             <div class="month-section" id="month-section">
                 <div class="month-header">
                     <div class="month-navigation">
-                        <button class="chevron-wide-top" onclick="navigateMonth(-1)" id="prevMonth">〈</button>
+                        <button class="chevron" onclick="navigateMonth(-1)" id="prevMonth">〈</button>
                         <select class="month-selector" id="monthSelector" onchange="jumpToMonth()">
                             {% for month_num in range(1, 13) %}
                             <option value="{{ month_num }}" 
@@ -627,7 +509,7 @@
                             </option>
                             {% endfor %}
                         </select>
-                        <button class="chevron-wide-top" onclick="navigateMonth(1)" id="nextMonth">〉</button>
+                        <button class="chevron" onclick="navigateMonth(1)" id="nextMonth">〉</button>
                     </div>
                 </div>
 
@@ -658,15 +540,16 @@
                                                     {{ assignment.flight_number }}
                                                 </a>
                                                 {% if assignment.departure_stand %}
-                                                    {# GATE MAPPING FOR BOG DEPARTURES #}
+                                                    {# GATE MAPPING FOR BOG DEPARTURES ONLY #}
                                                     {% if assignment.origin == "BOG" %}
                                                         {% set gate_mapping = {
                                                             '11': 'C1', '12': 'C2', '13': 'C3', '15': 'C5',
+                                                            '17': 'B8', '19': 'B7', '20': 'B7', '22': 'B6',
                                                             '24': 'B5', '27': 'B3', '29': 'B2', '32': 'B1',
                                                             '34': 'A1', '36': 'A2', '38': 'A3',
                                                             '41': 'A4', '43': 'A5', '45': 'A6',
-                                                            '47': 'A8', '49': 'A10', '51': 'A11',
-                                                            '53': 'A12', '54': 'A13', '56': 'A14',
+                                                            '47': 'A8', '48': 'A9', '49': 'A10',
+                                                            '51': 'A11', '53': 'A12', '54': 'A13', '56': 'A14',
                                                             '71': 'D1', '72': 'D3', '73': 'D5',
                                                             '74': 'D9', '75': 'D11', '76': 'D13',
                                                             '79': 'D15', '80': 'D15', '83': 'D15',
@@ -676,8 +559,9 @@
                                                         {% set old_gate = assignment.departure_stand|string %}
                                                         {% set new_gate = gate_mapping.get(old_gate) %}
                                                         {% if new_gate %}
+                                                            {# Display: Flight Number → Old Gate (blue) → New Gate (white, smaller) #}
+                                                            <span class="departure-stand">{{ assignment.departure_stand }}</span>
                                                             <span class="gate-new-label">{{ new_gate }}</span>
-                                                            <span class="gate-old-number">{{ assignment.departure_stand }}</span>
                                                         {% else %}
                                                             <span class="departure-stand">{{ assignment.departure_stand }}</span>
                                                         {% endif %}
@@ -720,17 +604,9 @@
             </div>
         {% endif %}
 
-        <!-- 2. TITLE WITH WIDE CHEVRONS (DUPLICATED NAVIGATION - BOTTOM) -->
-        <div class="title-row">
-            <button class="chevron-wide-bottom" onclick="navigateMonth(-1)" id="prevMonthBottom">〈</button>
-            <div class="title-center">
-                <h1 onclick="reloadWithMyId()">My Crew Schedule - Calendar View</h1>
-                <span style="font-size:0.9em; color:#888;">
-                    {{ current_calendar_month }}/{{ current_calendar_year }}
-                    <span id="offlineIndicator" style="display:none;" class="offline-badge">OFFLINE</span>
-                </span>
-            </div>
-            <button class="chevron-wide-bottom" onclick="navigateMonth(1)" id="nextMonthBottom">〉</button>
+        <!-- 2. HEADER WITH TITLE ONLY -->
+        <div class="header">
+            <h1 onclick="reloadWithMyId()">My Crew Schedule - Calendar View</h1>
         </div>
 
         <!-- 3. PDF CONTROLS SECTION -->
@@ -770,7 +646,6 @@
                 {% if last_fetch %}
                 <p>Last updated: {{ last_fetch }}</p>
                 {% endif %}
-                <p id="cacheStatus" style="color:#888; font-size:0.8em;">Checking cache...</p>
             </div>
 
             {% if refresh_message %}
@@ -782,272 +657,12 @@
 
     </div>
 
-    <!-- Network Status Indicator -->
-    <div id="network-status">🟢 Online</div>
-
     <!-- Floating Button - refreshes data -->
-    <button class="floating-button" onclick="refreshWithOfflineCheck()" title="Refresh Data">↻</button>
+    <button class="floating-button" onclick="refreshCurrentMonth()" title="Refresh Data">↻</button>
 
     <script>
     let currentYear = {{ current_calendar_year }};
     let currentMonth = {{ current_calendar_month }};
-    let currentCrewId = '{{ current_crew_id }}';
-
-    // ========== OFFLINE CACHE MANAGEMENT ==========
-    const CACHE_KEY = 'crew_schedule_cache_v2';
-    
-    function saveToLocalCache(data) {
-        try {
-            const cacheData = {
-                data: data,
-                timestamp: Date.now(),
-                crew_id: currentCrewId
-            };
-            localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
-            console.log('💾 Data saved to local cache');
-            updateCacheStatus('saved');
-            return true;
-        } catch (e) {
-            console.error('Failed to save cache:', e);
-            return false;
-        }
-    }
-
-    function loadFromLocalCache() {
-        try {
-            const cached = localStorage.getItem(CACHE_KEY);
-            if (cached) {
-                const cacheData = JSON.parse(cached);
-                console.log('📂 Loaded data from local cache');
-                return cacheData;
-            }
-        } catch (e) {
-            console.error('Failed to load cache:', e);
-        }
-        return null;
-    }
-
-    function getCacheAge() {
-        const cached = localStorage.getItem(CACHE_KEY);
-        if (cached) {
-            try {
-                const cacheData = JSON.parse(cached);
-                const age = (Date.now() - cacheData.timestamp) / (1000 * 60);
-                return Math.floor(age);
-            } catch (e) {
-                return null;
-            }
-        }
-        return null;
-    }
-
-    function updateCacheStatus(status) {
-        const el = document.getElementById('cacheStatus');
-        if (!el) return;
-        
-        const age = getCacheAge();
-        if (age !== null) {
-            el.textContent = `📂 Cache: ${age} min old (${status})`;
-            el.style.color = '#888';
-        } else {
-            el.textContent = '📂 No cache available';
-            el.style.color = '#666';
-        }
-    }
-
-    // ========== SMART LOADING WITH OFFLINE SUPPORT ==========
-    function loadScheduleSmartly() {
-        const isOnline = navigator.onLine;
-        const cacheAge = getCacheAge();
-        
-        // If offline, always use cache
-        if (!isOnline) {
-            console.log('📡 Offline mode - using cached data');
-            const cached = loadFromLocalCache();
-            if (cached) {
-                renderFromCache(cached.data);
-                document.getElementById('offlineIndicator').style.display = 'inline';
-                return;
-            } else {
-                showOfflineMessage();
-                return;
-            }
-        }
-        
-        // Online: if cache is recent (< 30 min), use it and refresh in background
-        if (cacheAge !== null && cacheAge < 30) {
-            console.log(`📡 Using cached data (${cacheAge} min old)`);
-            const cached = loadFromLocalCache();
-            if (cached) {
-                renderFromCache(cached.data);
-                // Refresh in background
-                setTimeout(() => refreshInBackground(), 500);
-                return;
-            }
-        }
-        
-        // Otherwise, page already loaded with fresh data from server
-        // Just save current data to cache
-        saveCurrentCalendarToCache();
-    }
-
-    function refreshInBackground() {
-        fetch(`/calendar?year=${currentYear}&month=${currentMonth}`)
-            .then(r => r.text())
-            .then(html => {
-                const data = extractCalendarData(html);
-                if (data) {
-                    saveToLocalCache(data);
-                }
-            })
-            .catch(() => { /* Silently fail */ });
-    }
-
-    function extractCalendarData(html) {
-        const temp = document.createElement('div');
-        temp.innerHTML = html;
-        
-        const grid = temp.querySelector('.calendar-grid');
-        const header = temp.querySelector('.month-header');
-        const info = temp.querySelector('.info-box');
-        
-        if (!grid) return null;
-        
-        return {
-            gridHTML: grid.outerHTML,
-            headerHTML: header ? header.outerHTML : '',
-            infoHTML: info ? info.outerHTML : '',
-            month: currentMonth,
-            year: currentYear,
-            crew_id: currentCrewId
-        };
-    }
-
-    function renderFromCache(data) {
-        if (!data) return;
-        
-        const container = document.querySelector('.container');
-        
-        // Update calendar grid
-        const currentGrid = document.querySelector('.calendar-grid');
-        if (currentGrid && data.gridHTML) {
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = data.gridHTML;
-            const newGrid = tempDiv.firstElementChild;
-            if (newGrid) {
-                currentGrid.replaceWith(newGrid);
-            }
-        }
-        
-        // Update month header if present
-        if (data.headerHTML) {
-            const currentHeader = document.querySelector('.month-header');
-            if (currentHeader) {
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = data.headerHTML;
-                const newHeader = tempDiv.firstElementChild;
-                if (newHeader) {
-                    currentHeader.replaceWith(newHeader);
-                }
-            }
-        }
-        
-        // Update info box
-        if (data.infoHTML) {
-            const infoBox = document.querySelector('.info-box');
-            if (infoBox) {
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = data.infoHTML;
-                const newInfo = tempDiv.firstElementChild;
-                if (newInfo) {
-                    infoBox.innerHTML = newInfo.innerHTML;
-                }
-            }
-        }
-        
-        document.getElementById('offlineIndicator').style.display = 'inline';
-        updateCacheStatus('loaded');
-    }
-
-    function saveCurrentCalendarToCache() {
-        const grid = document.querySelector('.calendar-grid');
-        const header = document.querySelector('.month-header');
-        const info = document.querySelector('.info-box');
-        
-        if (!grid) return;
-        
-        const data = {
-            gridHTML: grid.outerHTML,
-            headerHTML: header ? header.outerHTML : '',
-            infoHTML: info ? info.outerHTML : '',
-            month: currentMonth,
-            year: currentYear,
-            crew_id: currentCrewId
-        };
-        saveToLocalCache(data);
-    }
-
-    function showOfflineMessage() {
-        const container = document.querySelector('.container');
-        const errorDiv = document.createElement('div');
-        errorDiv.className = 'error';
-        errorDiv.style.margin = '20px auto';
-        errorDiv.innerHTML = `
-            <h3>✈️ Offline Mode</h3>
-            <p>No cached schedule data available. Please connect to the internet to fetch your schedule.</p>
-            <button onclick="window.location.reload()" class="button" style="margin:10px auto;">
-                Try Again
-            </button>
-        `;
-        
-        const existing = document.querySelector('.month-section');
-        if (existing) {
-            existing.replaceWith(errorDiv);
-        } else {
-            container.prepend(errorDiv);
-        }
-        document.getElementById('offlineIndicator').style.display = 'inline';
-    }
-
-    // ========== NETWORK STATUS ==========
-    function updateNetworkStatus() {
-        const isOnline = navigator.onLine;
-        const indicator = document.getElementById('network-status');
-        if (!indicator) return;
-        
-        indicator.className = isOnline ? 'online visible' : 'offline visible';
-        indicator.textContent = isOnline ? '🟢 Online' : '🔴 Offline';
-        
-        if (isOnline) {
-            setTimeout(() => {
-                indicator.classList.remove('visible');
-            }, 3000);
-        } else {
-            document.getElementById('offlineIndicator').style.display = 'inline';
-        }
-    }
-
-    window.addEventListener('online', updateNetworkStatus);
-    window.addEventListener('offline', updateNetworkStatus);
-
-    // ========== REFRESH WITH OFFLINE CHECK ==========
-    function refreshWithOfflineCheck() {
-        if (!navigator.onLine) {
-            alert('📡 You are offline. Showing cached data.');
-            const cached = loadFromLocalCache();
-            if (cached) {
-                renderFromCache(cached.data);
-            } else {
-                showOfflineMessage();
-            }
-            return;
-        }
-        
-        // Online - refresh normally
-        refreshCurrentMonth();
-    }
-
-    // ========== EXISTING FUNCTIONS (KEPT EXACTLY THE SAME) ==========
 
     function downloadPDF(type) {
         const button = event.target;
@@ -1195,28 +810,13 @@
         }
     }
 
-    // ========== INITIALIZATION ==========
-    document.addEventListener('DOMContentLoaded', function() {
-        // Update network status
-        updateNetworkStatus();
-        
-        // Load cache status
-        const age = getCacheAge();
-        if (age !== null) {
-            updateCacheStatus(`found (${age} min old)`);
-        } else {
-            updateCacheStatus('none');
-        }
-        
-        // Smart load with offline support
-        loadScheduleSmartly();
-        
-        // Save current data to cache after a moment
-        setTimeout(() => {
-            saveCurrentCalendarToCache();
-        }, 1000);
+    function updateNavigationButtons() {
+        // Add logic here to disable buttons if needed
+    }
 
-        // Hide loading overlay
+    document.addEventListener('DOMContentLoaded', function() {
+        updateNavigationButtons();
+
         setTimeout(() => {
             document.getElementById('loadingOverlay').style.display = 'none';
         }, 500);

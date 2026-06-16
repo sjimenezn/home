@@ -235,11 +235,11 @@
             display: inline; 
             margin-left: 8px; 
         }
-        /* New gate label - white color, SMALLER size */
+        /* New gate label - white color, smaller than blue/yellow */
         .gate-new-label {
             font-weight: bold;
             color: #ffffff;
-            font-size: 1.2em;
+            font-size: 1.4em;
             display: inline;
             margin-left: 6px;
         }
@@ -477,6 +477,43 @@
         .pdf-button.scheduled:hover {
             background: #555;
         }
+
+        /* Bottom chevron row - only what you asked for */
+        .bottom-nav-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 1080px;
+            margin: 10px 0;
+            padding: 0 10px;
+        }
+        .bottom-nav-row .chevron-bottom {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.8em;
+            cursor: pointer;
+            padding: 0 10px;
+        }
+        .bottom-nav-row .chevron-bottom:hover {
+            color: #ffc107;
+        }
+        .bottom-nav-row .title-center {
+            flex: 1;
+            text-align: center;
+            padding: 0 15px;
+        }
+        .bottom-nav-row .title-center h1 {
+            margin: 0;
+            font-size: 1.32em;
+            cursor: pointer;
+            color: #ffc107;
+            transition: color 0.2s ease;
+        }
+        .bottom-nav-row .title-center h1:hover {
+            color: #ffd54f;
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
@@ -604,9 +641,13 @@
             </div>
         {% endif %}
 
-        <!-- 2. HEADER WITH TITLE ONLY -->
-        <div class="header">
-            <h1 onclick="reloadWithMyId()">My Crew Schedule - Calendar View</h1>
+        <!-- 2. BOTTOM CHEVRON NAVIGATION (ADDED) -->
+        <div class="bottom-nav-row">
+            <button class="chevron-bottom" onclick="navigateMonth(-1)" id="prevMonthBottom">〈</button>
+            <div class="title-center">
+                <h1 onclick="reloadWithMyId()">My Crew Schedule - Calendar View</h1>
+            </div>
+            <button class="chevron-bottom" onclick="navigateMonth(1)" id="nextMonthBottom">〉</button>
         </div>
 
         <!-- 3. PDF CONTROLS SECTION -->

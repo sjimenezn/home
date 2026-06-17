@@ -312,10 +312,10 @@
             cursor: not-allowed; 
         }
         .chevron-left {
-            left: 10px;
+            left: 130px;
         }
         .chevron-right {
-            right: 10px;
+            right: 130px;
         }
         /* Month/Year selector styles */
         .month-selector, .year-selector {
@@ -451,13 +451,8 @@
             margin: 0 0 5px 0;
             font-size: 1.32em;
             text-align: center;
-            cursor: pointer;
+            cursor: default;
             color: #ffc107;
-            transition: color 0.2s ease;
-        }
-        h1:hover {
-            color: #ffd54f;
-            text-decoration: underline;
         }
         
         /* PDF Download Buttons */
@@ -523,11 +518,14 @@
         .bottom-nav-row .title-center h1 {
             margin: 0;
             font-size: 1.32em;
-            cursor: pointer;
+            cursor: default;
             color: #ffc107;
+        }
+        .bottom-nav-row .title-center h1 .clickable-title {
+            cursor: pointer;
             transition: color 0.2s ease;
         }
-        .bottom-nav-row .title-center h1:hover {
+        .bottom-nav-row .title-center h1 .clickable-title:hover {
             color: #ffd54f;
             text-decoration: underline;
         }
@@ -662,7 +660,9 @@
         <div class="bottom-nav-row">
             <button class="chevron-bottom chevron-bottom-left" onclick="navigateMonth(-1)" id="prevMonthBottom">〈</button>
             <div class="title-center">
-                <h1 onclick="reloadWithMyId()">My Crew Schedule - Calendar View</h1>
+                <h1>
+                    <span class="clickable-title" onclick="reloadWithMyId()">My Crew Schedule - Calendar View</span>
+                </h1>
             </div>
             <button class="chevron-bottom chevron-bottom-right" onclick="navigateMonth(1)" id="nextMonthBottom">〉</button>
         </div>

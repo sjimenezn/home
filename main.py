@@ -777,7 +777,7 @@ def create_calendar_view_data(month_data):
                             'flight_number': flight_data.get('CommercialFlightNumber', ''),
                             'origin': flight_data.get('OriginAirportIATACode', '').strip() if flight_data.get('OriginAirportIATACode') else '',
                             'destination': flight_data.get('FinalAirportIATACode', '').strip() if flight_data.get('FinalAirportIATACode') else '',
-                            'departure_stand': flight_data.get('DepartureStand', '').strip() if flight_data.get('DepartureStand') else '',
+                            'departure_stand': (flight_data.get('DepartureStand') or '').strip(),
                             'departure_time': flight_data.get('ScheduledDepartureDate', '')[11:16] if flight_data.get('ScheduledDepartureDate') else 'N/A',
                             'arrival_time': flight_data.get('ScheduledArrivalDate', '')[11:16] if flight_data.get('ScheduledArrivalDate') else 'N/A',
                             'time_advanced': flight_data.get('TimeAdvanced', False),

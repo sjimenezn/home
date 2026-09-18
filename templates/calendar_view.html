@@ -587,16 +587,19 @@
                                     {% for assignment in day.assignments %}
                                     <div class="assignment-item {% if assignment.is_flight %}assignment-flight{% else %}assignment-ground{% endif %}">
                                         {% if assignment.is_flight %}
+                                            {% set stand_clean = (assignment.departure_stand or '')|string|trim %}
+                                            {% if stand_clean|lower in ['null', 'none', 'undefined', 'nan'] %}
+                                                {% set stand_clean = '' %}
+                                            {% endif %}
                                             <div>
                                                 <a href="/flight_details?flight_number={{ assignment.flight_number }}&local_date={{ day.date }}&origin_airport={{ assignment.origin }}" class="flight-number">
                                                     {{ assignment.flight_number }}
                                                 </a>
-                                                {# Lazy gate placeholder - filled by JS after page load #}
+                                                {# Lazy gate placeholder - filled by JS after page load if empty #}
                                                 <span class="departure-stand gate-info"
                                                       data-gate-key="{{ assignment.gate_key }}"
-                                                      style="display:none;"></span>
-                                                {% if assignment.departure_stand %}
-                                                    {# GATE MAPPING FOR BOG DEPARTURES ONLY #}
+                                                      {% if stand_clean %}style="display:none;"{% endif %}></span>
+                                                {% if stand_clean %}
                                                     {% if assignment.origin == "BOG" %}
                                                         {% set gate_mapping = {
                                                             '11': 'C1', '12': 'C2', '13': 'C3', '15': 'C5',
@@ -612,17 +615,15 @@
                                                             '84': 'D14', '85': 'D12', '86': 'D10',
                                                             '87': 'D8', '88': 'D4', '89': 'D2'
                                                         } %}
-                                                        {% set old_gate = assignment.departure_stand|string %}
-                                                        {% set new_gate = gate_mapping.get(old_gate) %}
+                                                        {% set new_gate = gate_mapping.get(stand_clean) %}
                                                         {% if new_gate %}
-                                                            {# Display: Flight Number → Old Gate (blue) → New Gate (white, smaller) #}
-                                                            <span class="departure-stand">{{ assignment.departure_stand }}</span>
+                                                            <span class="departure-stand">{{ stand_clean }}</span>
                                                             <span class="gate-new-label">{{ new_gate }}</span>
                                                         {% else %}
-                                                            <span class="departure-stand">{{ assignment.departure_stand }}</span>
+                                                            <span class="departure-stand">{{ stand_clean }}</span>
                                                         {% endif %}
                                                     {% else %}
-                                                        <span class="departure-stand">{{ assignment.departure_stand }}</span>
+                                                        <span class="departure-stand">{{ stand_clean }}</span>
                                                     {% endif %}
                                                 {% endif %}
                                             </div>
@@ -884,47 +885,33 @@
         }, 500);
     });
 
-    // ===== Lazy gate loading for today's flights =====
-    (function loadTodayGates() {
-        const todayFlights = {{ todays_flights | tojson }};
-        if (!todayFlights || todayFlights.length === 0) return;
+    // ===== Lazy gate loading for today's AND tomorrow's flights =====
+    (function loadLazyGates() {
+        const lazyFlights = {{ lazy_gate_flights | tojson }};
+        if (!lazyFlights || lazyFlights.length === 0) return;
 
         fetch('/api/today_flight_gates', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ flights: todayFlights })
+            body: JSON.stringify({ flights: lazyFlights })
         })
         .then(res => res.json())
         .then(data => {
             if (!data.success || !data.gates) return;
 
             Object.entries(data.gates).forEach(([key, info]) => {
-                const gate = (info && info.gate) ? String(info.gate).trim() : '';
-                const terminal = (info && info.terminal) ? String(info.terminal).trim() : '';
-                if (!gate) return; // skip empty/null gates entirely
+                let gate = (info && info.gate) ? String(info.gate).trim() : '';
+                if (gate.toLowerCase() === 'null' || gate.toLowerCase() === 'none' || gate.toLowerCase() === 'undefined') {
+                    gate = '';
+                }
+                if (!gate) return; // nothing to show
 
                 const el = document.querySelector(`[data-gate-key="${key}"]`);
                 if (!el) return;
 
-                // Build display label: optional white terminal prefix + blue gate
-                el.innerHTML = '';
-                if (terminal) {
-                    const t = document.createElement('span');
-                    t.textContent = `T${terminal} `;
-                    t.style.color = '#ffffff';
-                    t.style.fontWeight = 'bold';
-                    t.style.fontSize = '1.4em';
-                    t.style.marginRight = '4px';
-                    el.appendChild(t);
-                }
-                const g = document.createElement('span');
-                g.textContent = gate;
-                g.style.color = '#4fc3f7';
-                g.style.fontWeight = 'bold';
-                g.style.fontSize = '1.76em';
-                el.appendChild(g);
-
-                el.style.display = ''; // reveal
+                // Use the same .departure-stand styling (blue, 1.76em) — no terminal prefix
+                el.textContent = gate;
+                el.style.display = ''; // reveal with class styling
             });
         })
         .catch(err => console.error('Gate fetch error:', err));

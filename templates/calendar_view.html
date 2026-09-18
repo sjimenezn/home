@@ -591,6 +591,10 @@
                                                 <a href="/flight_details?flight_number={{ assignment.flight_number }}&local_date={{ day.date }}&origin_airport={{ assignment.origin }}" class="flight-number">
                                                     {{ assignment.flight_number }}
                                                 </a>
+                                                {# Lazy gate placeholder - filled by JS after page load #}
+                                                <span class="departure-stand gate-info"
+                                                      data-gate-key="{{ assignment.gate_key }}"
+                                                      style="display:none;"></span>
                                                 {% if assignment.departure_stand %}
                                                     {# GATE MAPPING FOR BOG DEPARTURES ONLY #}
                                                     {% if assignment.origin == "BOG" %}
@@ -879,6 +883,52 @@
             document.getElementById('loadingOverlay').style.display = 'none';
         }, 500);
     });
+
+    // ===== Lazy gate loading for today's flights =====
+    (function loadTodayGates() {
+        const todayFlights = {{ todays_flights | tojson }};
+        if (!todayFlights || todayFlights.length === 0) return;
+
+        fetch('/api/today_flight_gates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ flights: todayFlights })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (!data.success || !data.gates) return;
+
+            Object.entries(data.gates).forEach(([key, info]) => {
+                const gate = (info && info.gate) ? String(info.gate).trim() : '';
+                const terminal = (info && info.terminal) ? String(info.terminal).trim() : '';
+                if (!gate) return; // skip empty/null gates entirely
+
+                const el = document.querySelector(`[data-gate-key="${key}"]`);
+                if (!el) return;
+
+                // Build display label: optional white terminal prefix + blue gate
+                el.innerHTML = '';
+                if (terminal) {
+                    const t = document.createElement('span');
+                    t.textContent = `T${terminal} `;
+                    t.style.color = '#ffffff';
+                    t.style.fontWeight = 'bold';
+                    t.style.fontSize = '1.4em';
+                    t.style.marginRight = '4px';
+                    el.appendChild(t);
+                }
+                const g = document.createElement('span');
+                g.textContent = gate;
+                g.style.color = '#4fc3f7';
+                g.style.fontWeight = 'bold';
+                g.style.fontSize = '1.76em';
+                el.appendChild(g);
+
+                el.style.display = ''; // reveal
+            });
+        })
+        .catch(err => console.error('Gate fetch error:', err));
+    })();
     </script>
 </body>
 </html>

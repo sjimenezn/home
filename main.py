@@ -772,12 +772,24 @@ def create_calendar_view_data(month_data):
                     flight_data = assignment.get('FlighAssignement')
                     if flight_data and flight_data.get('CommercialFlightNumber') != "XXX":
                         local_date = assignment.get('StartDateLocal', '')[:10]
+                        
+                        # Normalize departure stand: reject None, "", "null", "None", "undefined", "nan"
+                        raw_stand = flight_data.get('DepartureStand')
+                        if raw_stand is None:
+                            stand = ''
+                        else:
+                            stand = str(raw_stand).strip()
+                            if stand.lower() in ('null', 'none', 'undefined', 'nan', ''):
+                                stand = ''
+                        
+                        logger.info(f"🧪 Stand for {flight_data.get('CommercialFlightNumber')}: raw={raw_stand!r} → parsed={stand!r}")
+                        
                         assignments.append({
                             'is_flight': True,
                             'flight_number': flight_data.get('CommercialFlightNumber', ''),
                             'origin': flight_data.get('OriginAirportIATACode', '').strip() if flight_data.get('OriginAirportIATACode') else '',
                             'destination': flight_data.get('FinalAirportIATACode', '').strip() if flight_data.get('FinalAirportIATACode') else '',
-                            'departure_stand': (flight_data.get('DepartureStand') or '').strip(),
+                            'departure_stand': stand,
                             'departure_time': flight_data.get('ScheduledDepartureDate', '')[11:16] if flight_data.get('ScheduledDepartureDate') else 'N/A',
                             'arrival_time': flight_data.get('ScheduledArrivalDate', '')[11:16] if flight_data.get('ScheduledArrivalDate') else 'N/A',
                             'time_advanced': flight_data.get('TimeAdvanced', False),
@@ -911,13 +923,21 @@ def calendar_view():
     
     month_names = [month_name]
     
-    # Build today's flight list for lazy gate loading
-    today_str = get_utc_minus_5().strftime('%Y-%m-%d')
-    todays_flights = []
+    # Build flight list for lazy gate loading — today AND tomorrow
+    now_local = get_utc_minus_5()
+    today_str = now_local.strftime('%Y-%m-%d')
+    tomorrow_str = (now_local + timedelta(days=1)).strftime('%Y-%m-%d')
+    target_dates = {today_str, tomorrow_str}
+    
+    lazy_gate_flights = []
     
     if schedule_data and isinstance(schedule_data, list) and schedule_data:
         for day in schedule_data[0]:
-            if not day or not day.get('StartDate', '').startswith(today_str):
+            if not day:
+                continue
+            day_start = day.get('StartDate', '')
+            day_date = day_start[:10] if day_start else ''
+            if day_date not in target_dates:
                 continue
             for assignment in day.get('AssignementList', []):
                 flight_data = assignment.get('FlighAssignement') or {}
@@ -931,7 +951,7 @@ def calendar_view():
                 if not all([flight_number, operational_number, departure_date, origin_airport]):
                     continue
                 key = f"{flight_number}_{operational_number}_{departure_date}"
-                todays_flights.append({
+                lazy_gate_flights.append({
                     'key': key,
                     'airline': airline,
                     'flight_number': flight_number,
@@ -958,7 +978,7 @@ def calendar_view():
         total_scheduled_hours=total_scheduled_hours,
         total_scheduled_minutes=total_scheduled_minutes_remainder,
         crew_names=crew_names,
-        todays_flights=todays_flights
+        lazy_gate_flights=lazy_gate_flights
     )
     
 @app.route('/flight_details')
@@ -1120,7 +1140,7 @@ def get_flight_details_api():
 @app.route('/api/today_flight_gates', methods=['POST'])
 def get_today_flight_gates():
     """
-    Fetch flight details for today's flights to get gate/stand info.
+    Fetch flight details for today's and tomorrow's flights to get gate/stand info.
     Response shape from API: { "flight_details": { "DepartureGate": "...", "DepartureParkingStand": "...", "DepartureTerminal": "..." }, "success": true }
     """
     try:
@@ -1170,6 +1190,12 @@ def get_today_flight_gates():
                         
                         gate = str(raw_gate).strip() or str(raw_stand).strip()
                         terminal = str(raw_terminal).strip()
+                        
+                        # Reject literal "null"/"none"/"undefined" strings
+                        if gate.lower() in ('null', 'none', 'undefined', 'nan'):
+                            gate = ''
+                        if terminal.lower() in ('null', 'none', 'undefined', 'nan'):
+                            terminal = ''
                 
                 gates[key] = {'gate': gate, 'terminal': terminal}
                 logger.info(f"🚪 Gate for {airline}{flight_number} ({key}): gate='{gate}' terminal='{terminal}'")

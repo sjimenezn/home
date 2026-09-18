@@ -784,7 +784,8 @@ def create_calendar_view_data(month_data):
                             'time_delayed': flight_data.get('TimeDelayed', False),
                             'aircraft_registration': assignment.get('AircraftRegistrationNumber', '').strip() if assignment.get('AircraftRegistrationNumber') else '',
                             'operational_number': flight_data.get('OperationalNumber', ''),
-                            'local_date': local_date
+                            'local_date': local_date,
+                            'gate_key': f"{flight_data.get('CommercialFlightNumber', '')}_{flight_data.get('OperationalNumber', '')}_{flight_data.get('ScheduledDepartureDate', '')}"
                         })
                     else:
                         assignments.append({
@@ -910,6 +911,35 @@ def calendar_view():
     
     month_names = [month_name]
     
+    # Build today's flight list for lazy gate loading
+    today_str = get_utc_minus_5().strftime('%Y-%m-%d')
+    todays_flights = []
+    
+    if schedule_data and isinstance(schedule_data, list) and schedule_data:
+        for day in schedule_data[0]:
+            if not day or not day.get('StartDate', '').startswith(today_str):
+                continue
+            for assignment in day.get('AssignementList', []):
+                flight_data = assignment.get('FlighAssignement') or {}
+                if not flight_data or flight_data.get('CommercialFlightNumber') == "XXX":
+                    continue
+                flight_number = flight_data.get('CommercialFlightNumber', '')
+                operational_number = flight_data.get('OperationalNumber', '')
+                departure_date = flight_data.get('ScheduledDepartureDate', '')
+                origin_airport = flight_data.get('OriginAirportIATACode', '').strip()
+                airline = flight_data.get('Airline', 'AV')
+                if not all([flight_number, operational_number, departure_date, origin_airport]):
+                    continue
+                key = f"{flight_number}_{operational_number}_{departure_date}"
+                todays_flights.append({
+                    'key': key,
+                    'airline': airline,
+                    'flight_number': flight_number,
+                    'departure_date': departure_date,
+                    'origin_airport': origin_airport,
+                    'operational_number': operational_number,
+                })
+    
     return render_template('calendar_view.html',
         schedule_data=schedule_data,
         last_fetch=last_fetch_time,
@@ -927,7 +957,8 @@ def calendar_view():
         total_actual_minutes=total_actual_minutes_remainder,
         total_scheduled_hours=total_scheduled_hours,
         total_scheduled_minutes=total_scheduled_minutes_remainder,
-        crew_names=crew_names
+        crew_names=crew_names,
+        todays_flights=todays_flights
     )
     
 @app.route('/flight_details')
@@ -1085,6 +1116,73 @@ def get_flight_details_api():
             'success': False,
             'error': str(e)
         }), 500
+
+@app.route('/api/today_flight_gates', methods=['POST'])
+def get_today_flight_gates():
+    """
+    Fetch flight details for today's flights to get gate/stand info.
+    Response shape from API: { "flight_details": { "DepartureGate": "...", "DepartureParkingStand": "...", "DepartureTerminal": "..." }, "success": true }
+    """
+    try:
+        data = request.get_json() or {}
+        flights = data.get('flights', [])
+        
+        if not flights:
+            return jsonify({'success': True, 'gates': {}})
+        
+        gates = {}
+        
+        for f in flights:
+            try:
+                airline = f.get('airline', 'AV')
+                flight_number = f.get('flight_number')
+                departure_date = f.get('departure_date')
+                origin_airport = f.get('origin_airport')
+                operational_number = f.get('operational_number')
+                key = f.get('key')
+                
+                if not all([flight_number, departure_date, origin_airport, operational_number, key]):
+                    gates[key or flight_number] = {'gate': '', 'terminal': ''}
+                    continue
+                
+                details = client.get_flight_details(
+                    airline=airline,
+                    flight_number=flight_number,
+                    departure_date=departure_date,
+                    origin_airport=origin_airport,
+                    operational_number=operational_number
+                )
+                
+                gate = ''
+                terminal = ''
+                
+                if details:
+                    fd = details.get('flight_details') if isinstance(details, dict) else None
+                    
+                    # Fallback in case response isn't wrapped
+                    if not fd and isinstance(details, dict):
+                        fd = details
+                    
+                    if isinstance(fd, dict):
+                        raw_gate = fd.get('DepartureGate') or ''
+                        raw_stand = fd.get('DepartureParkingStand') or ''
+                        raw_terminal = fd.get('DepartureTerminal') or ''
+                        
+                        gate = str(raw_gate).strip() or str(raw_stand).strip()
+                        terminal = str(raw_terminal).strip()
+                
+                gates[key] = {'gate': gate, 'terminal': terminal}
+                logger.info(f"🚪 Gate for {airline}{flight_number} ({key}): gate='{gate}' terminal='{terminal}'")
+                
+            except Exception as inner_e:
+                logger.error(f"Error fetching gate for one flight: {inner_e}")
+                gates[f.get('key', '')] = {'gate': '', 'terminal': ''}
+        
+        return jsonify({'success': True, 'gates': gates})
+    
+    except Exception as e:
+        logger.error(f"Error in today_flight_gates API: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/flight_crew', methods=['POST'])
 def get_flight_crew_api():

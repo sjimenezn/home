@@ -243,6 +243,10 @@
             display: inline;
             margin-left: 6px;
         }
+        /* Placeholder span for lazy-loaded gate */
+        .gate-info {
+            display: inline;
+        }
         .route { 
             font-size: 1.54em;
             color: #f0f0f0; 
@@ -596,7 +600,7 @@
                                                     {{ assignment.flight_number }}
                                                 </a>
                                                 {# Lazy gate placeholder - filled by JS after page load if empty #}
-                                                <span class="departure-stand gate-info"
+                                                <span class="gate-info"
                                                       data-gate-key="{{ assignment.gate_key }}"
                                                       {% if stand_clean %}style="display:none;"{% endif %}></span>
                                                 {% if stand_clean %}
@@ -899,19 +903,36 @@
         .then(data => {
             if (!data.success || !data.gates) return;
 
+            const bad = ['null', 'none', 'undefined', 'nan', ''];
+
             Object.entries(data.gates).forEach(([key, info]) => {
                 let gate = (info && info.gate) ? String(info.gate).trim() : '';
-                if (gate.toLowerCase() === 'null' || gate.toLowerCase() === 'none' || gate.toLowerCase() === 'undefined') {
-                    gate = '';
-                }
+                let mappedGate = (info && info.mapped_gate) ? String(info.mapped_gate).trim() : '';
+
+                if (bad.includes(gate.toLowerCase())) gate = '';
+                if (bad.includes(mappedGate.toLowerCase())) mappedGate = '';
+
                 if (!gate) return; // nothing to show
 
                 const el = document.querySelector(`[data-gate-key="${key}"]`);
                 if (!el) return;
 
-                // Use the same .departure-stand styling (blue, 1.76em) — no terminal prefix
-                el.textContent = gate;
-                el.style.display = ''; // reveal with class styling
+                // Build: raw stand (blue, .departure-stand) + optional mapped gate (white, .gate-new-label)
+                el.innerHTML = '';
+
+                const standSpan = document.createElement('span');
+                standSpan.className = 'departure-stand';
+                standSpan.textContent = gate;
+                el.appendChild(standSpan);
+
+                if (mappedGate) {
+                    const mappedSpan = document.createElement('span');
+                    mappedSpan.className = 'gate-new-label';
+                    mappedSpan.textContent = mappedGate;
+                    el.appendChild(mappedSpan);
+                }
+
+                el.style.display = ''; // reveal
             });
         })
         .catch(err => console.error('Gate fetch error:', err));

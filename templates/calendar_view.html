@@ -233,7 +233,7 @@
             color: #4fc3f7; 
             font-size: 1.76em;
             display: inline; 
-            margin-left: 8px; 
+            margin-left: 4px; 
         }
         /* New gate label - white color, smaller than blue/yellow */
         .gate-new-label {
@@ -241,7 +241,7 @@
             color: #ffffff;
             font-size: 1.4em;
             display: inline;
-            margin-left: 6px;
+            margin-left: 4px;
         }
         /* Placeholder span for lazy-loaded gate */
         .gate-info {
@@ -596,40 +596,7 @@
                                                 {% set stand_clean = '' %}
                                             {% endif %}
                                             <div>
-                                                <a href="/flight_details?flight_number={{ assignment.flight_number }}&local_date={{ day.date }}&origin_airport={{ assignment.origin }}" class="flight-number">
-                                                    {{ assignment.flight_number }}
-                                                </a>
-                                                {# Lazy gate placeholder - filled by JS after page load if empty #}
-                                                <span class="gate-info"
-                                                      data-gate-key="{{ assignment.gate_key }}"
-                                                      {% if stand_clean %}style="display:none;"{% endif %}></span>
-                                                {% if stand_clean %}
-                                                    {% if assignment.origin == "BOG" %}
-                                                        {% set gate_mapping = {
-                                                            '11': 'C1', '12': 'C2', '13': 'C3', '15': 'C5',
-                                                            '17': 'B8', '19': 'B7', '20': 'B7', '22': 'B6',
-                                                            '24': 'B5', '27': 'B3', '29': 'B2', '32': 'B1',
-                                                            '34': 'A1', '36': 'A2', '38': 'A3',
-                                                            '41': 'A4', '43': 'A5', '45': 'A6',
-                                                            '47': 'A8', '48': 'A9', '49': 'A10',
-                                                            '51': 'A11', '53': 'A12', '54': 'A13', '56': 'A14',
-                                                            '71': 'D1', '72': 'D3', '73': 'D5',
-                                                            '74': 'D9', '75': 'D11', '76': 'D13',
-                                                            '79': 'D15', '80': 'D15', '83': 'D15',
-                                                            '84': 'D14', '85': 'D12', '86': 'D10',
-                                                            '87': 'D8', '88': 'D4', '89': 'D2'
-                                                        } %}
-                                                        {% set new_gate = gate_mapping.get(stand_clean) %}
-                                                        {% if new_gate %}
-                                                            <span class="departure-stand">{{ stand_clean }}</span>
-                                                            <span class="gate-new-label">{{ new_gate }}</span>
-                                                        {% else %}
-                                                            <span class="departure-stand">{{ stand_clean }}</span>
-                                                        {% endif %}
-                                                    {% else %}
-                                                        <span class="departure-stand">{{ stand_clean }}</span>
-                                                    {% endif %}
-                                                {% endif %}
+                                                <a href="/flight_details?flight_number={{ assignment.flight_number }}&local_date={{ day.date }}&origin_airport={{ assignment.origin }}" class="flight-number">{{ assignment.flight_number }}</a><span class="gate-info" data-gate-key="{{ assignment.gate_key }}"{% if stand_clean %} style="display:none;"{% endif %}></span>{% if stand_clean %}{% if assignment.origin == "BOG" %}{% set gate_mapping = {'11': 'C1', '12': 'C2', '13': 'C3', '15': 'C5', '17': 'B8', '19': 'B7', '20': 'B7', '22': 'B6', '24': 'B5', '27': 'B3', '29': 'B2', '32': 'B1', '34': 'A1', '36': 'A2', '38': 'A3', '41': 'A4', '43': 'A5', '45': 'A6', '47': 'A8', '48': 'A9', '49': 'A10', '51': 'A11', '53': 'A12', '54': 'A13', '56': 'A14', '71': 'D1', '72': 'D3', '73': 'D5', '74': 'D9', '75': 'D11', '76': 'D13', '79': 'D15', '80': 'D15', '83': 'D15', '84': 'D14', '85': 'D12', '86': 'D10', '87': 'D8', '88': 'D4', '89': 'D2' } %}{% set new_gate = gate_mapping.get(stand_clean) %}<span class="departure-stand">{{ stand_clean }}</span>{% if new_gate %}<span class="gate-new-label">{{ new_gate }}</span>{% endif %}{% else %}<span class="departure-stand">{{ stand_clean }}</span>{% endif %}{% endif %}
                                             </div>
                                             <div class="route">
                                                 {{ assignment.origin }}-{{ assignment.destination }}<span class="status-dot {% if assignment.time_delayed %}delayed{% else %}on-time{% endif %}"></span>

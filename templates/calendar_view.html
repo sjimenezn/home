@@ -70,9 +70,22 @@
             right: 0;
         }
         
+        /* Nav buttons row - flex with side areas for extra links */
         .nav-buttons { 
-            text-align: center; 
-            margin: 8px 0; 
+            display: flex;
+            align-items: center;
+            width: 1080px;
+            margin: 8px 0;
+        }
+        .nav-side {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .nav-center {
+            flex: none;
+            text-align: center;
         }
         .nav-button { 
             background: #3a3a3a; 
@@ -100,6 +113,36 @@
             margin: 10px auto;
         }
         .button:hover { background: #666; }
+
+        /* Title-style links (PREV ID / TODAY) - match "My Crew Schedule - Calendar View" */
+        .prev-id-link, .today-link {
+            color: #ffc107;
+            font-size: 1.32em;
+            font-weight: bold;
+            cursor: pointer;
+            text-decoration: none;
+            transition: color 0.2s ease;
+            display: inline-block;
+            font-family: Arial, sans-serif;
+        }
+        .prev-id-link:hover, .today-link:hover {
+            color: #ffd54f;
+            text-decoration: underline;
+        }
+
+        /* Sub-row under the PDF buttons - PREV ID goes in the left cell */
+        .pdf-sub-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .pdf-sub-cell {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 5px 0;
+        }
         
         /* Crew Selector Styles */
         .input-group {
@@ -662,15 +705,36 @@
                 <button class="pdf-button" onclick="downloadPDF('actual')">📥 Actual PDF</button>
                 <button class="pdf-button scheduled" onclick="downloadPDF('scheduled')">📥 Scheduled PDF</button>
             </div>
+
+            <!-- NEW: PREV ID link centered under the Actual PDF button -->
+            <div class="pdf-sub-row">
+                <div class="pdf-sub-cell">
+                    <a href="#" class="prev-id-link" onclick="restorePreviousCrew(); return false;">PREV ID</a>
+                </div>
+                <div class="pdf-sub-cell">
+                    <!-- empty right cell -->
+                </div>
+            </div>
         </div>
 
         <!-- 4. NAVIGATION BUTTONS -->
         <div class="header">
             <div class="nav-buttons">
-                <a href="/" class="nav-button">Schedule View</a>
-                <a href="/calendar" class="nav-button active">Calendar View</a>
-                <a href="/pdf" class="nav-button">PDF Download</a>
-                <a href="/flight_details" class="nav-button">Flight Search</a>
+                <div class="nav-side nav-side-left"></div>
+                <div class="nav-center">
+                    <a href="/" class="nav-button">Schedule View</a>
+                    <a href="/calendar" class="nav-button active">Calendar View</a>
+                    <a href="/pdf" class="nav-button">PDF Download</a>
+                    <a href="/flight_details" class="nav-button">Flight Search</a>
+                </div>
+                <!-- NEW: TODAY link centered in the free space to the right of the nav buttons -->
+                <div class="nav-side nav-side-right">
+                    <a href="/calendar?year={{ current_date[:4] }}&month={{ current_date[5:7] | int }}"
+                       class="today-link"
+                       onclick="document.getElementById('loadingOverlay').style.display='flex';">
+                        TODAY
+                    </a>
+                </div>
             </div>
 
             <!-- 5. INFO BOX -->
@@ -723,6 +787,26 @@
                     location.reload();
                 } else {
                     alert('Failed to switch to your ID: ' + (data.error || 'Unknown error'));
+                    document.getElementById('loadingOverlay').style.display = 'none';
+                }
+            })
+            .catch(err => {
+                alert('Error: ' + err);
+                document.getElementById('loadingOverlay').style.display = 'none';
+            });
+    }
+
+    // NEW: restore previous crew ID (or fall back to DEFAULT_CREW_ID)
+    function restorePreviousCrew() {
+        document.getElementById('loadingOverlay').style.display = 'flex';
+
+        fetch('/restore_previous_crew_id')
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert(data.error || 'Could not go back');
                     document.getElementById('loadingOverlay').style.display = 'none';
                 }
             })

@@ -848,7 +848,7 @@ paxlist_client = PaxlistClient()
 schedule_data = None
 last_fetch_time = None
 current_crew_id = DEFAULT_CREW_ID
-previous_crew_id = None                    # 👈 NEW - one-level undo
+previous_crew_id = None                    # one-level undo / toggle
 current_calendar_year = get_utc_minus_5().year
 current_calendar_month = get_utc_minus_5().month
 crew_names = load_crew_names()
@@ -1297,7 +1297,7 @@ def update_crew_id():
 
     # Only switch when it's actually a different ID
     if new_crew_id and new_crew_id != current_crew_id:
-        previous_crew_id = current_crew_id        # 👈 save the one we're leaving
+        previous_crew_id = current_crew_id        # save the one we're leaving
         current_crew_id = new_crew_id
         schedule_data = None
         last_fetch_time = None
@@ -1315,13 +1315,15 @@ def update_crew_id():
 def restore_previous_crew_id():
     global current_crew_id, previous_crew_id, schedule_data, last_fetch_time, current_calendar_year, current_calendar_month
 
-    # Fall back to DEFAULT_CREW_ID if there's no previous one
+    # Fall back to DEFAULT if there's no history yet
     target = previous_crew_id or DEFAULT_CREW_ID
 
+    # Already there → silent no-op (empty error = JS won't alert)
     if target == current_crew_id:
-        return {"success": False, "error": "Already on that crew ID"}
+        return {"success": False, "error": ""}
 
-    current_crew_id, previous_crew_id = target, None
+    # SWAP instead of clear — this is what keeps the toggle going forever
+    current_crew_id, previous_crew_id = target, current_crew_id
 
     schedule_data = None
     last_fetch_time = None

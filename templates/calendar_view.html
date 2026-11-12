@@ -756,38 +756,28 @@
         }, 3000);
     }
 
+    // Clicking the title jumps back to YOUR default ID — reloads silently, even if already there
     function reloadWithMyId() {
         document.getElementById('loadingOverlay').style.display = 'flex';
-        
+
         fetch('/update_crew_id?crew_id=32385184')
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    location.reload();
-                } else {
-                    alert('Failed to switch to your ID: ' + (data.error || 'Unknown error'));
-                    document.getElementById('loadingOverlay').style.display = 'none';
-                }
-            })
+            .then(() => window.location.reload())
             .catch(err => {
                 alert('Error: ' + err);
                 document.getElementById('loadingOverlay').style.display = 'none';
             });
     }
 
-    // Restore previous crew ID (or fall back to DEFAULT_CREW_ID)
+    // Prev ID — toggles between last ID and default. Silent no-op if nothing to go back to
     function restorePreviousCrew() {
         document.getElementById('loadingOverlay').style.display = 'flex';
 
         fetch('/restore_previous_crew_id')
             .then(r => r.json())
             .then(data => {
-                if (data.success) {
-                    window.location.reload();
-                } else {
-                    alert(data.error || 'Could not go back');
-                    document.getElementById('loadingOverlay').style.display = 'none';
-                }
+                if (data.success) { window.location.reload(); return; }
+                if (data.error) alert(data.error);
+                document.getElementById('loadingOverlay').style.display = 'none';
             })
             .catch(err => {
                 alert('Error: ' + err);
@@ -810,6 +800,7 @@
         document.getElementById("crewSelectorInput").focus();
     }
 
+    // Selecting a crew from the dropdown — reloads silently, even if it's the same crew
     function updateCrewId(crewId = null) {
         if (!crewId) {
             crewId = document.getElementById('crewSelectorInput').value.trim();
@@ -826,15 +817,7 @@
         document.getElementById('loadingOverlay').style.display = 'flex';
         
         fetch('/update_crew_id?crew_id=' + crewId)
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    location.reload();
-                } else {
-                    alert('Failed: ' + (data.error || 'Unknown error'));
-                    document.getElementById('loadingOverlay').style.display = 'none';
-                }
-            })
+            .then(() => window.location.reload())
             .catch(err => {
                 alert('Error: ' + err);
                 document.getElementById('loadingOverlay').style.display = 'none';

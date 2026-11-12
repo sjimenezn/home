@@ -74,7 +74,7 @@
         .nav-buttons { 
             display: flex;
             align-items: center;
-            width: 1080px;
+            width: 100%;
             margin: 8px 0;
         }
         .nav-side {
@@ -114,7 +114,7 @@
         }
         .button:hover { background: #666; }
 
-        /* Title-style links (PREV ID / TODAY) - match "My Crew Schedule - Calendar View" */
+        /* Title-style links (Prev ID / Today) - match "My Crew Schedule - Calendar View" */
         .prev-id-link, .today-link {
             color: #ffc107;
             font-size: 1.32em;
@@ -128,20 +128,6 @@
         .prev-id-link:hover, .today-link:hover {
             color: #ffd54f;
             text-decoration: underline;
-        }
-
-        /* Sub-row under the PDF buttons - PREV ID goes in the left cell */
-        .pdf-sub-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            margin-top: 8px;
-        }
-        .pdf-sub-cell {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 5px 0;
         }
         
         /* Crew Selector Styles */
@@ -705,34 +691,27 @@
                 <button class="pdf-button" onclick="downloadPDF('actual')">📥 Actual PDF</button>
                 <button class="pdf-button scheduled" onclick="downloadPDF('scheduled')">📥 Scheduled PDF</button>
             </div>
-
-            <!-- NEW: PREV ID link centered under the Actual PDF button -->
-            <div class="pdf-sub-row">
-                <div class="pdf-sub-cell">
-                    <a href="#" class="prev-id-link" onclick="restorePreviousCrew(); return false;">PREV ID</a>
-                </div>
-                <div class="pdf-sub-cell">
-                    <!-- empty right cell -->
-                </div>
-            </div>
         </div>
 
         <!-- 4. NAVIGATION BUTTONS -->
         <div class="header">
             <div class="nav-buttons">
-                <div class="nav-side nav-side-left"></div>
+                <!-- Prev ID link centered in the left free space -->
+                <div class="nav-side nav-side-left">
+                    <a href="#" class="prev-id-link" onclick="restorePreviousCrew(); return false;">Prev ID</a>
+                </div>
                 <div class="nav-center">
                     <a href="/" class="nav-button">Schedule View</a>
                     <a href="/calendar" class="nav-button active">Calendar View</a>
                     <a href="/pdf" class="nav-button">PDF Download</a>
                     <a href="/flight_details" class="nav-button">Flight Search</a>
                 </div>
-                <!-- NEW: TODAY link centered in the free space to the right of the nav buttons -->
+                <!-- Today link centered in the right free space -->
                 <div class="nav-side nav-side-right">
                     <a href="/calendar?year={{ current_date[:4] }}&month={{ current_date[5:7] | int }}"
                        class="today-link"
                        onclick="document.getElementById('loadingOverlay').style.display='flex';">
-                        TODAY
+                        Today
                     </a>
                 </div>
             </div>
@@ -796,7 +775,7 @@
             });
     }
 
-    // NEW: restore previous crew ID (or fall back to DEFAULT_CREW_ID)
+    // Restore previous crew ID (or fall back to DEFAULT_CREW_ID)
     function restorePreviousCrew() {
         document.getElementById('loadingOverlay').style.display = 'flex';
 

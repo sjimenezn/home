@@ -62,6 +62,8 @@
         .status-delayed { background: #d32f2f; }
         .tail-info { text-align: right; flex: 1; }
         .tail-number { font-size: 1.8em; color: #4fc3f7; font-weight: bold; margin-bottom: 5px; }
+        .tail-number a { color: inherit; text-decoration: none; }
+        .tail-number a:hover { text-decoration: underline; }
         .fleet-type { font-size: 1.1em; color: #ffffff; font-weight: bold; }
         .gate-info { font-size: 1.1em; color: #ffffff; font-weight: bold; margin-bottom: 5px; }
         .route-line { font-size: 1.2em; font-weight: bold; text-align: center; margin: 10px 0; cursor: pointer; }
@@ -549,6 +551,13 @@
             
             const fleet = flight.Fleet || '';
             
+            // Build the tail number as a FlightRadar24 link when valid
+            const rawTail = (flight.AircraftRegistrationNumber || '').toString().trim();
+            const invalidTail = !rawTail || ['null', 'none', 'undefined', 'nan', '-'].includes(rawTail.toLowerCase());
+            const tailNumberHtml = invalidTail
+                ? '-'
+                : `<a href="https://www.flightradar24.com/data/aircraft/${encodeURIComponent(rawTail)}" target="_blank" rel="noopener noreferrer">${rawTail}</a>`;
+            
             const scheduledDeparture = flight.Flight?.ScheduleDepartureDateLOCAL;
             const actualDeparture = flight.Flight?.DepartureDateLOCAL;
             const scheduledArrival = flight.Flight?.ScheduleArrivalDateLOCAL;
@@ -584,7 +593,7 @@
                             <div class="flight-status ${statusClass}">${flight.FlightStatus || 'Unknown'}</div>
                         </div>
                         <div class="tail-info">
-                            <div class="tail-number">${flight.AircraftRegistrationNumber || '-'}</div>
+                            <div class="tail-number">${tailNumberHtml}</div>
                             <div class="fleet-type">${fleet}</div>
                         </div>
                     </div>

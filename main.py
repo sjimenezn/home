@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-My Crew Schedule Monitor - Optimized Version with Paxlist Integration
+My Crew Schedule Monitor -  Optimized Version with Paxlist Integration
 """
 
 import os

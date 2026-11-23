@@ -308,6 +308,52 @@ class CrewAPIClient:
             logger.error(f"❌ get_flight_details_from_assignment error: {e}")
             return None
 
+    # ---------- NEW: SearchFlight ----------
+
+    def search_flight(self, airline, flight_number, departure_date, origin_airport):
+        """Look up the real operational number + exact scheduled departure time."""
+        try:
+            headers = self._auth_headers()
+            if not headers:
+                return None
+            headers["Content-Type"] = "application/json"
+
+            url = f"{self.base_url}/FlightDetails/SearchFlight"
+            body = {
+                "departureFlightDate": departure_date,
+                "holding": airline,
+                "commercialFlightNumber": flight_number,
+                "originAirportIATACode": origin_airport,
+                "departureAirportIATACode": "",
+                "operationalSufix": ""
+            }
+            logger.info(f"🔎 Searching flight: {airline}{flight_number} {departure_date} {origin_airport}")
+            response = self.session.post(url, json=body, headers=headers, timeout=30)
+
+            if response.status_code == 204:
+                logger.warning(f"⚠️ SearchFlight 204 (no match) for {airline}{flight_number}")
+                return None
+
+            if response.status_code == 200:
+                data = response.json()
+                fa = data.get('FlighAssignement') or {}
+                result = {
+                    'operational_number': str(data.get('Id', '')),
+                    'scheduled_departure': fa.get('ScheduledDepartureDate', ''),
+                    'scheduled_arrival': fa.get('ScheduledArrivalDate', ''),
+                    'origin': fa.get('OriginAirportIATACode', ''),
+                    'destination': fa.get('FinalAirportIATACode', ''),
+                    'flight_number': fa.get('CommercialFlightNumber', ''),
+                }
+                logger.info(f"✅ Found {airline}{flight_number}: OPN={result['operational_number']}, "
+                            f"dep={result['scheduled_departure']}")
+                return result
+
+            logger.error(f"❌ SearchFlight {response.status_code}: {response.text[:200]}")
+        except Exception as e:
+            logger.error(f"❌ search_flight error: {e}")
+        return None
+
     def download_schedule_pdf(self, crew_id, schedule_type="actual", month="", year=""):
         try:
             if not self.access_token or (self.token_expiry and time.time() >= self.token_expiry):
@@ -1119,6 +1165,29 @@ def paxlist_search():
             'success': False,
             'message': str(e)
         }), 500
+
+@app.route('/api/search_flight', methods=['POST'])
+def search_flight_api():
+    try:
+        data = request.get_json()
+        airline = data.get('airline', 'AV')
+        flight_number = data.get('flight_number', '')
+        if isinstance(flight_number, str):
+            flight_number = flight_number.lstrip('0') or flight_number
+        departure_date = data.get('departure_date', '')[:10]
+        origin_airport = data.get('origin_airport', '').upper()
+
+        if not all([flight_number, departure_date, origin_airport]):
+            return jsonify({'success': False, 'error': 'Missing parameters'}), 400
+
+        result = client.search_flight(airline, flight_number, departure_date, origin_airport)
+        if not result:
+            return jsonify({'success': False, 'error': 'Flight not found'}), 404
+
+        return jsonify({'success': True, 'flight': result})
+    except Exception as e:
+        logger.error(f"Error in search_flight API: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/flight_details', methods=['POST'])
 def get_flight_details_api():

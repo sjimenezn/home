@@ -157,7 +157,7 @@ function checkAndAutoSearch() {
     return false;
 }
 
-// ============ PAXLIST TOKEN PASTE HANDLER (unchanged logic, scoped IDs) ============
+// ============ PAXLIST TOKEN PASTE HANDLER ============
 document.getElementById('paxlistTokenInput').addEventListener('paste', function(e) {
     setTimeout(async function() {
         var jsonInput = document.getElementById('paxlistTokenInput').value.trim();
@@ -201,7 +201,7 @@ document.getElementById('paxlistTokenInput').addEventListener('paste', function(
     }, 50);
 });
 
-// ============ CREW TOKEN PASTE HANDLER (same pattern) ============
+// ============ CREW TOKEN PASTE HANDLER ============
 document.getElementById('crewTokenInput').addEventListener('paste', function(e) {
     setTimeout(async function() {
         var jsonInput = document.getElementById('crewTokenInput').value.trim();

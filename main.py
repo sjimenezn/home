@@ -54,94 +54,149 @@ def load_crew_names():
         "RAMIREZ PLAZAS CARLOS AUGUSTO 19466758"
     ]
 
+
 class CrewAPIClient:
+    """
+    Manual-token client. Tokens are pasted from the browser (via /paxlist)
+    and stored in crew_tokens.json. No password login, no automatic refresh.
+    """
+
     def __init__(self):
         self.base_url = "https://api-avianca.avianca.com/MycreWFlights/api"
-        self.auth_url = "https://api-avianca.avianca.com/MyCrewSecurity/connect/token"
         self.subscription_key = "9d32877073ce403795da2254ae9c2de7"
-        self.session = None
-        self.auth_token = None
-        self.last_token_time = None
+        self.session = requests.Session()
+        self.token_file = "crew_tokens.json"
 
-    def _should_renew_token(self):
-        if not self.last_token_time or not self.auth_token:
-            return True
-        elapsed_hours = (datetime.utcnow() - self.last_token_time).total_seconds() / 3600
-        logger.info(f"🔍 Token age: {elapsed_hours:.2f} hours")
-        return elapsed_hours >= 11
+        self.access_token = None
+        self.refresh_token = None
+        self.token_expiry = None
+        self.refresh_expiry = None
 
-    def _login(self, force=False):
+        self.load_tokens()
+
+    # ---------- token storage ----------
+
+    def load_tokens(self):
         try:
-            if not force and not self._should_renew_token():
-                logger.info("🔄 Using existing token (less than 11 hours old)")
-                return True
+            if os.path.exists(self.token_file):
+                with open(self.token_file, 'r') as f:
+                    data = json.load(f)
+                self.access_token = data.get('access_token')
+                self.refresh_token = data.get('refresh_token')
+                self.token_expiry = data.get('token_expiry')
+                self.refresh_expiry = data.get('refresh_expiry')
 
-            logger.info("🔄 Token expired or not present, requesting new token...")
-            self.session = requests.Session()
-            email = os.getenv('CREW_EMAIL', 'sergio.jimenez@avianca.com')
-            password = os.getenv('CREW_PASSWORD', 'cextev-nizvid-9sIbfi')
-
-            form_data = {
-                'username': email, 'password': password, 'grant_type': 'password',
-                'client_id': 'angularclient', 'client_secret': 'angularclient',
-                'scope': 'email openid profile CrewApp offline_access'
-            }
-            headers = {
-                "Ocp-Apim-Subscription-Key": self.subscription_key,
-                "Content-Type": "application/x-www-form-urlencoded",
-                "Origin": "https://mycrew.avianca.com", "Referer": "https://mycrew.avianca.com/",
-            }
-
-            response = self.session.post(self.auth_url, data=form_data, headers=headers, timeout=30)
-            if response.status_code == 200:
-                self.auth_token = f"Bearer {response.json()['access_token']}"
-                self.last_token_time = datetime.utcnow()
-                logger.info(f"✅ New token acquired at {self.last_token_time}")
-                return True
-            else:
-                logger.error(f"❌ Login failed with status: {response.status_code}")
-                self.auth_token = None
-                self.last_token_time = None
-
+                if self.access_token and self.token_expiry and time.time() < self.token_expiry:
+                    mins_left = int((self.token_expiry - time.time()) / 60)
+                    logger.info(f"✅ Crew access token loaded (valid {mins_left} min)")
+                elif self.access_token:
+                    logger.warning("⚠️ Crew access token loaded but expired — paste a new one")
+                else:
+                    logger.warning("⚠️ crew_tokens.json exists but has no access_token")
         except Exception as e:
-            logger.error(f"Login error: {e}")
-            self.auth_token = None
-            self.last_token_time = None
-        return False
+            logger.error(f"Error loading crew tokens: {e}")
+
+    def save_tokens(self, access_token=None, refresh_token=None,
+                    expires_in=3600, refresh_expires_in=86400):
+        try:
+            current_time = time.time()
+
+            if access_token:
+                self.access_token = access_token
+                self.token_expiry = current_time + expires_in
+
+            if refresh_token:
+                self.refresh_token = refresh_token
+                self.refresh_expiry = current_time + refresh_expires_in
+
+            data = {
+                'access_token': self.access_token,
+                'refresh_token': self.refresh_token,
+                'token_expiry': self.token_expiry,
+                'refresh_expiry': self.refresh_expiry,
+                'last_updated': current_time,
+            }
+            with open(self.token_file, 'w') as f:
+                json.dump(data, f, indent=2)
+            logger.info(f"💾 Crew tokens saved (access valid {expires_in//60} min)")
+            return True
+        except Exception as e:
+            logger.error(f"Error saving crew tokens: {e}")
+            return False
+
+    def set_initial_tokens(self, access_token, refresh_token,
+                           expires_in=3600, refresh_expires_in=86400):
+        """Called from /api/crew/set_initial_tokens."""
+        if not isinstance(access_token, str) or not access_token.startswith('eyJ'):
+            logger.error("❌ Invalid access_token — must be a JWT starting with eyJ")
+            return False
+        return self.save_tokens(
+            access_token=access_token,
+            refresh_token=refresh_token or '',
+            expires_in=expires_in,
+            refresh_expires_in=refresh_expires_in,
+        )
+
+    def get_token_status(self):
+        current_time = time.time()
+        access_valid = bool(
+            self.access_token and self.token_expiry and current_time < self.token_expiry
+        )
+        refresh_valid = bool(
+            self.refresh_token and self.refresh_expiry and current_time < self.refresh_expiry
+        )
+        access_expires_in = max(0, int((self.token_expiry or 0) - current_time))
+        refresh_expires_in = max(0, int((self.refresh_expiry or 0) - current_time))
+
+        return {
+            'has_access_token': bool(self.access_token),
+            'has_refresh_token': bool(self.refresh_token),
+            'access_token_valid': access_valid,
+            'refresh_token_valid': refresh_valid,
+            'access_expires_in_seconds': access_expires_in,
+            'refresh_expires_in_seconds': refresh_expires_in,
+            'access_expires_in_minutes': access_expires_in // 60,
+            'refresh_expires_in_hours': refresh_expires_in // 3600,
+        }
+
+    # ---------- internal guard ----------
+
+    def _auth_headers(self):
+        """Returns a headers dict if we have a valid access token, else None."""
+        if not self.access_token:
+            logger.error("❌ No crew access token — paste one at /paxlist")
+            return None
+        if self.token_expiry and time.time() >= self.token_expiry:
+            logger.error("❌ Crew access token expired — paste a new one at /paxlist")
+            return None
+        return {
+            "Authorization": f"Bearer {self.access_token}",
+            "Ocp-Apim-Subscription-Key": self.subscription_key,
+            "Accept": "application/json",
+            "Origin": "https://mycrew.avianca.com",
+            "Referer": "https://mycrew.avianca.com/",
+        }
+
+    # ---------- API methods ----------
 
     def get_schedule_data(self, crew_id=None):
         try:
             target_crew_id = crew_id or current_crew_id
-            logger.info(f"📊 Fetching schedule data for crew: {target_crew_id}...")
-
-            if not self._login():
+            headers = self._auth_headers()
+            if not headers:
                 return None
 
             url = f"{self.base_url}/Assignements/AssignmentsComplete"
-            params = {
-                "timeZoneOffset": -300,
-                "crewMemberUniqueId": target_crew_id
-            }
-            headers = {
-                "Authorization": self.auth_token,
-                "Ocp-Apim-Subscription-Key": self.subscription_key,
-                "Accept": "application/json",
-                "Origin": "https://mycrew.avianca.com",
-                "Referer": "https://mycrew.avianca.com/",
-            }
-
+            params = {"timeZoneOffset": -300, "crewMemberUniqueId": target_crew_id}
             response = self.session.get(url, params=params, headers=headers, timeout=30)
-
             if response.status_code == 200:
                 data = response.json()
-                logger.info(f"✅ Schedule data fetched for crew {target_crew_id}! Structure: {len(data)} months")
+                logger.info(f"✅ get_schedule_data: {len(data)} months")
                 return data
-
-            logger.error(f"❌ Failed to fetch schedule data for crew {target_crew_id}: {response.status_code}")
-            return None
+            logger.error(f"❌ get_schedule_data {response.status_code}: {response.text[:200]}")
         except Exception as e:
-            logger.error(f"❌ Error fetching data for crew {crew_id}: {e}")
-            return None
+            logger.error(f"❌ get_schedule_data error: {e}")
+        return None
 
     def get_assignments_by_user(self, crew_id=None, year=None, month=None):
         try:
@@ -151,153 +206,112 @@ class CrewAPIClient:
             month = month or now.month
 
             first_day = datetime(year, month, 1)
-            last_day = (datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)) - timedelta(days=1)
-
             current_month = datetime(now.year, now.month, 1)
             requested_month = datetime(year, month, 1)
 
             if requested_month > current_month:
-                last_day_of_current = (datetime(now.year + 1, 1, 1) if now.month == 12
-                                     else datetime(now.year, now.month + 1, 1)) - timedelta(days=1)
+                last_day_of_current = (
+                    datetime(now.year + 1, 1, 1) if now.month == 12
+                    else datetime(now.year, now.month + 1, 1)
+                ) - timedelta(days=1)
                 start_date = last_day_of_current
                 logger.info(f"🔮 Future month: starting from {start_date.strftime('%Y-%m-%d')}")
             else:
                 start_date = first_day
                 logger.info(f"📅 Current/Past month: starting from {start_date.strftime('%Y-%m-%d')}")
 
-            change_days = 34
-            logger.info(f"📊 Unified request: {change_days} days from {start_date.strftime('%Y-%m-%d')}")
-
-            if not self._login():
+            headers = self._auth_headers()
+            if not headers:
                 return None
 
             url = f"{self.base_url}/Assignements/GetAssignementsByUser"
             params = {
                 "date": start_date.strftime('%Y-%m-%dT00:00:00Z'),
-                "changeDays": change_days,
+                "changeDays": 34,
                 "crewMemberUniqueId": target_crew_id,
                 "holding": "AV",
-                "timeZoneOffset": -300
+                "timeZoneOffset": -300,
             }
-
-            headers = {
-                "Authorization": self.auth_token,
-                "Ocp-Apim-Subscription-Key": self.subscription_key,
-                "Accept": "application/json",
-                "Origin": "https://mycrew.avianca.com",
-                "Referer": "https://mycrew.avianca.com/",
-            }
-
             response = self.session.get(url, params=params, headers=headers, timeout=30)
             if response.status_code == 200:
                 data = response.json()
                 logger.info(f"✅ Fetched {len(data)} assignments for {year}-{month:02d}")
                 return {'year': year, 'month': month, 'assignments': data}
-
+            logger.error(f"❌ get_assignments_by_user {response.status_code}: {response.text[:200]}")
         except Exception as e:
-            logger.error(f"❌ Error fetching assignments: {e}")
+            logger.error(f"❌ get_assignments_by_user error: {e}")
         return None
 
-    def get_flight_details(self, airline, flight_number, departure_date, origin_airport, operational_number):
+    def get_flight_details(self, airline, flight_number, departure_date,
+                           origin_airport, operational_number):
         try:
-            if not self._login():
+            headers = self._auth_headers()
+            if not headers:
                 return None
+            headers["Content-Type"] = "application/json"
 
-            url = f"{self.base_url}/FlightDetails/{airline}/{flight_number}/{departure_date}/{origin_airport}/{operational_number}"
-
-            headers = {
-                "Authorization": self.auth_token,
-                "Ocp-Apim-Subscription-Key": self.subscription_key,
-                "Content-Type": "application/json",
-                "Accept": "application/json",
-                "Origin": "https://mycrew.avianca.com",
-                "Referer": "https://mycrew.avianca.com/",
-            }
-
+            url = (f"{self.base_url}/FlightDetails/{airline}/{flight_number}/"
+                   f"{departure_date}/{origin_airport}/{operational_number}")
             body = {
                 "holding": airline,
                 "commercialFlightNumber": flight_number,
                 "departureflightDate": departure_date,
-                "originAirportIATACode": origin_airport
+                "originAirportIATACode": origin_airport,
             }
-
             logger.info(f"🛫 Fetching flight details: {airline}{flight_number}")
-
             response = self.session.post(url, json=body, headers=headers, timeout=30)
-
             if response.status_code == 200:
-                flight_data = response.json()
                 logger.info(f"✅ Flight details fetched for {airline}{flight_number}")
-                return flight_data
-
+                return response.json()
+            logger.error(f"❌ get_flight_details {response.status_code}: {response.text[:200]}")
         except Exception as e:
-            logger.error(f"❌ Error fetching flight details: {e}")
+            logger.error(f"❌ get_flight_details error: {e}")
         return None
 
-    def get_flight_crew_members(self, airline, flight_number, departure_date, origin_airport, operational_number):
+    def get_flight_crew_members(self, airline, flight_number, departure_date,
+                                origin_airport, operational_number):
         try:
-            if not self._login():
+            headers = self._auth_headers()
+            if not headers:
                 return None
+            headers["Content-Type"] = "application/json"
 
-            url = f"{self.base_url}/FlightDetails/FlightMembersTeam/{airline}/{flight_number}/{departure_date}/{origin_airport}/{operational_number}"
-
-            headers = {
-                "Authorization": self.auth_token,
-                "Ocp-Apim-Subscription-Key": self.subscription_key,
-                "Content-Type": "application/json",
-                "Accept": "application/json",
-                "Origin": "https://mycrew.avianca.com",
-                "Referer": "https://mycrew.avianca.com/",
-            }
-
+            url = (f"{self.base_url}/FlightDetails/FlightMembersTeam/{airline}/"
+                   f"{flight_number}/{departure_date}/{origin_airport}/{operational_number}")
             body = {
                 "commercialFlightNumber": flight_number,
                 "departureflightDate": departure_date,
                 "holding": airline,
-                "originAirportIATACode": operational_number
+                "originAirportIATACode": operational_number,
             }
-
             logger.info(f"👥 Fetching crew for: {airline}{flight_number}")
-
             response = self.session.post(url, json=body, headers=headers, timeout=30)
-
             if response.status_code == 200:
-                crew_data = response.json()
                 logger.info(f"✅ Crew fetched for {airline}{flight_number}")
-                return crew_data
-
+                return response.json()
+            logger.error(f"❌ get_flight_crew_members {response.status_code}: {response.text[:200]}")
         except Exception as e:
-            logger.error(f"❌ Error fetching crew: {e}")
+            logger.error(f"❌ get_flight_crew_members error: {e}")
         return None
 
     def get_flight_details_from_assignment(self, assignment):
         try:
-            flight_assignment = assignment.get('FlighAssignement', {})
-
-            airline = flight_assignment.get('Airline', 'AV')
-            flight_number = flight_assignment.get('CommercialFlightNumber', '')
-            operational_number = flight_assignment.get('OperationalNumber', '')
-            departure_date_utc = flight_assignment.get('ScheduledDepartureDate', '')
-            origin_airport = flight_assignment.get('OriginAirportIATACode', '')
-
-            if not all([flight_number, operational_number, departure_date_utc, origin_airport]):
-                return None
-
+            fa = assignment.get('FlighAssignement', {})
             return self.get_flight_details(
-                airline=airline,
-                flight_number=flight_number,
-                departure_date=departure_date_utc,
-                origin_airport=origin_airport,
-                operational_number=operational_number
+                airline=fa.get('Airline', 'AV'),
+                flight_number=fa.get('CommercialFlightNumber', ''),
+                departure_date=fa.get('ScheduledDepartureDate', ''),
+                origin_airport=fa.get('OriginAirportIATACode', ''),
+                operational_number=fa.get('OperationalNumber', ''),
             )
-
         except Exception as e:
-            logger.error(f"❌ Error extracting flight details: {e}")
+            logger.error(f"❌ get_flight_details_from_assignment error: {e}")
             return None
 
     def download_schedule_pdf(self, crew_id, schedule_type="actual", month="", year=""):
         try:
-            if not self._login():
+            if not self.access_token or (self.token_expiry and time.time() >= self.token_expiry):
+                logger.error("❌ No valid crew token for PDF download — paste one at /paxlist")
                 return None
 
             endpoint = "Scheduled/Export" if schedule_type.lower() == "scheduled" else "Export"
@@ -316,7 +330,7 @@ class CrewAPIClient:
             ])
 
             headers = {
-                "Authorization": self.auth_token,
+                "Authorization": f"Bearer {self.access_token}",
                 "Ocp-Apim-Subscription-Key": self.subscription_key,
                 "Content-Type": f"multipart/form-data; boundary={boundary}",
                 "Origin": "https://mycrew.avianca.com",
@@ -325,11 +339,12 @@ class CrewAPIClient:
 
             response = self.session.post(url, data=form_data, headers=headers, timeout=30)
             if response.status_code == 200 and 'pdf' in response.headers.get('content-type', '').lower():
-                filename = f"{schedule_type}_schedule_{crew_id}_{get_utc_minus_5().strftime('%Y%m%d_%H%M%S')}.pdf"
+                filename = (f"{schedule_type}_schedule_{crew_id}_"
+                            f"{get_utc_minus_5().strftime('%Y%m%d_%H%M%S')}.pdf")
                 with open(filename, 'wb') as f:
                     f.write(response.content)
                 return filename
-
+            logger.error(f"❌ PDF {response.status_code}")
         except Exception as e:
             logger.error(f"PDF download error: {e}")
         return None
@@ -848,7 +863,7 @@ paxlist_client = PaxlistClient()
 schedule_data = None
 last_fetch_time = None
 current_crew_id = DEFAULT_CREW_ID
-previous_crew_id = None                    # one-level undo / toggle
+previous_crew_id = None
 current_calendar_year = get_utc_minus_5().year
 current_calendar_month = get_utc_minus_5().month
 crew_names = load_crew_names()
@@ -858,12 +873,14 @@ crew_names = load_crew_names()
 
 @app.route('/')
 def index():
-    token_status = paxlist_client.get_token_status() if paxlist_client else None
+    paxlist_status = paxlist_client.get_token_status() if paxlist_client else None
+    crew_status = client.get_token_status()
 
     return render_template('paxlist.html',
         current_crew_id=current_crew_id,
         crew_names=crew_names,
-        token_status=token_status,
+        token_status=paxlist_status,
+        crew_token_status=crew_status,
         has_token=bool(paxlist_client and paxlist_client.access_token)
     )
 
@@ -910,15 +927,11 @@ def calendar_view():
 
     total_actual_hours = total_actual_minutes // 60
     total_actual_minutes_remainder = total_actual_minutes % 60
-
     total_scheduled_hours = total_scheduled_minutes // 60
     total_scheduled_minutes_remainder = total_scheduled_minutes % 60
 
     refresh_message = "Data refreshed successfully!" if request.args.get('refresh') == 'success' else None
 
-    month_names = [month_name]
-
-    # Build flight list for lazy gate loading — today AND tomorrow
     now_local = get_utc_minus_5()
     today_str = now_local.strftime('%Y-%m-%d')
     tomorrow_str = (now_local + timedelta(days=1)).strftime('%Y-%m-%d')
@@ -962,7 +975,7 @@ def calendar_view():
         total_assignments=total_assignments,
         refresh_message=refresh_message,
         current_crew_id=current_crew_id,
-        month_names=month_names,
+        month_names=[month_name],
         month_calendars=month_calendars,
         current_date=get_utc_minus_5().strftime('%Y-%m-%d'),
         current_month_index=0,
@@ -991,12 +1004,14 @@ def flight_details_page():
 
 @app.route('/paxlist')
 def paxlist_page():
-    token_status = paxlist_client.get_token_status() if paxlist_client else None
+    paxlist_status = paxlist_client.get_token_status() if paxlist_client else None
+    crew_status = client.get_token_status()
 
     return render_template('paxlist.html',
         current_crew_id=current_crew_id,
         crew_names=crew_names,
-        token_status=token_status,
+        token_status=paxlist_status,
+        crew_token_status=crew_status,
         has_token=bool(paxlist_client and paxlist_client.access_token)
     )
 
@@ -1031,10 +1046,31 @@ def refresh_paxlist_token():
 @app.route('/api/paxlist/token_status')
 def paxlist_token_status():
     status = paxlist_client.get_token_status()
-    return jsonify({
-        'success': True,
-        'status': status
-    })
+    return jsonify({'success': True, 'status': status})
+
+
+@app.route('/api/crew/set_initial_tokens', methods=['POST'])
+def set_crew_initial_tokens():
+    try:
+        data = request.get_json()
+        access_token = data.get('access_token')
+        refresh_token = data.get('refresh_token', '')
+        expires_in = int(data.get('expires_in', 3600))
+
+        if not access_token:
+            return jsonify({'success': False, 'message': 'Missing access_token'}), 400
+
+        if client.set_initial_tokens(access_token, refresh_token, expires_in=expires_in):
+            return jsonify({'success': True, 'message': 'Crew tokens saved'})
+    except Exception as e:
+        logger.error(f"Error setting crew tokens: {e}")
+    return jsonify({'success': False, 'message': 'Failed to set tokens'}), 400
+
+
+@app.route('/api/crew/token_status')
+def crew_token_status():
+    return jsonify({'success': True, 'status': client.get_token_status()})
+
 
 @app.route('/api/paxlist/search', methods=['POST'])
 def paxlist_search():
@@ -1110,22 +1146,13 @@ def get_flight_details_api():
         )
 
         if flight_details:
-            return jsonify({
-                'success': True,
-                'flight_details': flight_details
-            })
+            return jsonify({'success': True, 'flight_details': flight_details})
         else:
-            return jsonify({
-                'success': False,
-                'error': 'Failed to fetch flight details'
-            }), 500
+            return jsonify({'success': False, 'error': 'Failed to fetch flight details'}), 500
 
     except Exception as e:
         logger.error(f"Error in flight details API: {e}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/today_flight_gates', methods=['POST'])
 def get_today_flight_gates():
@@ -1164,7 +1191,6 @@ def get_today_flight_gates():
 
                 if details:
                     fd = details.get('flight_details') if isinstance(details, dict) else None
-
                     if not fd and isinstance(details, dict):
                         fd = details
 
@@ -1186,11 +1212,7 @@ def get_today_flight_gates():
                 if origin_upper == 'BOG' and gate:
                     mapped_gate = BOG_GATE_MAPPING.get(gate, '')
 
-                gates[key] = {
-                    'gate': gate,
-                    'terminal': terminal,
-                    'mapped_gate': mapped_gate
-                }
+                gates[key] = {'gate': gate, 'terminal': terminal, 'mapped_gate': mapped_gate}
                 logger.info(f"🚪 Gate for {airline}{flight_number} ({key}): gate='{gate}' mapped='{mapped_gate}' terminal='{terminal}'")
 
             except Exception as inner_e:
@@ -1215,10 +1237,7 @@ def get_flight_crew_api():
         operational_number = data.get('operational_number')
 
         if not all([flight_number, departure_date, origin_airport, operational_number]):
-            return jsonify({
-                'success': False,
-                'error': 'Missing required parameters'
-            }), 400
+            return jsonify({'success': False, 'error': 'Missing required parameters'}), 400
 
         crew_data = client.get_flight_crew_members(
             airline=airline,
@@ -1229,22 +1248,13 @@ def get_flight_crew_api():
         )
 
         if crew_data:
-            return jsonify({
-                'success': True,
-                'crew_data': crew_data
-            })
+            return jsonify({'success': True, 'crew_data': crew_data})
         else:
-            return jsonify({
-                'success': False,
-                'error': 'Failed to fetch crew data'
-            }), 500
+            return jsonify({'success': False, 'error': 'Failed to fetch crew data'}), 500
 
     except Exception as e:
         logger.error(f"Error in flight crew API: {e}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/flight_details_from_assignment', methods=['POST'])
 def get_flight_details_from_assignment_api():
@@ -1253,30 +1263,18 @@ def get_flight_details_from_assignment_api():
         assignment = data.get('assignment')
 
         if not assignment:
-            return jsonify({
-                'success': False,
-                'error': 'No assignment data provided'
-            }), 400
+            return jsonify({'success': False, 'error': 'No assignment data provided'}), 400
 
         flight_details = client.get_flight_details_from_assignment(assignment)
 
         if flight_details:
-            return jsonify({
-                'success': True,
-                'flight_details': flight_details
-            })
+            return jsonify({'success': True, 'flight_details': flight_details})
         else:
-            return jsonify({
-                'success': False,
-                'error': 'Failed to fetch flight details from assignment'
-            }), 500
+            return jsonify({'success': False, 'error': 'Failed to fetch flight details from assignment'}), 500
 
     except Exception as e:
         logger.error(f"Error in flight details from assignment API: {e}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/pdf')
 def pdf_view():
@@ -1295,9 +1293,8 @@ def update_crew_id():
 
     new_crew_id = request.args.get('crew_id', '').strip()
 
-    # Only switch when it's actually a different ID
     if new_crew_id and new_crew_id != current_crew_id:
-        previous_crew_id = current_crew_id        # save the one we're leaving
+        previous_crew_id = current_crew_id
         current_crew_id = new_crew_id
         schedule_data = None
         last_fetch_time = None
@@ -1315,14 +1312,11 @@ def update_crew_id():
 def restore_previous_crew_id():
     global current_crew_id, previous_crew_id, schedule_data, last_fetch_time, current_calendar_year, current_calendar_month
 
-    # Fall back to DEFAULT if there's no history yet
     target = previous_crew_id or DEFAULT_CREW_ID
 
-    # Already there → silent no-op (empty error = JS won't alert)
     if target == current_crew_id:
         return {"success": False, "error": ""}
 
-    # SWAP instead of clear — this is what keeps the toggle going forever
     current_crew_id, previous_crew_id = target, current_crew_id
 
     schedule_data = None
@@ -1366,7 +1360,8 @@ def fetch_data():
         logger.error(f"Error in /fetch: {e}")
     return {"success": False, "error": "Failed to fetch data"}
 
+
 if __name__ == "__main__":
     logger.info("🚀 Starting Crew Schedule Application with Paxlist Integration...")
-    logger.info("📊 JWT Decoding Enabled - Token expiry will be read from the token itself")
+    logger.info("📊 Crew auth: manual token paste via /paxlist (no password login)")
     app.run(host='0.0.0.0', port=8000, debug=False)

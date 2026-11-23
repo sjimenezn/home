@@ -245,17 +245,14 @@
             document.getElementById('origin_airport').focus();
         }
 
-        // Function to search a flight (used by clickable previous flight)
         function searchFlight(flightNum, origin, date) {
             document.getElementById('flight_number').value = flightNum;
             document.getElementById('origin_airport').value = origin;
             document.getElementById('departure_date').value = date;
             document.getElementById('flightSearchForm').dispatchEvent(new Event('submit'));
-            // Scroll to top
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        // Function to open Paxlist in same tab with flight parameters
         function openPaxlistWithFlight(flightNum, origin, date) {
             sessionStorage.setItem('paxlist_flight_number', flightNum);
             sessionStorage.setItem('paxlist_origin', origin);
@@ -263,16 +260,11 @@
             window.location.href = '/paxlist';
         }
 
-        // Function to scroll down 350px
         function scrollDown350px() {
-            window.scrollBy({
-                top: 350,
-                behavior: 'smooth'
-            });
+            window.scrollBy({ top: 350, behavior: 'smooth' });
             console.log('Scrolled down 350px');
         }
 
-        // Function to fetch Paxlist stats for a flight
         async function fetchPaxlistStats(flightNumber, origin, date, returnFullData = false) {
             if (!flightNumber || flightNumber === '0' || flightNumber === '' || flightNumber === 'undefined') {
                 return { success: false, error: 'Invalid flight number' };
@@ -325,6 +317,7 @@
             }
         }
 
+        // ====== UPDATED: SearchFlight → FlightDetails → FlightCrew ======
         document.getElementById('flightSearchForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const searchBtn = document.getElementById('searchBtn');
@@ -339,14 +332,40 @@
             searchBtn.textContent = 'Searching...';
 
             try {
+                const rawFlightNumber = document.getElementById('flight_number').value;
+                const departureDate = document.getElementById('departure_date').value;
+                const originAirport = document.getElementById('origin_airport').value.toUpperCase();
+
+                // STEP 1: discover the real operational number via /api/search_flight
+                const searchResp = await fetch('/api/search_flight', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        airline: 'AV',
+                        flight_number: rawFlightNumber,
+                        departure_date: departureDate,
+                        origin_airport: originAirport
+                    })
+                });
+                const searchData = await searchResp.json();
+
+                if (!searchData.success) {
+                    showError(searchData.error || 'Flight not found');
+                    return;
+                }
+
+                const realOpn = searchData.flight.operational_number;
+                const realSchedDep = searchData.flight.scheduled_departure;
+
                 currentFlightData = {
                     airline: 'AV',
-                    flight_number: document.getElementById('flight_number').value,
-                    departure_date: document.getElementById('departure_date').value + 'T00:00:00Z',
-                    origin_airport: document.getElementById('origin_airport').value.toUpperCase(),
-                    operational_number: '42307372'
+                    flight_number: rawFlightNumber,
+                    departure_date: realSchedDep,
+                    origin_airport: originAirport,
+                    operational_number: realOpn
                 };
 
+                // STEP 2: flight details with real OPN
                 const response = await fetch('/api/flight_details', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
@@ -359,13 +378,11 @@
                     displayFlightDetails(result.flight_details);
                     resultsSection.classList.remove('hidden');
                     
-                    // Load previous flight and crew in background
                     if (result.flight_details.PreviousFlight) {
                         loadPreviousFlight(result.flight_details.PreviousFlight);
                     }
                     
                     loadCrewMembers();
-                    
                 } else {
                     showError(result.error || 'Failed to fetch flight details');
                 }
@@ -402,7 +419,6 @@
 
             const previousFlightSection = document.getElementById('previousFlightSection');
             
-            // Find the section title
             let title = null;
             const sectionTitles = document.querySelectorAll('.section-title');
             for (let i = 0; i < sectionTitles.length; i++) {
@@ -414,14 +430,12 @@
             
             if (!previousFlightSection || !title) return;
 
-            // Add loading stats indicator but don't block
             const statsSpan = document.createElement('span');
             statsSpan.className = 'paxlist-stats loading';
             statsSpan.innerHTML = ' 🔄 loading stats...';
             statsSpan.style.cursor = 'default';
             title.appendChild(statsSpan);
 
-            // FIRST: Load previous flight details immediately (no waiting for Paxlist)
             try {
                 let flightNumber = previousFlightData.Prv_commercialFlightNumber || 
                                   previousFlightData.CommercialFlightNumber;
@@ -431,6 +445,9 @@
                 
                 let departureDateLocal = previousFlightData.Prv_departureDateLOCAL || 
                                         previousFlightData.DepartureDateLOCAL;
+
+                // UPDATED: use the real OPN returned by the API
+                let prevOpn = previousFlightData.Prv_operationalNumber || '';
                 
                 if (flightNumber && originAirport && departureDateLocal) {
                     const dateString = departureDateLocal.split('T')[0];
@@ -438,9 +455,9 @@
                     const searchData = {
                         airline: 'AV',
                         flight_number: flightNumber.toString(),
-                        departure_date: dateString + 'T00:00:00Z',
+                        departure_date: departureDateLocal,
                         origin_airport: originAirport,
-                        operational_number: '42307372'
+                        operational_number: prevOpn
                     };
 
                     const response = await fetch('/api/flight_details', {
@@ -464,7 +481,6 @@
                 previousFlightSection.innerHTML = `<div class="error-message">Failed to load previous flight: ${error.message}</div>`;
             }
 
-            // SECOND: Fetch Paxlist stats for CURRENT flight in the background
             setTimeout(async () => {
                 try {
                     const currentFlightNum = document.getElementById('flight_number').value;
@@ -475,13 +491,11 @@
                     
                     const paxStats = await fetchPaxlistStats(currentFlightNum, currentOrigin, currentDate, true);
                     
-                    // Update title with stats and make it clickable
                     if (paxStats.success && paxStats.total > 0) {
                         statsSpan.className = 'paxlist-stats';
                         statsSpan.innerHTML = ` T:${paxStats.total} C:${paxStats.cClass} Y:${paxStats.yClass} S:${paxStats.staff}`;
                         statsSpan.style.cursor = 'pointer';
                         
-                        // Save the FULL passenger data to sessionStorage for instant loading in Paxlist
                         const paxDataToStore = {
                             passengers: paxStats.passengers,
                             flight_info: paxStats.flight_info,
@@ -551,7 +565,6 @@
             
             const fleet = flight.Fleet || '';
             
-            // Build the tail number as a FlightRadar24 link when valid
             const rawTail = (flight.AircraftRegistrationNumber || '').toString().trim();
             const invalidTail = !rawTail || ['null', 'none', 'undefined', 'nan', '-'].includes(rawTail.toLowerCase());
             const tailNumberHtml = invalidTail
@@ -756,97 +769,4 @@
             if (!crewData.MembersTeamFlight || crewData.MembersTeamFlight.length === 0) return;
             const crewSection = document.getElementById('crewSection');
             
-            let html = `<div class="section-title">Crew Members</div><div class="crew-list">`;
-            crewData.MembersTeamFlight.forEach((member, index) => {
-                const profile = member.Profile || {};
-                const fleet = profile.Qualifications ? profile.Qualifications.join(', ') : (profile.RawQualifications || '-');
-                
-                const seniorityText = profile.Superiority || '';
-                const seniorityNumber = seniorityText.replace(/[^0-9]/g, '') || '-';
-                
-                const flightRole = member.FlightRole || '';
-                const roleText = flightRole ? ` ${flightRole}` : '';
-                
-                const crewId = member.CrewMemberUniqueId || '-';
-                const crewIdDisplay = crewId !== '-' ? 
-                    `<a href="#" onclick="setCrewIdAndNavigate('${crewId}')" style="color: #ffc107; text-decoration: none; cursor: pointer;">${crewId}</a>` : 
-                    '-';
-                
-                html += `
-                    <div class="crew-member" onclick="toggleCrewDetails(${index})">
-                        <div class="crew-name">${member.Names || ''} ${member.LastName || ''}</div>
-                        <div class="crew-position">${member.Position || 'Unknown'} ${seniorityNumber !== '-' ? `(${seniorityNumber})` : ''}${roleText}</div>
-                        <div class="crew-details" id="crew-details-${index}">
-                            <div class="crew-detail-item">
-                                <span>Crew ID:</span>
-                                <span>${crewIdDisplay}</span>
-                            </div>
-                            <div class="crew-detail-item">
-                                <span>Base:</span>
-                                <span>${profile.Base || '-'}</span>
-                            </div>
-                            <div class="crew-detail-item">
-                                <span>Fleet:</span>
-                                <span>${fleet}</span>
-                            </div>
-                            ${profile.TelephoneNumber ? `
-                            <div class="crew-detail-item">
-                                <span>Phone:</span>
-                                <span>${profile.TelephoneNumber}</span>
-                            </div>
-                            ` : ''}
-                        </div>
-                    </div>
-                `;
-            });
-            html += '</div>';
-            crewSection.innerHTML = html;
-        }
-
-        function toggleCrewDetails(index) {
-            const crewMember = document.querySelectorAll('.crew-member')[index];
-            const details = document.getElementById(`crew-details-${index}`);
-            
-            if (details.style.display === 'none') {
-                details.style.display = 'block';
-                crewMember.classList.add('expanded');
-            } else {
-                details.style.display = 'none';
-                crewMember.classList.remove('expanded');
-            }
-        }
-
-        function setCrewIdAndNavigate(crewId) {
-            event.preventDefault();
-            
-            const searchBtn = document.getElementById('searchBtn');
-            const originalText = searchBtn.textContent;
-            searchBtn.disabled = true;
-            searchBtn.textContent = 'Switching crew...';
-            
-            fetch('/update_crew_id?crew_id=' + crewId)
-                .then(r => r.json())
-                .then(data => {
-                    if (data.success) {
-                        window.location.href = '/calendar';
-                    } else {
-                        alert('Failed to switch crew: ' + (data.error || 'Unknown error'));
-                        searchBtn.disabled = false;
-                        searchBtn.textContent = originalText;
-                    }
-                })
-                .catch(err => {
-                    alert('Error: ' + err);
-                    searchBtn.disabled = false;
-                    searchBtn.textContent = originalText;
-                });
-        }
-
-        function showError(message) {
-            const errorDiv = document.getElementById('errorMessage');
-            errorDiv.textContent = message;
-            errorDiv.classList.remove('hidden');
-        }
-    </script>
-</body>
-</html>
+            let html = `<div class="section-title">Crew Members</div><

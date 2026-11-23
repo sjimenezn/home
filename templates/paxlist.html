@@ -11,6 +11,7 @@
         .status.show { display: block; }
         .ok { background: #2e4b2e; color: #d4edda; }
         .error { background: #5a3a3a; color: #f8d7da; }
+        .warn { background: #5a4a2e; color: #f8d7da; }
         .stats { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
         .stat { flex: 1; text-align: center; padding: 12px 8px; background: #2a2a2a; border: 1px solid #444; border-radius: 4px; cursor: pointer; transition: all 0.2s; min-width: 80px; }
         .stat:hover { background: #3a3a3a; transform: scale(1.02); }
@@ -49,13 +50,28 @@
         .clear-search:hover { background: #7a4a4a; }
         .search-header { display: flex; gap: 8px; align-items: center; }
         .search-header input { flex: 1; }
+        .section-title { font-size: 11px; color: #b8b8d0; margin: 8px 0 6px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
+        .token-block { margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #333; }
     </style>
 </head>
 <body>
 <div class="container">
-    <textarea id="tokenInput" rows="2" placeholder=''></textarea>
-    <div id="status" class="status"></div>
 
+    <!-- ============ CREW TOKEN BLOCK ============ -->
+    <div class="token-block">
+        <div class="section-title">Crew API Token</div>
+        <textarea id="crewTokenInput" rows="2" placeholder='Paste crew token JSON here...'></textarea>
+        <div id="crewStatus" class="status"></div>
+    </div>
+
+    <!-- ============ PAXLIST TOKEN BLOCK ============ -->
+    <div class="token-block">
+        <div class="section-title">Paxlist Token</div>
+        <textarea id="paxlistTokenInput" rows="2" placeholder='Paste paxlist token JSON here...'></textarea>
+        <div id="paxlistStatus" class="status"></div>
+    </div>
+
+    <!-- ============ SEARCH ============ -->
     <div class="search-row">
         <input type="text" id="flightNum" placeholder="Flight" value="124" size="8">
         <input type="text" id="dep" placeholder="From" value="UIO" size="5">
@@ -99,21 +115,14 @@ function checkForCachedData() {
     if (cachedData) {
         try {
             var data = JSON.parse(cachedData);
-            // Clear it immediately so it doesn't get used again
             sessionStorage.removeItem('paxlist_cached_data');
-            
             if (data.passengers && data.passengers.length > 0) {
-                // Use the cached data directly - NO API CALL NEEDED
                 currentPassengers = data.passengers;
-                
-                // Populate the search fields
                 if (data.flight_info) {
                     document.getElementById('flightNum').value = data.flight_info.flight_number;
                     document.getElementById('dep').value = data.flight_info.origin;
                     document.getElementById('date').value = data.flight_info.date;
                 }
-                
-                // Display stats immediately without API call
                 displayStats();
                 return true;
             }
@@ -129,64 +138,58 @@ function checkAndAutoSearch() {
     var storedFlightNum = sessionStorage.getItem('paxlist_flight_number');
     var storedOrigin = sessionStorage.getItem('paxlist_origin');
     var storedDate = sessionStorage.getItem('paxlist_date');
-    
+
     if (storedFlightNum && storedOrigin && storedDate) {
-        // Clear the stored parameters after reading
         sessionStorage.removeItem('paxlist_flight_number');
         sessionStorage.removeItem('paxlist_origin');
         sessionStorage.removeItem('paxlist_date');
-        
-        // Populate the search fields
+
         document.getElementById('flightNum').value = storedFlightNum;
         document.getElementById('dep').value = storedOrigin;
         document.getElementById('date').value = storedDate;
-        
-        // Show info message
+
         var resultsDiv = document.getElementById('results');
         resultsDiv.innerHTML = '<div class="auto-search-info">✈️ Loading flight AV' + storedFlightNum + ' from ' + storedOrigin + ' on ' + storedDate + '...</div>';
-        
-        // Execute search automatically
-        setTimeout(function() {
-            search();
-        }, 100);
+
+        setTimeout(function() { search(); }, 100);
         return true;
     }
     return false;
 }
 
-// Auto-detect paste and save tokens
-document.getElementById('tokenInput').addEventListener('paste', function(e) {
+// ============ PAXLIST TOKEN PASTE HANDLER (unchanged logic, scoped IDs) ============
+document.getElementById('paxlistTokenInput').addEventListener('paste', function(e) {
     setTimeout(async function() {
-        var jsonInput = document.getElementById('tokenInput').value.trim();
+        var jsonInput = document.getElementById('paxlistTokenInput').value.trim();
         if (!jsonInput) return;
-        
-        var statusDiv = document.getElementById('status');
+
+        var statusDiv = document.getElementById('paxlistStatus');
         statusDiv.className = 'status show';
         statusDiv.innerHTML = '🔄 Saving tokens...';
         statusDiv.style.background = '#2a4a2a';
         statusDiv.style.color = '#d4edda';
-        
+
         try {
             var tokens = JSON.parse(jsonInput);
             if (typeof tokens === 'string') tokens = JSON.parse(tokens);
-            
+
             var access_token = tokens.access_token;
             var refresh_token = tokens.refresh_token;
             if (Array.isArray(access_token)) access_token = access_token[0];
             if (Array.isArray(refresh_token)) refresh_token = refresh_token[0];
-            
+
             var response = await fetch('/api/paxlist/set_initial_tokens', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({access_token: access_token, refresh_token: refresh_token})
             });
             var result = await response.json();
-            
+
             if (result.success) {
                 statusDiv.className = 'status show ok';
-                statusDiv.innerHTML = '✅ Tokens saved';
+                statusDiv.innerHTML = '✅ Paxlist tokens saved';
                 setTimeout(function() { statusDiv.classList.remove('show'); }, 2000);
-                checkTokenStatus();
+                checkPaxlistTokenStatus();
             } else {
                 throw new Error(result.message);
             }
@@ -198,16 +201,89 @@ document.getElementById('tokenInput').addEventListener('paste', function(e) {
     }, 50);
 });
 
-async function checkTokenStatus() {
+// ============ CREW TOKEN PASTE HANDLER (same pattern) ============
+document.getElementById('crewTokenInput').addEventListener('paste', function(e) {
+    setTimeout(async function() {
+        var jsonInput = document.getElementById('crewTokenInput').value.trim();
+        if (!jsonInput) return;
+
+        var statusDiv = document.getElementById('crewStatus');
+        statusDiv.className = 'status show';
+        statusDiv.innerHTML = '🔄 Saving crew tokens...';
+        statusDiv.style.background = '#2a4a2a';
+        statusDiv.style.color = '#d4edda';
+
+        try {
+            var tokens = JSON.parse(jsonInput);
+            if (typeof tokens === 'string') tokens = JSON.parse(tokens);
+
+            var access_token = tokens.access_token;
+            var refresh_token = tokens.refresh_token || '';
+            var expires_in = tokens.expires_in || 3600;
+            if (Array.isArray(access_token)) access_token = access_token[0];
+            if (Array.isArray(refresh_token)) refresh_token = refresh_token[0];
+
+            if (!access_token || !access_token.startsWith('eyJ')) {
+                throw new Error('No valid access_token');
+            }
+
+            var response = await fetch('/api/crew/set_initial_tokens', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    access_token: access_token,
+                    refresh_token: refresh_token,
+                    expires_in: expires_in
+                })
+            });
+            var result = await response.json();
+
+            if (result.success) {
+                statusDiv.className = 'status show ok';
+                statusDiv.innerHTML = '✅ Crew tokens saved';
+                setTimeout(function() { statusDiv.classList.remove('show'); }, 2000);
+                checkCrewTokenStatus();
+            } else {
+                throw new Error(result.message);
+            }
+        } catch(e) {
+            statusDiv.className = 'status show error';
+            statusDiv.innerHTML = '❌ Invalid token format';
+            setTimeout(function() { statusDiv.classList.remove('show'); }, 2000);
+        }
+    }, 50);
+});
+
+async function checkPaxlistTokenStatus() {
     try {
         var response = await fetch('/api/paxlist/token_status');
         var data = await response.json();
-        var statusDiv = document.getElementById('status');
-        
+        var statusDiv = document.getElementById('paxlistStatus');
         if (data.status.access_token_valid) {
             statusDiv.className = 'status show ok';
             statusDiv.innerHTML = '✅ Access: ' + data.status.access_expires_in_minutes + ' min | Refresh: ' + data.status.refresh_expires_in_hours + ' hours';
             setTimeout(function() { statusDiv.classList.remove('show'); }, 1500);
+        }
+    } catch(e) {}
+}
+
+async function checkCrewTokenStatus() {
+    try {
+        var response = await fetch('/api/crew/token_status');
+        var data = await response.json();
+        var statusDiv = document.getElementById('crewStatus');
+
+        if (data.status.access_token_valid) {
+            statusDiv.className = 'status show ok';
+            statusDiv.innerHTML = '✅ Crew: ' + data.status.access_expires_in_minutes + ' min left';
+            if (data.status.has_refresh_token) {
+                statusDiv.innerHTML += ' | refresh stored';
+            }
+            setTimeout(function() { statusDiv.classList.remove('show'); }, 1500);
+        } else if (data.status.has_access_token) {
+            statusDiv.className = 'status show error';
+            statusDiv.innerHTML = '⚠️ Crew token expired — paste a new one';
+            setTimeout(function() { statusDiv.classList.remove('show'); }, 3000);
         }
     } catch(e) {}
 }
@@ -218,12 +294,12 @@ async function search() {
     currentFilter = null;
     currentSearchTerm = '';
     currentSort = 'seat';
-    
+
     try {
         var flightNum = document.getElementById('flightNum').value;
         var dep = document.getElementById('dep').value.toUpperCase();
         var date = document.getElementById('date').value;
-        
+
         var response = await fetch('/api/paxlist/search', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -234,9 +310,9 @@ async function search() {
                 flight_date: date
             })
         });
-        
+
         var result = await response.json();
-        
+
         if (result.success && result.data) {
             currentPassengers = result.data.passengers || [];
             displayStats();
@@ -255,8 +331,7 @@ function filterAndSortPassengers() {
     for (var i = 0; i < currentPassengers.length; i++) {
         filtered.push(currentPassengers[i]);
     }
-    
-    // Apply filter
+
     if (currentFilter === 'c') {
         var temp = [];
         for (var i = 0; i < filtered.length; i++) {
@@ -276,8 +351,7 @@ function filterAndSortPassengers() {
         }
         filtered = temp;
     }
-    
-    // Apply search
+
     if (currentSearchTerm) {
         var searchLower = currentSearchTerm.toLowerCase();
         var temp = [];
@@ -292,8 +366,7 @@ function filterAndSortPassengers() {
         }
         filtered = temp;
     }
-    
-    // Apply sort
+
     if (currentSort === 'seat') {
         filtered.sort(function(a, b) {
             var seatA = a.seat || 'ZZZ';
@@ -311,7 +384,7 @@ function filterAndSortPassengers() {
             return 0;
         });
     }
-    
+
     return filtered;
 }
 
@@ -320,12 +393,12 @@ function renderPassengerList() {
     var listDiv = document.getElementById('passengerList');
     var detailsDiv = document.getElementById('details');
     if (detailsDiv) detailsDiv.style.display = 'none';
-    
+
     if (filtered.length === 0) {
         listDiv.innerHTML = '<div style="text-align:center;padding:20px;color:#888;">No passengers found</div>';
         return;
     }
-    
+
     var html = '';
     for (var i = 0; i < filtered.length; i++) {
         var p = filtered[i];
@@ -334,12 +407,11 @@ function renderPassengerList() {
         var cabin = p.cabin || 'Y';
         var lfm = getLfm(p);
         var staffValue = getStaffValue(p);
-        
+
         var cabinBadge = cabin === 'C' ? '<span class="badge badge-c">C</span>' : '<span class="badge badge-y">Y</span>';
         var staffBadge = staffValue ? '<span class="badge badge-staff">' + staffValue + '</span>' : '';
         var lfmText = lfm ? '<span class="lfm">⭐' + lfm + '</span>' : '';
-        
-        // Find original index
+
         var originalIndex = -1;
         for (var j = 0; j < currentPassengers.length; j++) {
             if (currentPassengers[j] === p) {
@@ -347,44 +419,44 @@ function renderPassengerList() {
                 break;
             }
         }
-        
+
         html += '<div class="passenger-item" onclick="showPassengerDetails(' + originalIndex + ')">';
         html += '<strong>' + seat + '</strong> - ' + name + ' ' + cabinBadge + ' ' + staffBadge + ' ' + lfmText;
         html += '</div>';
     }
-    
+
     listDiv.innerHTML = html;
 }
 
 function displayStats() {
     var total = currentPassengers.length;
     var cClass = 0, yClass = 0, staff = 0;
-    
+
     for (var i = 0; i < currentPassengers.length; i++) {
         var p = currentPassengers[i];
         if (p.cabin === 'C') cClass++;
         else yClass++;
         if (isStaff(p)) staff++;
     }
-    
+
     var flightNum = document.getElementById('flightNum').value;
     var dep = document.getElementById('dep').value.toUpperCase();
     var date = document.getElementById('date').value;
     var destination = currentPassengers[0] && currentPassengers[0].arrival_station ? currentPassengers[0].arrival_station : '???';
-    
+
     var html = '<div class="flight-info">';
     html += '✈️ AV' + flightNum + ' | ';
     html += dep + ' → ' + destination + ' | ';
     html += '📅 ' + date;
     html += '</div>';
-    
+
     html += '<div class="stats">';
     html += '<div class="stat" onclick="setFilter(\'all\')" id="statAll"><span>' + total + '</span>Total</div>';
     html += '<div class="stat" onclick="setFilter(\'c\')" id="statC"><span>' + cClass + '</span>Business (C)</div>';
     html += '<div class="stat" onclick="setFilter(\'y\')" id="statY"><span>' + yClass + '</span>Economy (Y)</div>';
     html += '<div class="stat" onclick="setFilter(\'staff\')" id="statStaff"><span>' + staff + '</span>Staff</div>';
     html += '</div>';
-    
+
     html += '<div class="controls">';
     html += '<div class="sort-buttons">';
     html += '<button class="sort-btn ' + (currentSort === 'seat' ? 'active' : '') + '" onclick="setSort(\'seat\')">Sort by Seat</button>';
@@ -397,13 +469,12 @@ function displayStats() {
     html += '</div>';
     html += '</div>';
     html += '</div>';
-    
+
     html += '<div id="passengerList" class="passenger-list"></div>';
     html += '<div id="details" class="details" style="display:none;"></div>';
-    
+
     document.getElementById('results').innerHTML = html;
-    
-    // Set active stat highlight
+
     var allStats = document.querySelectorAll('.stat');
     for (var i = 0; i < allStats.length; i++) {
         allStats[i].classList.remove('active');
@@ -421,9 +492,9 @@ function displayStats() {
         var statStaff = document.getElementById('statStaff');
         if (statStaff) statStaff.classList.add('active');
     }
-    
+
     renderPassengerList();
-    checkTokenStatus();
+    checkPaxlistTokenStatus();
 }
 
 function setFilter(filter) {
@@ -484,29 +555,29 @@ function clearSearch() {
 function showPassengerDetails(index) {
     var p = currentPassengers[index];
     var detailsDiv = document.getElementById('details');
-    
+
     var passengerItems = document.querySelectorAll('.passenger-item');
     for (var i = 0; i < passengerItems.length; i++) {
         passengerItems[i].classList.remove('selected');
         if (i === index) passengerItems[i].classList.add('selected');
     }
-    
+
     var lfm = '-';
     if (p.lfm && p.lfm.length > 0) {
         var lfmData = p.lfm[0];
         lfm = (lfmData.carrier || '') + ' ' + (lfmData.number || '') + ' (' + (lfmData.tierDescription || lfmData.tierLevel || 'LifeMiles') + ')';
     }
-    
+
     var special = [];
     if (p.meal_code) special.push('🍽️ Meal: ' + p.meal_code);
     if (p.value_chd === 'CHD') special.push('👶 Child');
     if (p.value_inf === 'INF') special.push('🍼 Infant');
     if (p.ssr_code) special.push('♿ ' + p.ssr_code);
     var specialStr = special.length ? special.join(' | ') : '-';
-    
+
     var staffValue = getStaffValue(p);
     var staffDisplay = staffValue ? '<div class="row"><div class="label">Staff:</div><div>✅ ' + staffValue + '</div></div>' : '';
-    
+
     detailsDiv.style.display = 'block';
     detailsDiv.innerHTML = '<div class="row"><div class="label">Name:</div><div><strong>' + (p.lastname || '') + ', ' + (p.firstname || '') + '</strong></div></div>';
     detailsDiv.innerHTML += '<div class="row"><div class="label">Seat:</div><div>' + (p.seat || 'N/A') + ' (' + (p.cabin || 'Y') + ' Class)</div></div>';
@@ -516,15 +587,17 @@ function showPassengerDetails(index) {
     detailsDiv.innerHTML += staffDisplay;
 }
 
-// Check for cached data first (INSTANT LOAD), then auto-search, then token status
+// On load: cached → auto-search → token statuses
 requestAnimationFrame(function() {
     var hasCachedData = checkForCachedData();
     if (!hasCachedData) {
         var hasParams = checkAndAutoSearch();
         if (!hasParams) {
-            checkTokenStatus();
+            checkPaxlistTokenStatus();
         }
     }
+    // Always show crew token status on load
+    checkCrewTokenStatus();
 });
 </script>
 </body>

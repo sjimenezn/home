@@ -776,4 +776,100 @@
         }
 
         function displayCrewMembers(crewData) {
-            if (!crewData.MembersTeamFlight || crewData.M
+            if (!crewData.MembersTeamFlight || crewData.MembersTeamFlight.length === 0) return;
+            const crewSection = document.getElementById('crewSection');
+            
+            let html = `<div class="section-title">Crew Members</div><div class="crew-list">`;
+            crewData.MembersTeamFlight.forEach((member, index) => {
+                const profile = member.Profile || {};
+                const fleet = profile.Qualifications ? profile.Qualifications.join(', ') : (profile.RawQualifications || '-');
+                
+                const seniorityText = profile.Superiority || '';
+                const seniorityNumber = seniorityText.replace(/[^0-9]/g, '') || '-';
+                
+                const flightRole = member.FlightRole || '';
+                const roleText = flightRole ? ` ${flightRole}` : '';
+                
+                const crewId = member.CrewMemberUniqueId || '-';
+                const crewIdDisplay = crewId !== '-' ? 
+                    `<a href="#" onclick="setCrewIdAndNavigate('${crewId}')" style="color: #ffc107; text-decoration: none; cursor: pointer;">${crewId}</a>` : 
+                    '-';
+                
+                html += `
+                    <div class="crew-member" onclick="toggleCrewDetails(${index})">
+                        <div class="crew-name">${member.Names || ''} ${member.LastName || ''}</div>
+                        <div class="crew-position">${member.Position || 'Unknown'} ${seniorityNumber !== '-' ? `(${seniorityNumber})` : ''}${roleText}</div>
+                        <div class="crew-details" id="crew-details-${index}">
+                            <div class="crew-detail-item">
+                                <span>Crew ID:</span>
+                                <span>${crewIdDisplay}</span>
+                            </div>
+                            <div class="crew-detail-item">
+                                <span>Base:</span>
+                                <span>${profile.Base || '-'}</span>
+                            </div>
+                            <div class="crew-detail-item">
+                                <span>Fleet:</span>
+                                <span>${fleet}</span>
+                            </div>
+                            ${profile.TelephoneNumber ? `
+                            <div class="crew-detail-item">
+                                <span>Phone:</span>
+                                <span>${profile.TelephoneNumber}</span>
+                            </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            crewSection.innerHTML = html;
+        }
+
+        function toggleCrewDetails(index) {
+            const crewMember = document.querySelectorAll('.crew-member')[index];
+            const details = document.getElementById(`crew-details-${index}`);
+            
+            if (details.style.display === 'none') {
+                details.style.display = 'block';
+                crewMember.classList.add('expanded');
+            } else {
+                details.style.display = 'none';
+                crewMember.classList.remove('expanded');
+            }
+        }
+
+        function setCrewIdAndNavigate(crewId) {
+            event.preventDefault();
+            
+            const searchBtn = document.getElementById('searchBtn');
+            const originalText = searchBtn.textContent;
+            searchBtn.disabled = true;
+            searchBtn.textContent = 'Switching crew...';
+            
+            fetch('/update_crew_id?crew_id=' + crewId)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.href = '/calendar';
+                    } else {
+                        alert('Failed to switch crew: ' + (data.error || 'Unknown error'));
+                        searchBtn.disabled = false;
+                        searchBtn.textContent = originalText;
+                    }
+                })
+                .catch(err => {
+                    alert('Error: ' + err);
+                    searchBtn.disabled = false;
+                    searchBtn.textContent = originalText;
+                });
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>

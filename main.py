@@ -1588,6 +1588,33 @@ def download_pdf():
         logger.error(f"PDF download error: {e}")
     return {"success": False, "error": "PDF generation failed"}, 400
 
+@app.route('/minimal')
+def minimal_view():
+    crew_id = "19043635"
+    now = get_utc_minus_5()
+    year = now.year
+    month = now.month
+
+    assignments_result = client.get_assignments_by_user(crew_id, year=year, month=month)
+
+    schedule_data = None
+    month_calendar = []
+    month_name = get_month_name(year, month)
+
+    if assignments_result:
+        schedule_data = transform_assignments_to_calendar_data(
+            assignments_result['assignments'],
+            assignments_result['year'],
+            assignments_result['month']
+        )
+        month_calendar = create_calendar_view_data(schedule_data[0])
+
+    return render_template('minimal.html',
+        current_crew_id=crew_id,
+        month_name=month_name,
+        month_calendar=month_calendar,
+        current_date=now.strftime('%Y-%m-%d')
+    )
 @app.route('/fetch')
 def fetch_data():
     global schedule_data, last_fetch_time, current_calendar_year, current_calendar_month

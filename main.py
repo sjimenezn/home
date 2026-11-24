@@ -567,6 +567,7 @@ class PaxlistClient:
         self.token_expiry = None
         self.refresh_expiry = None
         self.token_file = "paxlist_tokens.json"
+        self.refresh_failed = False
 
         self.load_tokens()
         self.create_session()
@@ -701,11 +702,13 @@ class PaxlistClient:
         try:
             if not self.refresh_token:
                 logger.error("❌ No Paxlist refresh token available")
+                self.refresh_failed = True
                 return False
 
             current_time = time.time()
             if self.refresh_expiry and current_time >= self.refresh_expiry:
                 logger.error("❌ Paxlist refresh token expired")
+                self.refresh_failed = True
                 return False
 
             headers = {
@@ -749,6 +752,7 @@ class PaxlistClient:
                 )
 
                 if success:
+                    self.refresh_failed = False
                     logger.info(f"✅ Paxlist access token refreshed (valid {expires_in//60} minutes)")
                     return True
             else:
@@ -759,6 +763,7 @@ class PaxlistClient:
         except Exception as e:
             logger.error(f"❌ Error refreshing Paxlist token: {e}")
 
+        self.refresh_failed = True
         return False
 
     def set_initial_tokens(self, access_token, refresh_token):
@@ -784,6 +789,7 @@ class PaxlistClient:
             )
 
             if success:
+                self.refresh_failed = False
                 logger.info("✅ Paxlist initial tokens set successfully")
                 return True
 
@@ -795,6 +801,15 @@ class PaxlistClient:
     def get_passenger_list(self, flight_carrier, flight_number, flight_departure_station, flight_date):
         try:
             current_time = time.time()
+
+            # Fast-fail: previous refresh already failed, wait for manual paste
+            if self.refresh_failed:
+                logger.warning("⛔ Paxlist refresh previously failed — waiting for new tokens")
+                return {
+                    "error": "token_expired",
+                    "message": "Token expired and could not refresh",
+                    "needs_new_tokens": True
+                }
 
             if not self.access_token or not self.token_expiry or current_time >= self.token_expiry:
                 if not self.refresh_access_token():
@@ -900,7 +915,8 @@ class PaxlistClient:
             "refresh_expires_in_hours": refresh_expires_in // 3600,
             "jwt_verified": jwt_verified,
             "jwt_expires_in_seconds": jwt_expires_in,
-            "jwt_expires_in_minutes": jwt_expires_in // 60
+            "jwt_expires_in_minutes": jwt_expires_in // 60,
+            "refresh_failed": self.refresh_failed
         }
 
 

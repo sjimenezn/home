@@ -7,6 +7,8 @@ import os
 import time
 import json
 import logging
+import random
+import threading
 import requests
 import jwt
 from datetime import datetime, timedelta
@@ -58,8 +60,20 @@ def load_crew_names():
 class CrewAPIClient:
     """
     Manual-token client. Tokens are pasted from the browser (via /paxlist)
-    and stored in crew_tokens.json. No password login, no automatic refresh.
+    and stored in crew_tokens.json. No password login.
+
+    Refresh model:
+      - Daemon thread fires every random 55-85 min after a fresh paste.
+      - Each cycle: POST /token with the stored refresh_token, save the new
+        access_token + rotated refresh_token.
+      - On any failure: stop permanently, wait for manual paste.
+      - _auth_headers() also lazily refreshes if a request comes in while
+        the access token is expired or about to expire.
     """
+
+    TOKEN_URL = "https://login.microsoftonline.com/a2addd3e-8397-4579-ba30-7a38803fc3bf/oauth2/v2.0/token"
+    CLIENT_ID = "d4f94e81-080a-4ad3-8513-760529dd325f"
+    SCOPE = "api://d4f94e81-080a-4ad3-8513-760529dd325f/access_as_user openid profile offline_access"
 
     def __init__(self):
         self.base_url = "https://api-avianca.avianca.com/MycreWFlights/api"
@@ -71,6 +85,10 @@ class CrewAPIClient:
         self.refresh_token = None
         self.token_expiry = None
         self.refresh_expiry = None
+
+        self._timer_thread = None
+        self._timer_stop = threading.Event()
+        self._timer_lock = threading.Lock()
 
         self.load_tokens()
 
@@ -90,9 +108,13 @@ class CrewAPIClient:
                     mins_left = int((self.token_expiry - time.time()) / 60)
                     logger.info(f"✅ Crew access token loaded (valid {mins_left} min)")
                 elif self.access_token:
-                    logger.warning("⚠️ Crew access token loaded but expired — paste a new one")
+                    logger.warning("⚠️ Crew access token loaded but expired")
                 else:
                     logger.warning("⚠️ crew_tokens.json exists but has no access_token")
+
+                # Restart the keep-alive daemon if we have a refresh token
+                if self.refresh_token:
+                    self._start_refresh_daemon(reason="startup")
         except Exception as e:
             logger.error(f"Error loading crew tokens: {e}")
 
@@ -124,18 +146,39 @@ class CrewAPIClient:
             logger.error(f"Error saving crew tokens: {e}")
             return False
 
+    def _decode_jwt_exp(self, token):
+        try:
+            payload = jwt.decode(token, options={"verify_signature": False})
+            exp = payload.get('exp')
+            if exp:
+                return max(0, int(exp - time.time()))
+        except Exception as e:
+            logger.warning(f"Could not decode crew JWT: {e}")
+        return None
+
     def set_initial_tokens(self, access_token, refresh_token,
                            expires_in=3600, refresh_expires_in=86400):
         """Called from /api/crew/set_initial_tokens."""
         if not isinstance(access_token, str) or not access_token.startswith('eyJ'):
             logger.error("❌ Invalid access_token — must be a JWT starting with eyJ")
             return False
-        return self.save_tokens(
+
+        # Prefer the JWT's own exp over the passed expires_in
+        jwt_exp = self._decode_jwt_exp(access_token)
+        if jwt_exp is not None:
+            expires_in = jwt_exp
+            logger.info(f"📊 Crew JWT exp: {expires_in} s ({expires_in//60} min)")
+
+        ok = self.save_tokens(
             access_token=access_token,
-            refresh_token=refresh_token or '',
+            refresh_token=refresh_token or self.refresh_token or '',
             expires_in=expires_in,
             refresh_expires_in=refresh_expires_in,
         )
+        if ok:
+            # Fresh paste -> start a new keep-alive cycle
+            self._start_refresh_daemon(reason="fresh paste")
+        return ok
 
     def get_token_status(self):
         current_time = time.time()
@@ -157,18 +200,116 @@ class CrewAPIClient:
             'refresh_expires_in_seconds': refresh_expires_in,
             'access_expires_in_minutes': access_expires_in // 60,
             'refresh_expires_in_hours': refresh_expires_in // 3600,
+            'timer_running': bool(self._timer_thread and self._timer_thread.is_alive()),
         }
+
+    # ---------- refresh + daemon ----------
+
+    def refresh_access_token(self):
+        """Exchange the stored refresh_token for a new access_token.
+        Returns True on success, False on any failure. No retries."""
+        try:
+            if not self.refresh_token:
+                logger.error("❌ No crew refresh token available")
+                return False
+
+            headers = {
+                "Content-Type": "application/x-www-form-urlencoded;charset=utf-8",
+                "Accept": "*/*",
+                "Origin": "https://mycrew.avianca.com",
+                "Referer": "https://mycrew.avianca.com/",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36",
+            }
+            data = {
+                "client_id": self.CLIENT_ID,
+                "scope": self.SCOPE,
+                "refresh_token": self.refresh_token,
+                "grant_type": "refresh_token",
+                "client_info": "1",
+            }
+
+            logger.info("🔄 Refreshing Crew access token...")
+            resp = requests.post(self.TOKEN_URL, data=data, headers=headers, timeout=30)
+
+            if resp.status_code != 200:
+                logger.error(f"❌ Crew refresh failed: {resp.status_code} {resp.text[:200]}")
+                return False
+
+            td = resp.json()
+            new_access = td.get('access_token')
+            new_refresh = td.get('refresh_token', self.refresh_token)
+            expires_in = td.get('expires_in', 3600)
+            refresh_expires_in = td.get('refresh_token_expires_in', 86399)
+
+            jwt_exp = self._decode_jwt_exp(new_access) if new_access else None
+            if jwt_exp is not None:
+                expires_in = jwt_exp
+
+            if not new_access:
+                logger.error("❌ Crew refresh response missing access_token")
+                return False
+
+            ok = self.save_tokens(
+                access_token=new_access,
+                refresh_token=new_refresh,
+                expires_in=expires_in,
+                refresh_expires_in=refresh_expires_in,
+            )
+            if ok:
+                logger.info(f"✅ Crew token refreshed (valid {expires_in//60} min)")
+            return ok
+
+        except Exception as e:
+            logger.error(f"❌ Crew refresh error: {e}")
+            return False
+
+    def _start_refresh_daemon(self, reason=""):
+        """(Re)start the keep-alive daemon thread. Safe to call repeatedly."""
+        with self._timer_lock:
+            # Stop any existing timer
+            if self._timer_thread and self._timer_thread.is_alive():
+                self._timer_stop.set()
+                logger.info(f"🛑 Stopping previous crew refresh daemon ({reason})")
+            self._timer_stop = threading.Event()
+            self._timer_thread = threading.Thread(
+                target=self._refresh_loop,
+                args=(self._timer_stop,),
+                daemon=True,
+                name="crew-refresh-daemon",
+            )
+            self._timer_thread.start()
+            logger.info(f"⏱️ Crew refresh daemon started ({reason})")
+
+    def _refresh_loop(self, stop_event):
+        """Random 55-85 min cycle. Stop permanently on any refresh failure."""
+        while not stop_event.is_set():
+            sleep_seconds = random.randint(55 * 60, 85 * 60)
+            logger.info(f"⏱️ Crew next refresh in {sleep_seconds//60} min")
+            if stop_event.wait(timeout=sleep_seconds):
+                logger.info("🛑 Crew refresh daemon stopped")
+                return
+
+            ok = self.refresh_access_token()
+            if not ok:
+                logger.error("❌ Crew refresh failed — daemon stopping until next manual paste")
+                return
 
     # ---------- internal guard ----------
 
     def _auth_headers(self):
-        """Returns a headers dict if we have a valid access token, else None."""
+        """Returns headers dict if we have a valid access token, else None.
+        Lazily refreshes if the access token is expired or about to expire."""
         if not self.access_token:
             logger.error("❌ No crew access token — paste one at /paxlist")
             return None
-        if self.token_expiry and time.time() >= self.token_expiry:
-            logger.error("❌ Crew access token expired — paste a new one at /paxlist")
-            return None
+
+        # Refresh if expired or <300s remaining
+        if not self.token_expiry or (self.token_expiry - time.time()) < 300:
+            logger.info("🔄 Access token expired/near expiry — refreshing before request")
+            if not self.refresh_access_token():
+                logger.error("❌ Crew token refresh failed — paste new tokens at /paxlist")
+                return None
+
         return {
             "Authorization": f"Bearer {self.access_token}",
             "Ocp-Apim-Subscription-Key": self.subscription_key,
@@ -189,6 +330,14 @@ class CrewAPIClient:
             url = f"{self.base_url}/Assignements/AssignmentsComplete"
             params = {"timeZoneOffset": -300, "crewMemberUniqueId": target_crew_id}
             response = self.session.get(url, params=params, headers=headers, timeout=30)
+
+            if response.status_code == 401:
+                logger.warning("🔄 Got 401 on schedule — refreshing once")
+                if self.refresh_access_token():
+                    headers = self._auth_headers()
+                    if headers:
+                        response = self.session.get(url, params=params, headers=headers, timeout=30)
+
             if response.status_code == 200:
                 data = response.json()
                 logger.info(f"✅ get_schedule_data: {len(data)} months")
@@ -233,6 +382,14 @@ class CrewAPIClient:
                 "timeZoneOffset": -300,
             }
             response = self.session.get(url, params=params, headers=headers, timeout=30)
+
+            if response.status_code == 401:
+                logger.warning("🔄 Got 401 on assignments — refreshing once")
+                if self.refresh_access_token():
+                    headers = self._auth_headers()
+                    if headers:
+                        response = self.session.get(url, params=params, headers=headers, timeout=30)
+
             if response.status_code == 200:
                 data = response.json()
                 logger.info(f"✅ Fetched {len(data)} assignments for {year}-{month:02d}")
@@ -308,7 +465,7 @@ class CrewAPIClient:
             logger.error(f"❌ get_flight_details_from_assignment error: {e}")
             return None
 
-    # ---------- NEW: SearchFlight ----------
+    # ---------- SearchFlight ----------
 
     def search_flight(self, airline, flight_number, departure_date, origin_airport):
         """Look up the real operational number + exact scheduled departure time."""
@@ -1102,11 +1259,14 @@ def set_crew_initial_tokens():
         access_token = data.get('access_token')
         refresh_token = data.get('refresh_token', '')
         expires_in = int(data.get('expires_in', 3600))
+        refresh_expires_in = int(data.get('refresh_expires_in', 86399))
 
         if not access_token:
             return jsonify({'success': False, 'message': 'Missing access_token'}), 400
 
-        if client.set_initial_tokens(access_token, refresh_token, expires_in=expires_in):
+        if client.set_initial_tokens(access_token, refresh_token,
+                                     expires_in=expires_in,
+                                     refresh_expires_in=refresh_expires_in):
             return jsonify({'success': True, 'message': 'Crew tokens saved'})
     except Exception as e:
         logger.error(f"Error setting crew tokens: {e}")
@@ -1432,5 +1592,6 @@ def fetch_data():
 
 if __name__ == "__main__":
     logger.info("🚀 Starting Crew Schedule Application with Paxlist Integration...")
-    logger.info("📊 Crew auth: manual token paste via /paxlist (no password login)")
+    logger.info("📊 Crew auth: manual token paste via /paxlist")
+    logger.info("⏱️ Crew refresh daemon: random 55-85 min, stops on failure")
     app.run(host='0.0.0.0', port=8000, debug=False)

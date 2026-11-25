@@ -1609,11 +1609,49 @@ def minimal_view():
         )
         month_calendar = create_calendar_view_data(schedule_data[0])
 
+    now_local = get_utc_minus_5()
+    yesterday_str = (now_local - timedelta(days=1)).strftime('%Y-%m-%d')
+    today_str = now_local.strftime('%Y-%m-%d')
+    tomorrow_str = (now_local + timedelta(days=1)).strftime('%Y-%m-%d')
+    target_dates = {yesterday_str, today_str, tomorrow_str}
+
+    lazy_gate_flights = []
+
+    if schedule_data and isinstance(schedule_data, list) and schedule_data:
+        for day in schedule_data[0]:
+            if not day:
+                continue
+            day_start = day.get('StartDate', '')
+            day_date = day_start[:10] if day_start else ''
+            if day_date not in target_dates:
+                continue
+            for assignment in day.get('AssignementList', []):
+                flight_data = assignment.get('FlighAssignement') or {}
+                if not flight_data or flight_data.get('CommercialFlightNumber') == "XXX":
+                    continue
+                flight_number = flight_data.get('CommercialFlightNumber', '')
+                operational_number = flight_data.get('OperationalNumber', '')
+                departure_date = flight_data.get('ScheduledDepartureDate', '')
+                origin_airport = flight_data.get('OriginAirportIATACode', '').strip()
+                airline = flight_data.get('Airline', 'AV')
+                if not all([flight_number, operational_number, departure_date, origin_airport]):
+                    continue
+                key = f"{flight_number}_{operational_number}_{departure_date}"
+                lazy_gate_flights.append({
+                    'key': key,
+                    'airline': airline,
+                    'flight_number': flight_number,
+                    'departure_date': departure_date,
+                    'origin_airport': origin_airport,
+                    'operational_number': operational_number,
+                })
+
     return render_template('minimal.html',
         current_crew_id=crew_id,
         month_name=month_name,
         month_calendar=month_calendar,
-        current_date=now.strftime('%Y-%m-%d')
+        current_date=now.strftime('%Y-%m-%d'),
+        lazy_gate_flights=lazy_gate_flights
     )
 @app.route('/fetch')
 def fetch_data():

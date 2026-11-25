@@ -13,12 +13,12 @@
         * { box-sizing: border-box; }
         html, body {
             margin: 0; padding: 0;
-            background: #121212; color: #f0f0f0;
+            background: #000000; color: #f0f0f0;
             font-family: Arial, sans-serif;
         }
         .container {
             width: 1080px; margin: 0 auto;
-            background: #2a2a2a;
+            background: #000000;
             min-height: 100vh;
             padding: 10px;
         }
@@ -57,11 +57,11 @@
             display: flex; align-items: center; justify-content: center;
         }
         .assignment-item {
-            background: #2a2a2a; padding: 3px;
+            background: #000000; padding: 3px;
             margin: 2px 0; border-radius: 3px;
             font-size: 0.8em;
         }
-        .assignment-item.ground { background: #3a3a2a; }
+        .assignment-item.ground { background: #000000; }
         .flight-number {
             font-weight: bold; color: #ffc107; font-size: 1.76em;
             display: inline;
@@ -73,6 +73,9 @@
         .gate-new-label {
             font-weight: bold; color: #ffffff; font-size: 1.4em;
             display: inline; margin-left: 4px;
+        }
+        .gate-info {
+            display: inline;
         }
         .route {
             font-size: 1.54em; color: #f0f0f0;
@@ -99,14 +102,15 @@
             font-size: 1.32em; color: #f0f0f0; font-weight: bold;
         }
         .refresh-wrap {
-            display: flex; justify-content: center;
+            display: flex; justify-content: flex-end;
             margin: 20px 0;
+            padding-right: 40px;
         }
         .refresh-btn {
             width: 120px; height: 120px;
             background: #555; color: white;
             border: none; border-radius: 50%;
-            font-size: 48px; cursor: pointer;
+            font-size: 48px; font-weight: bold; cursor: pointer;
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
             display: flex; align-items: center; justify-content: center;
             transition: all 0.3s ease;
@@ -147,9 +151,7 @@
                                 {% set gate_mapping = {'11':'C1','12':'C2','13':'C3','15':'C5','17':'B8','19':'B7','20':'B7','22':'B6','24':'B5','27':'B3','29':'B2','32':'B1','34':'A1','36':'A2','38':'A3','41':'A4','43':'A5','45':'A6','47':'A8','48':'A9','49':'A10','51':'A11','53':'A12','54':'A13','56':'A14','71':'D1','72':'D3','73':'D5','74':'D9','75':'D11','76':'D13','79':'D15','80':'D15','83':'D15','84':'D14','85':'D12','86':'D10','87':'D8','88':'D4','89':'D2'} %}
                                 <div class="assignment-item">
                                     <div>
-                                        <span class="flight-number">{{ assignment.flight_number }}</span>
-                                        {% if stand_clean %}<span class="departure-stand">{{ stand_clean }}</span>{% endif %}
-                                        {% if assignment.origin == "BOG" and stand_clean %}{% set new_gate = gate_mapping.get(stand_clean) %}{% if new_gate %}<span class="gate-new-label">{{ new_gate }}</span>{% endif %}{% endif %}
+                                        <span class="flight-number">{{ assignment.flight_number }}</span><span class="gate-info" data-gate-key="{{ assignment.gate_key }}"{% if stand_clean %} style="display:none;"{% endif %}></span>{% if stand_clean %}<span class="departure-stand">{{ stand_clean }}</span>{% if assignment.origin == "BOG" %}{% set new_gate = gate_mapping.get(stand_clean) %}{% if new_gate %}<span class="gate-new-label">{{ new_gate }}</span>{% endif %}{% endif %}{% endif %}
                                     </div>
                                     <div class="route">
                                         {{ assignment.origin }}-{{ assignment.destination }}<span class="status-dot {% if assignment.time_delayed %}delayed{% else %}on-time{% endif %}"></span>
@@ -177,7 +179,7 @@
     </div>
 
     <div class="refresh-wrap">
-        <button class="refresh-btn" onclick="refreshMinimal()" title="Refresh">↻</button>
+        <button class="refresh-btn" onclick="refreshMinimal()" title="Refresh">S</button>
     </div>
 </div>
 
@@ -188,6 +190,44 @@ function refreshMinimal() {
     btn.disabled = true;
     window.location.reload();
 }
+
+(function loadLazyGates() {
+    const lazyFlights = {{ lazy_gate_flights | tojson }};
+    if (!lazyFlights || lazyFlights.length === 0) return;
+
+    fetch('/api/today_flight_gates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ flights: lazyFlights })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (!data.success || !data.gates) return;
+        const bad = ['null', 'none', 'undefined', 'nan', ''];
+        Object.entries(data.gates).forEach(([key, info]) => {
+            let gate = (info && info.gate) ? String(info.gate).trim() : '';
+            let mappedGate = (info && info.mapped_gate) ? String(info.mapped_gate).trim() : '';
+            if (bad.includes(gate.toLowerCase())) gate = '';
+            if (bad.includes(mappedGate.toLowerCase())) mappedGate = '';
+            if (!gate) return;
+            const el = document.querySelector('[data-gate-key="' + key + '"]');
+            if (!el) return;
+            el.innerHTML = '';
+            const standSpan = document.createElement('span');
+            standSpan.className = 'departure-stand';
+            standSpan.textContent = gate;
+            el.appendChild(standSpan);
+            if (mappedGate) {
+                const mappedSpan = document.createElement('span');
+                mappedSpan.className = 'gate-new-label';
+                mappedSpan.textContent = mappedGate;
+                el.appendChild(mappedSpan);
+            }
+            el.style.display = '';
+        });
+    })
+    .catch(err => console.error('Gate fetch error:', err));
+})();
 </script>
 </body>
 </html>

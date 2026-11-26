@@ -63,10 +63,12 @@ class CrewAPIClient:
     and stored in crew_tokens.json. No password login.
 
     Refresh model:
-      - Daemon thread fires every random 55-85 min after a fresh paste.
+      - Daemon thread fires every random 45-55 min after a fresh paste.
       - Each cycle: POST /token with the stored refresh_token, save the new
         access_token + rotated refresh_token.
-      - On any failure: stop permanently, wait for manual paste.
+      - If a refresh is rejected because the token expired (400/401/403) or
+        the 24h refresh window is over: refreshes are blocked (refresh_blocked)
+        until new tokens are pasted.
       - _auth_headers() also lazily refreshes if a request comes in while
         the access token is expired or about to expire.
     """
@@ -89,6 +91,10 @@ class CrewAPIClient:
         self._timer_thread = None
         self._timer_stop = threading.Event()
         self._timer_lock = threading.Lock()
+
+        # Set when a refresh is rejected because the token expired.
+        # Cleared when new tokens are pasted.
+        self.refresh_blocked = False
 
         self.load_tokens()
 
@@ -176,7 +182,8 @@ class CrewAPIClient:
             refresh_expires_in=refresh_expires_in,
         )
         if ok:
-            # Fresh paste -> start a new keep-alive cycle
+            # Fresh paste -> clear the block and start a new keep-alive cycle
+            self.refresh_blocked = False
             self._start_refresh_daemon(reason="fresh paste")
         return ok
 
@@ -201,16 +208,28 @@ class CrewAPIClient:
             'access_expires_in_minutes': access_expires_in // 60,
             'refresh_expires_in_hours': refresh_expires_in // 3600,
             'timer_running': bool(self._timer_thread and self._timer_thread.is_alive()),
+            'refresh_blocked': self.refresh_blocked,
         }
 
     # ---------- refresh + daemon ----------
 
     def refresh_access_token(self):
         """Exchange the stored refresh_token for a new access_token.
-        Returns True on success, False on any failure. No retries."""
+        Returns True on success, False on any failure. No retries.
+        If the failure is a token-expiration rejection, further refreshes
+        are blocked until new tokens are pasted."""
+        if self.refresh_blocked:
+            logger.warning("⛔ Crew refresh blocked — paste new tokens at /paxlist")
+            return False
+
         try:
             if not self.refresh_token:
                 logger.error("❌ No crew refresh token available")
+                return False
+
+            if self.refresh_expiry and time.time() >= self.refresh_expiry:
+                logger.error("❌ Crew refresh token expired (24h limit) — refreshes stopped")
+                self.refresh_blocked = True
                 return False
 
             headers = {
@@ -233,6 +252,9 @@ class CrewAPIClient:
 
             if resp.status_code != 200:
                 logger.error(f"❌ Crew refresh failed: {resp.status_code} {resp.text[:200]}")
+                if resp.status_code in (400, 401, 403):   # token expired or rejected
+                    self.refresh_blocked = True
+                    logger.error("⛔ Crew refreshes stopped until new tokens are pasted")
                 return False
 
             td = resp.json()
@@ -281,9 +303,9 @@ class CrewAPIClient:
             logger.info(f"⏱️ Crew refresh daemon started ({reason})")
 
     def _refresh_loop(self, stop_event):
-        """Random 55-85 min cycle. Stop permanently on any refresh failure."""
+        """Random 45-55 min cycle. Stop permanently on any refresh failure."""
         while not stop_event.is_set():
-            sleep_seconds = random.randint(55 * 60, 85 * 60)
+            sleep_seconds = random.randint(45 * 60, 55 * 60)
             logger.info(f"⏱️ Crew next refresh in {sleep_seconds//60} min")
             if stop_event.wait(timeout=sleep_seconds):
                 logger.info("🛑 Crew refresh daemon stopped")
@@ -435,6 +457,8 @@ class CrewAPIClient:
 
             url = (f"{self.base_url}/FlightDetails/FlightMembersTeam/{airline}/"
                    f"{flight_number}/{departure_date}/{origin_airport}/{operational_number}")
+            # NOTE: originAirportIATACode intentionally receives operational_number
+            # (API quirk: it was changed on the server side and this version works).
             body = {
                 "commercialFlightNumber": flight_number,
                 "departureflightDate": departure_date,
@@ -1674,5 +1698,5 @@ def fetch_data():
 if __name__ == "__main__":
     logger.info("🚀 Starting Crew Schedule Application with Paxlist Integration...")
     logger.info("📊 Crew auth: manual token paste via /paxlist")
-    logger.info("⏱️ Crew refresh daemon: random 55-85 min, stops on failure")
+    logger.info("⏱️ Crew refresh daemon: random 45-55 min, blocks refreshes on token expiration error")
     app.run(host='0.0.0.0', port=8000, debug=False)
